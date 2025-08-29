@@ -19,7 +19,8 @@ Add this to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  gossip: ^1.0.0
+  gossip:
+    git: https://github.com/da1nerd/gossip.git
 ```
 
 Then run:
@@ -334,13 +335,13 @@ The test suite includes:
 
 ## Contributing
 
-1. Fork the repository
+1. Fork the repository at https://github.com/da1nerd/gossip
 2. Create a feature branch (`git checkout -b feature/awesome-feature`)
 3. Add tests for your changes
 4. Ensure all tests pass (`dart test`)
 5. Commit your changes (`git commit -am 'Add awesome feature'`)
 6. Push to the branch (`git push origin feature/awesome-feature`)
-7. Create a Pull Request
+7. Create a Pull Request on GitHub
 
 ## License
 
