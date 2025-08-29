@@ -1,6 +1,9 @@
-# Gossip Protocol Library for Dart
+![Alt text](images/logo.png)
 
-A Dart library for implementing gossip-based distributed event synchronization. This library provides the core logic for gossip protocols, allowing nodes to exchange and synchronize events in a distributed system while remaining transport-agnostic.
+  # Gossip Protocol Library for Dart
+
+  A Dart library for implementing gossip-based distributed event synchronization. This library provides the core logic for gossip protocols, allowing nodes to exchange and synchronize events in a distributed system while remaining transport-agnostic.
+</div>
 
 ## Features
 
@@ -329,7 +332,7 @@ The test suite includes:
 ## Performance Characteristics
 
 - **Convergence Time**: O(log N) rounds for N nodes
-- **Message Complexity**: O(fanout) messages per round per node  
+- **Message Complexity**: O(fanout) messages per round per node
 - **Memory Usage**: O(events × nodes) for vector clocks
 - **Network Bandwidth**: Configurable via message size limits
 
