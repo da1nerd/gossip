@@ -7,17 +7,20 @@ import 'dart:math';
 /// Represents a generic event in the system.
 ///
 /// Each event has a unique ID, the ID of the node that created it,
-/// a timestamp, and a payload.
+/// a logical timestamp for causality, a creation timestamp for total ordering,
+/// and a payload.
 class Event {
   final String id;
   final String nodeId;
-  final int timestamp;
+  final int timestamp; // Logical timestamp from Vector Clock
+  final int creationTimestamp; // Wall-clock time for reporting
   final Map<String, dynamic> payload;
 
   Event({
     required this.id,
     required this.nodeId,
     required this.timestamp,
+    required this.creationTimestamp,
     required this.payload,
   });
 
@@ -27,6 +30,7 @@ class Event {
       id: json['id'],
       nodeId: json['nodeId'],
       timestamp: json['timestamp'],
+      creationTimestamp: json['creationTimestamp'],
       payload: Map<String, dynamic>.from(json['payload']),
     );
   }
@@ -37,13 +41,14 @@ class Event {
       'id': id,
       'nodeId': nodeId,
       'timestamp': timestamp,
+      'creationTimestamp': creationTimestamp,
       'payload': payload,
     };
   }
 
   @override
   String toString() {
-    return 'Event(id: $id, nodeId: $nodeId, timestamp: $timestamp, payload: $payload)';
+    return 'Event(id: $id, nodeId: $nodeId, timestamp: $timestamp, creationTimestamp: $creationTimestamp, payload: $payload)';
   }
 }
 
@@ -103,6 +108,7 @@ class InMemoryEventStore implements EventStore {
     // Avoid duplicates
     if (!_events.any((e) => e.id == event.id)) {
       _events.add(event);
+      // Sorting by logical timestamp is important for the protocol's internal logic
       _events.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     }
   }
@@ -131,7 +137,7 @@ class Node {
   final Random _random = Random();
 
   Node(this.id, {EventStore? eventStore})
-      : _eventStore = eventStore ?? InMemoryEventStore();
+    : _eventStore = eventStore ?? InMemoryEventStore();
 
   /// Adds a peer to this node's list of known peers.
   void addPeer(Node peer) {
@@ -147,6 +153,8 @@ class Node {
       id: '${id}_${_vectorClock.getTimestampFor(id)}',
       nodeId: id,
       timestamp: _vectorClock.getTimestampFor(id),
+      creationTimestamp:
+          DateTime.now().millisecondsSinceEpoch, // Set wall-clock time
       payload: payload,
     );
     await _eventStore.saveEvent(event);
@@ -169,7 +177,10 @@ class Node {
   }
 
   /// Step 2: Receive a digest, compare it with our knowledge, and request missing events.
-  Future<void> onReceiveGossipDigest(Node fromNode, Map<String, int> digest) async {
+  Future<void> onReceiveGossipDigest(
+    Node fromNode,
+    Map<String, int> digest,
+  ) async {
     final eventsToSend = <Event>[];
     final theirClock = VectorClock();
     digest.forEach((nodeId, timestamp) {
@@ -179,7 +190,10 @@ class Node {
     // Find events the other node doesn't have
     for (var entry in _vectorClock.summary.entries) {
       if (entry.value > theirClock.getTimestampFor(entry.key)) {
-        final missingEvents = await _eventStore.getEventsSince(entry.key, theirClock.getTimestampFor(entry.key));
+        final missingEvents = await _eventStore.getEventsSince(
+          entry.key,
+          theirClock.getTimestampFor(entry.key),
+        );
         eventsToSend.addAll(missingEvents);
       }
     }
@@ -187,35 +201,46 @@ class Node {
     // Prepare a request for events we are missing
     final myMissingEventsRequest = <String, int>{};
     for (var entry in digest.entries) {
-        if (entry.value > _vectorClock.getTimestampFor(entry.key)) {
-            myMissingEventsRequest[entry.key] = _vectorClock.getTimestampFor(entry.key);
-        }
+      if (entry.value > _vectorClock.getTimestampFor(entry.key)) {
+        myMissingEventsRequest[entry.key] = _vectorClock.getTimestampFor(
+          entry.key,
+        );
+      }
     }
 
-    await fromNode.onReceiveEventRequest(this, eventsToSend, myMissingEventsRequest);
+    await fromNode.onReceiveEventRequest(
+      this,
+      eventsToSend,
+      myMissingEventsRequest,
+    );
   }
 
   /// Step 3: Receive a request for events, send them back, and process their request.
-  Future<void> onReceiveEventRequest(Node fromNode, List<Event> events, Map<String, int> requestForMissing) async {
+  Future<void> onReceiveEventRequest(
+    Node fromNode,
+    List<Event> events,
+    Map<String, int> requestForMissing,
+  ) async {
     // Save the events they sent us
     for (final event in events) {
-        await _eventStore.saveEvent(event);
-        _vectorClock.merge(VectorClock().._clocks[event.nodeId] = event.timestamp);
+      await _eventStore.saveEvent(event);
+      _vectorClock.merge(
+        VectorClock().._clocks[event.nodeId] = event.timestamp,
+      );
     }
-    if(events.isNotEmpty) {
-        print('$id received ${events.length} events from ${fromNode.id}');
+    if (events.isNotEmpty) {
+      print('$id received ${events.length} events from ${fromNode.id}');
     }
-
 
     // Fulfill their request for events they are missing
     final eventsToSendBack = <Event>[];
-    for(var entry in requestForMissing.entries) {
-        final missing = await _eventStore.getEventsSince(entry.key, entry.value);
-        eventsToSendBack.addAll(missing);
+    for (var entry in requestForMissing.entries) {
+      final missing = await _eventStore.getEventsSince(entry.key, entry.value);
+      eventsToSendBack.addAll(missing);
     }
 
-    if(eventsToSendBack.isNotEmpty) {
-        await fromNode.onReceiveFinalEvents(this, eventsToSendBack);
+    if (eventsToSendBack.isNotEmpty) {
+      await fromNode.onReceiveFinalEvents(this, eventsToSendBack);
     }
   }
 
@@ -223,7 +248,9 @@ class Node {
   Future<void> onReceiveFinalEvents(Node fromNode, List<Event> events) async {
     for (final event in events) {
       await _eventStore.saveEvent(event);
-      _vectorClock.merge(VectorClock().._clocks[event.nodeId] = event.timestamp);
+      _vectorClock.merge(
+        VectorClock().._clocks[event.nodeId] = event.timestamp,
+      );
     }
     print('$id received final ${events.length} events from ${fromNode.id}');
     print('$id state after gossip: ${_vectorClock}');
@@ -233,7 +260,10 @@ class Node {
   Future<void> printEvents() async {
     final events = await _eventStore.getAllEvents();
     print('--- Events for Node $id ---');
-    events.forEach(print);
+    // For reporting, you could sort by creationTimestamp here
+    final sortedForReporting = List<Event>.from(events)
+      ..sort((a, b) => a.creationTimestamp.compareTo(b.creationTimestamp));
+    sortedForReporting.forEach(print);
     print('--------------------------');
   }
 }
@@ -266,7 +296,6 @@ void main() async {
   await nodeB.printEvents();
   await nodeC.printEvents();
 
-
   // 4. Start gossiping to sync events
   print('\n--- Gossiping ---');
   final random = Random();
@@ -283,17 +312,15 @@ void main() async {
 
   // 6. More gossiping
   print('\n--- More Gossiping ---');
-    for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 5; i++) {
     final nodes = [nodeA, nodeB, nodeC];
     final gossipingNode = nodes[random.nextInt(nodes.length)];
     await gossipingNode.gossip();
     await Future.delayed(Duration(milliseconds: 50));
   }
 
-
   print('\n--- Final State ---');
   await nodeA.printEvents();
   await nodeB.printEvents();
   await nodeC.printEvents();
 }
-
