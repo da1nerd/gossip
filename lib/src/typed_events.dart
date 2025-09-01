@@ -72,9 +72,10 @@ extension TypedGossipNode on GossipNode {
         final eventType = event.payload['type'] as String?;
         if (eventType == null) return false;
 
-        // Create a test instance to get the type
-        final testInstance = fromJson({});
-        return eventType == testInstance.type;
+        final registry = TypedEventRegistry();
+        final filterType = registry.getType<T>();
+
+        return eventType == filterType;
       } catch (e) {
         return false;
       }
@@ -111,8 +112,10 @@ extension TypedSimpleGossipNode on SimpleGossipNode {
         final eventType = event.payload['type'] as String?;
         if (eventType == null) return false;
 
-        final testInstance = fromJson({});
-        return eventType == testInstance.type;
+        final registry = TypedEventRegistry();
+        final filterType = registry.getType<T>();
+
+        return eventType == filterType;
       } catch (e) {
         return false;
       }
@@ -159,6 +162,7 @@ class TypedEventRegistry {
   TypedEventRegistry._internal();
 
   final Map<String, TypedEvent Function(Map<String, dynamic>)> _factories = {};
+  final Map<Type, String> _types = {};
 
   /// Registers a typed event factory.
   ///
@@ -170,6 +174,7 @@ class TypedEventRegistry {
     T Function(Map<String, dynamic>) factory,
   ) {
     _factories[type] = factory;
+    _types[T] = type;
   }
 
   /// Creates a typed event from JSON using the registry.
@@ -189,6 +194,9 @@ class TypedEventRegistry {
 
   /// Checks if a type is registered.
   bool isRegistered(String type) => _factories.containsKey(type);
+
+  /// Gets the type identifier for a given TypedEvent subclass.
+  String? getType<T extends TypedEvent>() => _types[T];
 
   /// Clears all registered factories (useful for testing).
   void clear() => _factories.clear();
