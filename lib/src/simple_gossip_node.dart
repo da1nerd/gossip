@@ -126,6 +126,8 @@ class SimpleGossipNode {
     final newPeers = currentPeers.difference(_lastKnownPeers);
     for (final peerId in newPeers) {
       _peerJoinedController.add(peerId);
+      // Sync historical events to the newly joined peer
+      _syncHistoricalEventsToPeer(peerId);
     }
 
     // Find peers that left
@@ -135,6 +137,83 @@ class SimpleGossipNode {
     }
 
     _lastKnownPeers = currentPeers;
+  }
+
+  /// Syncs all historical events to a specific peer.
+  ///
+  /// This is called when a new peer connects to ensure they receive
+  /// all events that occurred before they joined the network.
+  Future<void> _syncHistoricalEventsToPeer(String peerId) async {
+    if (!_started) return;
+
+    try {
+      // Get all historical events from our event store
+      final allEvents = await eventStore.getAllEvents();
+
+      if (allEvents.isEmpty) return;
+
+      print('📚 Syncing ${allEvents.length} historical events to peer $peerId');
+
+      // Send events in chronological order
+      final sortedEvents = List<Event>.from(allEvents)
+        ..sort((a, b) => a.creationTimestamp.compareTo(b.creationTimestamp));
+
+      int successCount = 0;
+      for (final event in sortedEvents) {
+        try {
+          await transport.sendEventToPeer(peerId, event);
+          successCount++;
+        } catch (e) {
+          print('❌ Failed to sync event ${event.id} to peer $peerId: $e');
+          // Don't continue if peer is unreachable
+          break;
+        }
+      }
+
+      print(
+          '✅ Successfully synced $successCount/${allEvents.length} historical events to peer $peerId');
+    } catch (e) {
+      print('❌ Failed to sync historical events to peer $peerId: $e');
+    }
+  }
+
+  /// Manually sync historical events to a specific peer.
+  ///
+  /// This can be called externally if needed to re-sync events
+  /// to a specific peer.
+  Future<void> syncHistoricalEventsToPeer(String peerId) async {
+    if (!_started) {
+      throw StateError('Node not started');
+    }
+
+    if (!transport.connectedPeerIds.contains(peerId)) {
+      throw ArgumentError('Peer $peerId is not connected');
+    }
+
+    await _syncHistoricalEventsToPeer(peerId);
+  }
+
+  /// Sync historical events to all currently connected peers.
+  ///
+  /// This can be useful for ensuring all peers have the complete
+  /// event history, for example after recovering from a network partition.
+  Future<void> syncHistoricalEventsToAllPeers() async {
+    if (!_started) {
+      throw StateError('Node not started');
+    }
+
+    final peers = transport.connectedPeerIds;
+    if (peers.isEmpty) {
+      print('⚠️ No connected peers to sync historical events to');
+      return;
+    }
+
+    print('📚 Syncing historical events to ${peers.length} peers');
+
+    final futures = peers.map((peerId) => _syncHistoricalEventsToPeer(peerId));
+    await Future.wait(futures, eagerError: false);
+
+    print('✅ Historical event sync completed for all peers');
   }
 
   /// Stream of events created by this node

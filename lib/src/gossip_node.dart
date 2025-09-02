@@ -224,6 +224,7 @@ class GossipNode {
   ///
   /// The peer will be included in future gossip exchanges and peer
   /// selection algorithms.
+  /// TODO: this is not used
   void addPeer(GossipPeer peer) {
     if (peer.id == config.nodeId) {
       throw ArgumentError('Cannot add self as peer');
@@ -239,6 +240,7 @@ class GossipNode {
   /// Removes a peer from the gossip network.
   ///
   /// Returns true if the peer was found and removed, false otherwise.
+  /// TODO: this is not used
   bool removePeer(String peerId) {
     final peerIndex = _peers.indexWhere((p) => p.id == peerId);
     if (peerIndex >= 0) {
@@ -306,7 +308,7 @@ class GossipNode {
         }
       }
     } catch (e) {
-      // Log discovery failure but don't throw - this is best effort
+      // TODO: Log discovery failure but don't throw - this is best effort
     }
   }
 
@@ -409,6 +411,7 @@ class GossipNode {
   /// Starts the peer discovery timer.
   void _startPeerDiscoveryTimer() {
     _peerDiscoveryTimer = Timer.periodic(
+      // TODO: make this duration configurable
       const Duration(minutes: 1), // Discovery every minute
       (_) => discoverPeers(),
     );

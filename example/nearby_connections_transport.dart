@@ -189,6 +189,31 @@ class NearbyConnectionsTransport implements SimpleGossipTransport {
   @override
   Stream<Event> get incomingEvents => _incomingEventsController.stream;
 
+  Future<void> sendEventToPeer(String peerId, Event event) async {
+    if (!_initialized) {
+      throw StateError('Transport not initialized');
+    }
+
+    if (!_connectedPeers.contains(peerId)) {
+      print('⚠️ Peer $peerId is not connected, cannot send event');
+      return;
+    }
+
+    final message = jsonEncode(event.toJson());
+    final bytes = Uint8List.fromList(utf8.encode(message));
+
+    try {
+      // In a real implementation:
+      // await Nearby().sendBytesPayload(peerId, bytes);
+      print('✉️ Sent event ${event.id} to peer $peerId');
+    } catch (e) {
+      print('❌ Failed to send event to $peerId: $e');
+      // Remove failed peer from connected list
+      _connectedPeers.remove(peerId);
+      rethrow;
+    }
+  }
+
   @override
   List<String> get connectedPeerIds => _connectedPeers.toList();
 

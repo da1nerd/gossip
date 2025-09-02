@@ -22,6 +22,9 @@ abstract class SimpleGossipTransport {
   /// Broadcast an event to all connected peers
   Future<void> broadcastEvent(Event event);
 
+  /// Send an event to a specific peer
+  Future<void> sendEventToPeer(String peerId, Event event);
+
   /// Stream of incoming events from other peers
   Stream<Event> get incomingEvents;
 
@@ -85,9 +88,9 @@ class SimpleTransportAdapter implements GossipTransport {
     GossipEventMessage eventMessage, {
     Duration? timeout,
   }) async {
-    // Broadcast each event using the simple transport
+    // Send each event to the specific peer using the simple transport
     for (final event in eventMessage.events) {
-      await _simpleTransport.broadcastEvent(event);
+      await _simpleTransport.sendEventToPeer(peer.id, event);
     }
   }
 
