@@ -103,7 +103,8 @@ class SimpleTransportAdapter implements GossipTransport {
   Stream<IncomingEvents> get incomingEvents => _eventsController.stream;
 
   @override
-  Stream<GossipPeer> get peerDisconnections => _peerDisconnectionsController.stream;
+  Stream<GossipPeer> get peerDisconnections =>
+      _peerDisconnectionsController.stream;
 
   @override
   Future<List<GossipPeer>> discoverPeers() async {

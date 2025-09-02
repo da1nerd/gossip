@@ -5,6 +5,8 @@
 /// tracking and a flexible payload for application data.
 library;
 
+import 'transport.dart';
+
 /// Represents a generic event in the distributed system.
 ///
 /// Each event has a unique ID, the ID of the node that created it,
@@ -126,8 +128,8 @@ class Event {
     return id == other.id &&
         nodeId == other.nodeId &&
         timestamp == other.timestamp &&
-        creationTimestamp == other.creationTimestamp &&
-        _mapEquals(payload, other.payload);
+        creationTimestamp == other.creationTimestamp; // &&
+    // _mapEquals(payload, other.payload);
   }
 
   @override
@@ -137,7 +139,6 @@ class Event {
       nodeId,
       timestamp,
       creationTimestamp,
-      _mapHashCode(payload),
     );
   }
 
@@ -146,68 +147,47 @@ class Event {
     return 'Event(id: $id, nodeId: $nodeId, timestamp: $timestamp, '
         'creationTimestamp: $creationTimestamp, payload: $payload)';
   }
+}
 
-  /// Deep equality check for maps.
-  static bool _mapEquals(Map<String, dynamic> a, Map<String, dynamic> b) {
-    if (a.length != b.length) return false;
-    for (final key in a.keys) {
-      if (!b.containsKey(key)) return false;
-      final aValue = a[key];
-      final bValue = b[key];
-      if (aValue is Map && bValue is Map) {
-        if (!_mapEquals(aValue.cast(), bValue.cast())) return false;
-      } else if (aValue is List && bValue is List) {
-        if (!_listEquals(aValue, bValue)) return false;
-      } else if (aValue != bValue) {
-        return false;
-      }
-    }
-    return true;
-  }
+/// A wrapper around an Event that includes information about the peer that sent it.
+///
+/// This is used by the gossip node to provide additional context when events
+/// are received from remote peers, allowing applications to correlate transport
+/// peer information with gossip events.
+class ReceivedEvent {
+  /// The event that was received.
+  final Event event;
 
-  /// Deep equality check for lists.
-  static bool _listEquals(List a, List b) {
-    if (a.length != b.length) return false;
-    for (int i = 0; i < a.length; i++) {
-      final aItem = a[i];
-      final bItem = b[i];
-      if (aItem is Map && bItem is Map) {
-        if (!_mapEquals(aItem.cast(), bItem.cast())) return false;
-      } else if (aItem is List && bItem is List) {
-        if (!_listEquals(aItem, bItem)) return false;
-      } else if (aItem != bItem) {
-        return false;
-      }
-    }
-    return true;
-  }
+  /// The peer that sent this event.
+  final GossipPeer fromPeer;
 
-  /// Compute hash code for nested map structures.
-  static int _mapHashCode(Map<String, dynamic> map) {
-    int hash = 0;
-    for (final entry in map.entries) {
-      final keyHash = entry.key.hashCode;
-      final valueHash = entry.value is Map
-          ? _mapHashCode((entry.value as Map).cast())
-          : entry.value is List
-          ? _listHashCode(entry.value as List)
-          : entry.value.hashCode;
-      hash ^= keyHash ^ valueHash;
-    }
-    return hash;
-  }
+  /// When this event was received locally.
+  final DateTime receivedAt;
 
-  /// Compute hash code for lists.
-  static int _listHashCode(List list) {
-    int hash = 0;
-    for (final item in list) {
-      final itemHash = item is Map
-          ? _mapHashCode((item as Map).cast())
-          : item is List
-          ? _listHashCode(item)
-          : item.hashCode;
-      hash ^= itemHash;
-    }
-    return hash;
+  const ReceivedEvent({
+    required this.event,
+    required this.fromPeer,
+    required this.receivedAt,
+  });
+
+  /// Convenience getter for the event ID.
+  String get id => event.id;
+
+  /// Convenience getter for the node ID that created the event.
+  String get nodeId => event.nodeId;
+
+  /// Convenience getter for the event timestamp.
+  int get timestamp => event.timestamp;
+
+  /// Convenience getter for the event creation timestamp.
+  int get creationTimestamp => event.creationTimestamp;
+
+  /// Convenience getter for the event payload.
+  Map<String, dynamic> get payload => event.payload;
+
+  @override
+  String toString() {
+    return 'ReceivedEvent(event: $event, fromPeer: ${fromPeer.id}, '
+        'receivedAt: $receivedAt)';
   }
 }

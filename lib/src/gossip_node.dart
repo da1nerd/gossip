@@ -48,8 +48,8 @@ class GossipNode {
   // Stream controllers for event notifications
   final StreamController<Event> _eventCreatedController =
       StreamController<Event>.broadcast();
-  final StreamController<Event> _eventReceivedController =
-      StreamController<Event>.broadcast();
+  final StreamController<ReceivedEvent> _eventReceivedController =
+      StreamController<ReceivedEvent>.broadcast();
   final StreamController<GossipPeer> _peerAddedController =
       StreamController<GossipPeer>.broadcast();
   final StreamController<GossipPeer> _peerRemovedController =
@@ -263,7 +263,7 @@ class GossipNode {
   Stream<Event> get onEventCreated => _eventCreatedController.stream;
 
   /// Stream of events received from other nodes.
-  Stream<Event> get onEventReceived => _eventReceivedController.stream;
+  Stream<ReceivedEvent> get onEventReceived => _eventReceivedController.stream;
 
   /// Stream of peers added to this node.
   Stream<GossipPeer> get onPeerAdded => _peerAddedController.stream;
@@ -371,10 +371,8 @@ class GossipNode {
       // Update our knowledge
       _vectorClock.merge(theirClock);
 
-      // Process any events they sent
-      for (final event in eventsToSend) {
-        _eventReceivedController.add(event);
-      }
+      // Note: eventsToSend are events we're sending to them, not events we received
+      // So we don't need to process them as received events here
     } catch (e) {
       // Log error but don't propagate - gossip should be resilient
     }
@@ -383,6 +381,8 @@ class GossipNode {
   /// Handles incoming events from another node.
   Future<void> _handleIncomingEvents(IncomingEvents incoming) async {
     try {
+      final receivedAt = DateTime.now();
+
       for (final event in incoming.message.events) {
         await eventStore.saveEvent(event);
 
@@ -391,7 +391,14 @@ class GossipNode {
           VectorClock()..setTimestampFor(event.nodeId, event.timestamp),
         );
 
-        _eventReceivedController.add(event);
+        // Create ReceivedEvent with peer information
+        final receivedEvent = ReceivedEvent(
+          event: event,
+          fromPeer: incoming.fromPeer,
+          receivedAt: receivedAt,
+        );
+
+        _eventReceivedController.add(receivedEvent);
       }
 
       // Update peer contact time
@@ -519,12 +526,20 @@ class GossipNode {
       );
 
       // Process received events
+      final receivedAt = DateTime.now();
       for (final event in response.events) {
         await eventStore.saveEvent(event);
         _vectorClock.merge(
           VectorClock()..setTimestampFor(event.nodeId, event.timestamp),
         );
-        _eventReceivedController.add(event);
+
+        // Create ReceivedEvent with peer information
+        final receivedEvent = ReceivedEvent(
+          event: event,
+          fromPeer: peer,
+          receivedAt: receivedAt,
+        );
+        _eventReceivedController.add(receivedEvent);
       }
       eventsExchanged += response.events.length;
 
