@@ -46,6 +46,8 @@ class SimpleTransportAdapter implements GossipTransport {
       StreamController.broadcast();
   final StreamController<IncomingEvents> _eventsController =
       StreamController.broadcast();
+  final StreamController<GossipPeer> _peerDisconnectionsController =
+      StreamController.broadcast();
 
   SimpleTransportAdapter(this._simpleTransport) {
     // Listen to incoming events and convert them to the format expected by GossipNode
@@ -101,6 +103,9 @@ class SimpleTransportAdapter implements GossipTransport {
   Stream<IncomingEvents> get incomingEvents => _eventsController.stream;
 
   @override
+  Stream<GossipPeer> get peerDisconnections => _peerDisconnectionsController.stream;
+
+  @override
   Future<List<GossipPeer>> discoverPeers() async {
     return _simpleTransport.connectedPeerIds
         .map((id) => GossipPeer(id: id, address: id))
@@ -117,5 +122,6 @@ class SimpleTransportAdapter implements GossipTransport {
     await _simpleTransport.dispose();
     await _digestController.close();
     await _eventsController.close();
+    await _peerDisconnectionsController.close();
   }
 }

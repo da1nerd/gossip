@@ -12,6 +12,8 @@ class MockTransport implements GossipTransport {
       StreamController<IncomingDigest>.broadcast();
   final StreamController<IncomingEvents> _eventsController =
       StreamController<IncomingEvents>.broadcast();
+  final StreamController<GossipPeer> _peerDisconnectionsController =
+      StreamController<GossipPeer>.broadcast();
 
   bool _isInitialized = false;
   final List<GossipPeer> _discoveredPeers = [];
@@ -29,6 +31,7 @@ class MockTransport implements GossipTransport {
     _network.remove(nodeId);
     await _digestController.close();
     await _eventsController.close();
+    await _peerDisconnectionsController.close();
     _isInitialized = false;
   }
 
@@ -80,6 +83,9 @@ class MockTransport implements GossipTransport {
 
   @override
   Stream<IncomingEvents> get incomingEvents => _eventsController.stream;
+
+  @override
+  Stream<GossipPeer> get peerDisconnections => _peerDisconnectionsController.stream;
 
   @override
   Future<List<GossipPeer>> discoverPeers() async {

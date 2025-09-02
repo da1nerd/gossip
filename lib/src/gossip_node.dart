@@ -319,6 +319,14 @@ class GossipNode {
 
     // Handle incoming events
     transport.incomingEvents.listen(_handleIncomingEvents);
+
+    // Handle peer disconnections
+    transport.peerDisconnections.listen(_handlePeerDisconnection);
+  }
+
+  /// Handles a peer disconnection event from the transport.
+  void _handlePeerDisconnection(GossipPeer peer) {
+    removePeer(peer.id);
   }
 
   /// Handles an incoming gossip digest from another node.

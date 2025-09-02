@@ -308,6 +308,13 @@ abstract class GossipTransport {
   /// where peers send the events that were requested.
   Stream<IncomingEvents> get incomingEvents;
 
+  /// Stream of peer disconnection events.
+  ///
+  /// The transport implementation should emit peers as they disconnect
+  /// or become unreachable. The gossip node will handle these by
+  /// removing the peers from its active peer list.
+  Stream<GossipPeer> get peerDisconnections;
+
   /// Discovers and returns available peers in the network.
   ///
   /// This method is used for peer discovery and maintenance. The exact

@@ -22,6 +22,8 @@ class InMemoryTransport implements GossipTransport {
       StreamController<IncomingDigest>.broadcast();
   final StreamController<IncomingEvents> _eventsController =
       StreamController<IncomingEvents>.broadcast();
+  final StreamController<GossipPeer> _peerDisconnectionsController =
+      StreamController<GossipPeer>.broadcast();
 
   bool _isInitialized = false;
 
@@ -38,6 +40,7 @@ class InMemoryTransport implements GossipTransport {
     _nodeRegistry.remove(nodeId);
     await _digestController.close();
     await _eventsController.close();
+    await _peerDisconnectionsController.close();
     _isInitialized = false;
   }
 
@@ -91,6 +94,9 @@ class InMemoryTransport implements GossipTransport {
 
   @override
   Stream<IncomingEvents> get incomingEvents => _eventsController.stream;
+
+  @override
+  Stream<GossipPeer> get peerDisconnections => _peerDisconnectionsController.stream;
 
   @override
   Future<List<GossipPeer>> discoverPeers() async {
