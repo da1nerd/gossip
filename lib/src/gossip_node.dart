@@ -426,8 +426,7 @@ class GossipNode {
   /// Starts the peer discovery timer.
   void _startPeerDiscoveryTimer() {
     _peerDiscoveryTimer = Timer.periodic(
-      // TODO: make this duration configurable
-      const Duration(minutes: 1), // Discovery every minute
+      config.peerDiscoveryInterval,
       (_) => discoverPeers(),
     );
   }

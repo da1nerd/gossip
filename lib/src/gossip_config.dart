@@ -78,6 +78,11 @@ class GossipConfig {
   /// Larger caches provide better duplicate detection but use more memory.
   final int duplicateCacheSize;
 
+  /// Interval for peer discovery.
+  ///
+  /// Determines how often the node will attempt to discover new peers.
+  final Duration peerDiscoveryInterval;
+
   /// Creates a new gossip configuration with the specified parameters.
   ///
   /// All required parameters must be provided. Optional parameters have
@@ -95,6 +100,7 @@ class GossipConfig {
     this.maxEventAge = const Duration(hours: 24),
     this.enableDuplicateDetection = true,
     this.duplicateCacheSize = 10000,
+    this.peerDiscoveryInterval = const Duration(minutes: 1),
   }) {
     _validate();
   }
@@ -155,6 +161,7 @@ class GossipConfig {
     Duration? maxEventAge,
     bool? enableDuplicateDetection,
     int? duplicateCacheSize,
+    Duration? peerDiscoveryInterval,
   }) {
     return GossipConfig(
       nodeId: nodeId ?? this.nodeId,
@@ -171,6 +178,8 @@ class GossipConfig {
       enableDuplicateDetection:
           enableDuplicateDetection ?? this.enableDuplicateDetection,
       duplicateCacheSize: duplicateCacheSize ?? this.duplicateCacheSize,
+      peerDiscoveryInterval:
+          peerDiscoveryInterval ?? this.peerDiscoveryInterval,
     );
   }
 
@@ -256,7 +265,8 @@ class GossipConfig {
         'antiEntropyInterval: $antiEntropyInterval, '
         'maxEventAge: $maxEventAge, '
         'enableDuplicateDetection: $enableDuplicateDetection, '
-        'duplicateCacheSize: $duplicateCacheSize'
+        'duplicateCacheSize: $duplicateCacheSize, '
+        'peerDiscoveryInterval: $peerDiscoveryInterval'
         ')';
   }
 
@@ -276,25 +286,26 @@ class GossipConfig {
         antiEntropyInterval == other.antiEntropyInterval &&
         maxEventAge == other.maxEventAge &&
         enableDuplicateDetection == other.enableDuplicateDetection &&
-        duplicateCacheSize == other.duplicateCacheSize;
+        duplicateCacheSize == other.duplicateCacheSize &&
+        peerDiscoveryInterval == other.peerDiscoveryInterval;
   }
 
   @override
   int get hashCode {
     return Object.hash(
-      nodeId,
-      gossipInterval,
-      fanout,
-      gossipTimeout,
-      maxEventsPerMessage,
-      maxMessageSizeBytes,
-      peerSelectionStrategy,
-      enableAntiEntropy,
-      antiEntropyInterval,
-      maxEventAge,
-      enableDuplicateDetection,
-      duplicateCacheSize,
-    );
+        nodeId,
+        gossipInterval,
+        fanout,
+        gossipTimeout,
+        maxEventsPerMessage,
+        maxMessageSizeBytes,
+        peerSelectionStrategy,
+        enableAntiEntropy,
+        antiEntropyInterval,
+        maxEventAge,
+        enableDuplicateDetection,
+        duplicateCacheSize,
+        peerDiscoveryInterval);
   }
 }
 
