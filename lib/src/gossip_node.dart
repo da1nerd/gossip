@@ -240,7 +240,6 @@ class GossipNode {
   /// Removes a peer from the gossip network.
   ///
   /// Returns true if the peer was found and removed, false otherwise.
-  /// TODO: this is not used
   bool removePeer(String peerId) {
     final peerIndex = _peers.indexWhere((p) => p.id == peerId);
     if (peerIndex >= 0) {
