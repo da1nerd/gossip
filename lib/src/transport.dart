@@ -10,7 +10,6 @@ import 'dart:async';
 
 import 'event.dart';
 import 'exceptions.dart';
-import 'vector_clock.dart';
 
 /// Represents a peer in the gossip network.
 ///
@@ -307,13 +306,6 @@ abstract class GossipTransport {
   /// This stream emits the final event messages in the gossip protocol
   /// where peers send the events that were requested.
   Stream<IncomingEvents> get incomingEvents;
-
-  /// Stream of peer disconnection events.
-  ///
-  /// The transport implementation should emit peers as they disconnect
-  /// or become unreachable. The gossip node will handle these by
-  /// removing the peers from its active peer list.
-  Stream<GossipPeer> get peerDisconnections;
 
   /// Discovers and returns available peers in the network.
   ///

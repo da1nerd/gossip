@@ -302,9 +302,17 @@ class GossipNode {
     try {
       final discoveredPeers = await transport.discoverPeers();
 
+      // Add new peers
       for (final peer in discoveredPeers) {
         if (peer.id != config.nodeId && !_peers.any((p) => p.id == peer.id)) {
           addPeer(peer);
+        }
+      }
+
+      // Remove lost peers
+      for (final peer in _peers) {
+        if (!discoveredPeers.any((p) => p.id == peer.id)) {
+          removePeer(peer.id);
         }
       }
     } catch (e) {
@@ -319,14 +327,6 @@ class GossipNode {
 
     // Handle incoming events
     transport.incomingEvents.listen(_handleIncomingEvents);
-
-    // Handle peer disconnections
-    transport.peerDisconnections.listen(_handlePeerDisconnection);
-  }
-
-  /// Handles a peer disconnection event from the transport.
-  void _handlePeerDisconnection(GossipPeer peer) {
-    removePeer(peer.id);
   }
 
   /// Handles an incoming gossip digest from another node.
