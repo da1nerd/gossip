@@ -17,6 +17,7 @@ import 'simple_transport.dart';
 import 'stores/memory_event_store.dart';
 import 'transport.dart';
 import 'vector_clock.dart';
+import 'vector_clock_store.dart';
 
 /// Main class implementing a gossip protocol node.
 ///
@@ -34,6 +35,7 @@ class GossipNode {
   final GossipConfig config;
   final EventStore eventStore;
   final GossipTransport transport;
+  final VectorClockStore? vectorClockStore;
   final VectorClock _vectorClock = VectorClock();
   final List<GossipPeer> _peers = [];
   final math.Random _random = math.Random();
@@ -72,6 +74,7 @@ class GossipNode {
     required this.config,
     required this.eventStore,
     required this.transport,
+    this.vectorClockStore,
   });
 
   /// Creates a simple gossip node with custom simple transport.
@@ -117,7 +120,10 @@ class GossipNode {
       // Initialize transport
       await transport.initialize();
 
-      // Set up incoming message handlers
+      // Load persisted vector clock state
+      await _loadVectorClockState();
+
+      // Set up message handlers
       _setupIncomingMessageHandlers();
 
       // Start periodic gossip
@@ -173,16 +179,15 @@ class GossipNode {
     await eventStore.close();
   }
 
-  /// Creates a new event with the specified payload.
+  /// Creates a new event with the given payload.
   ///
-  /// The event is assigned a unique ID, timestamped with the current
-  /// vector clock value, and saved to the local event store.
-  ///
-  /// Parameters:
-  /// - [payload]: Application-specific event data
+  /// The event will be assigned a unique ID, the current timestamp from
+  /// the vector clock, and saved to the event store. The vector clock
+  /// state will be persisted if a vector clock store is configured.
+  /// Other nodes will learn about this event through gossip exchanges.
   ///
   /// Returns the created event.
-  /// Throws [InvalidEventException] if the payload is invalid.
+  /// Throws [InvalidEventException] if the event cannot be created.
   Future<Event> createEvent(Map<String, dynamic> payload) async {
     _checkStarted();
 
@@ -205,6 +210,9 @@ class GossipNode {
     try {
       // Save to store
       await eventStore.saveEvent(event);
+
+      // Persist vector clock state
+      await _saveVectorClockState();
 
       // Notify listeners
       _eventCreatedController.add(event);
@@ -257,20 +265,6 @@ class GossipNode {
 
   /// Returns the current vector clock state.
   VectorClock get vectorClock => _vectorClock.copy();
-
-  /// Sets the vector clock timestamp for a specific node (for testing only).
-  ///
-  /// **⚠️ Warning: This method is intended for testing only!**
-  ///
-  /// This method should only be used in test environments to simulate
-  /// specific vector clock states for testing vector clock reset detection
-  /// and other edge cases.
-  ///
-  /// In production, vector clocks should only be modified through normal
-  /// event creation and gossip exchange processes.
-  void setVectorClockTimestamp(String nodeId, int timestamp) {
-    _vectorClock.setTimestampFor(nodeId, timestamp);
-  }
 
   /// Stream of events created by this node.
   Stream<Event> get onEventCreated => _eventCreatedController.stream;
@@ -342,30 +336,10 @@ class GossipNode {
     transport.incomingEvents.listen(_handleIncomingEvents);
   }
 
-  /// Handles an incoming gossip digest from another node.
   /// Handles an incoming gossip digest from a peer.
   ///
-  /// This method implements vector clock reset detection to handle scenarios
-  /// where a peer's vector clock has been reset (e.g., due to storage loss,
-  /// system restart, or other failures). The detection works by:
-  ///
-  /// 1. **Normal Case**: If their timestamp > our timestamp, request missing events
-  /// 2. **Reset Detection**: If their timestamp < our timestamp, assume reset and request all events
-  /// 3. **Bidirectional Protection**: Also send recent events if we might have reset
-  ///
-  /// **Vector Clock Reset Scenarios:**
-  /// - Peer goes offline, loses vector clock state, comes back with timestamp 1
-  /// - Storage corruption causes vector clock to be reset to initial state
-  /// - Application restart without persisted vector clock state
-  ///
-  /// **Detection Strategy:**
-  /// When a peer reports a timestamp lower than what we believe they should have,
-  /// we assume they've reset their vector clock and request ALL their events from
-  /// timestamp 0. This ensures we don't miss new events created after the reset.
-  ///
-  /// **Safety:**
-  /// The gossip protocol handles duplicate events gracefully, so requesting from
-  /// timestamp 0 is safe even if it wasn't actually a reset.
+  /// This method processes gossip digests to determine which events need to be
+  /// exchanged between nodes based on their vector clock states.
   Future<void> _handleIncomingDigest(IncomingDigest incoming) async {
     try {
       final digest = incoming.digest;
@@ -382,55 +356,16 @@ class GossipNode {
             limit: config.maxEventsPerMessage,
           );
           eventsToSend.addAll(missingEvents);
-        } else if (entry.value < theirTimestamp) {
-          // Potential reset on our side - check if we have newer events they might need
-          // by looking at creation timestamps of recent events
-          final ourRecentEvents = await eventStore.getEventsSince(
-            entry.key,
-            0, // Get all our events for this node
-            limit: config.maxEventsPerMessage,
-          );
-
-          // Send events that were created recently even if they have lower logical timestamps
-          // This handles the case where we reset and created new events
-          final now = DateTime.now().millisecondsSinceEpoch;
-          final recentThreshold = now -
-              (config.gossipInterval.inMilliseconds *
-                  10); // Last 10 gossip intervals
-
-          final recentEvents = ourRecentEvents
-              .where((event) => event.creationTimestamp > recentThreshold)
-              .toList();
-
-          if (recentEvents.isNotEmpty) {
-            eventsToSend.addAll(recentEvents);
-          }
         }
       }
 
-      // Find events we're missing (with vector clock reset detection)
+      // Find events we're missing
       final eventRequests = <String, int>{};
       for (final entry in digest.vectorClock.entries) {
         final ourTimestamp = _vectorClock.getTimestampFor(entry.key);
         if (entry.value > ourTimestamp) {
-          // Normal case: they're ahead of us
           eventRequests[entry.key] = ourTimestamp;
-        } else if (entry.value < ourTimestamp) {
-          // **Vector Clock Reset Detection**
-          // Their reported timestamp is lower than what we think they should have.
-          // This indicates they may have reset their vector clock and created new
-          // events with lower logical timestamps than we expected.
-          //
-          // Example scenario:
-          // - We think peer is at timestamp 100
-          // - Peer reports timestamp 3 (after reset and creating 3 new events)
-          // - Without this detection, we'd miss their new events 1, 2, 3
-          //
-          // Solution: Request all their events from timestamp 0 to ensure we get
-          // any events created after the reset.
-          eventRequests[entry.key] = 0;
         }
-        // Note: If entry.value == ourTimestamp, no events are needed
       }
 
       // Send response
@@ -443,17 +378,11 @@ class GossipNode {
 
       await incoming.respond(response);
 
-      // **Selective Vector Clock Merge**
-      // Only merge vector clock entries that advance our knowledge.
-      // Don't merge lower timestamps as they might indicate resets - we keep
-      // our higher timestamp until we receive confirmation that the peer
-      // actually has events at those higher timestamps.
-      for (final entry in theirClock.summary.entries) {
-        final ourTimestamp = _vectorClock.getTimestampFor(entry.key);
-        if (entry.value > ourTimestamp) {
-          _vectorClock.setTimestampFor(entry.key, entry.value);
-        }
-      }
+      // Update our knowledge
+      _vectorClock.merge(theirClock);
+
+      // Persist the updated vector clock
+      await _saveVectorClockState();
 
       // Note: eventsToSend are events we're sending to them, not events we received
       // So we don't need to process them as received events here
@@ -484,6 +413,9 @@ class GossipNode {
 
         _eventReceivedController.add(receivedEvent);
       }
+
+      // Persist the updated vector clock after processing events
+      await _saveVectorClockState();
 
       // Update peer contact time
       final peerId = incoming.fromPeer.id;
@@ -662,6 +594,9 @@ class GossipNode {
         eventsExchanged += eventsToSend.length;
       }
 
+      // Persist vector clock after successful exchange
+      await _saveVectorClockState();
+
       // Update peer state
       _lastContactTimes[peer.id] = DateTime.now();
       _updatePeerReliability(peer.id, true);
@@ -708,6 +643,48 @@ class GossipNode {
     }
     if (_isStopped) {
       throw const NodeNotInitializedException('Node has been stopped');
+    }
+  }
+
+  /// Loads the vector clock state from persistent storage.
+  ///
+  /// This method is called during node startup to restore any previously
+  /// persisted vector clock state. If no state exists or no vector clock
+  /// store is configured, the vector clock starts fresh.
+  Future<void> _loadVectorClockState() async {
+    if (vectorClockStore == null) {
+      return; // No persistence configured
+    }
+
+    try {
+      final savedClock = await vectorClockStore!.loadVectorClock(config.nodeId);
+      if (savedClock != null) {
+        // Restore the saved state
+        for (final entry in savedClock.summary.entries) {
+          _vectorClock.setTimestampFor(entry.key, entry.value);
+        }
+      }
+    } catch (e) {
+      // Log warning but continue - better to start fresh than fail to start
+      // In production, you might want to handle this differently
+    }
+  }
+
+  /// Saves the current vector clock state to persistent storage.
+  ///
+  /// This method is called after vector clock updates to ensure the state
+  /// is preserved across restarts. If no vector clock store is configured,
+  /// this is a no-op.
+  Future<void> _saveVectorClockState() async {
+    if (vectorClockStore == null) {
+      return; // No persistence configured
+    }
+
+    try {
+      await vectorClockStore!.saveVectorClock(config.nodeId, _vectorClock);
+    } catch (e) {
+      // Log error but don't fail the operation
+      // The gossip protocol can continue even if persistence fails
     }
   }
 }

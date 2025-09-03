@@ -119,13 +119,6 @@ abstract class EventStore {
   /// Throws [EventStoreException] if the query cannot be performed.
   Future<int> getLatestTimestampForNode(String nodeId);
 
-  /// Gets the latest event for a specific node.
-  ///
-  /// Returns null if no events exist for the node.
-  ///
-  /// Throws [EventStoreException] if the query cannot be performed.
-  Future<Event?> getLatestEvent(String nodeId);
-
   /// Gets the latest timestamps for all nodes that have events in the store.
   ///
   /// Returns a map where keys are node IDs and values are their latest timestamps.

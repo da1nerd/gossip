@@ -177,19 +177,6 @@ class MemoryEventStore implements EventStore {
   }
 
   @override
-  Future<Event?> getLatestEvent(String nodeId) async {
-    _checkNotClosed();
-
-    final nodeEvents = _eventsByNode[nodeId];
-    if (nodeEvents == null || nodeEvents.isEmpty) {
-      return null;
-    }
-
-    // Events are kept sorted by timestamp, so the last one has the highest timestamp
-    return nodeEvents.last;
-  }
-
-  @override
   Future<Map<String, int>> getLatestTimestampsForAllNodes() async {
     _checkNotClosed();
 

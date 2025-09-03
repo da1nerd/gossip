@@ -54,3 +54,6 @@ export 'src/typed_events.dart';
 
 // Implementations
 export 'src/stores/memory_event_store.dart';
+
+// Vector clock persistence
+export 'src/vector_clock_store.dart';
