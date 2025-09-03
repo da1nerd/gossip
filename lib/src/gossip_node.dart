@@ -258,6 +258,20 @@ class GossipNode {
   /// Returns the current vector clock state.
   VectorClock get vectorClock => _vectorClock.copy();
 
+  /// Sets the vector clock timestamp for a specific node (for testing only).
+  ///
+  /// **⚠️ Warning: This method is intended for testing only!**
+  ///
+  /// This method should only be used in test environments to simulate
+  /// specific vector clock states for testing vector clock reset detection
+  /// and other edge cases.
+  ///
+  /// In production, vector clocks should only be modified through normal
+  /// event creation and gossip exchange processes.
+  void setVectorClockTimestamp(String nodeId, int timestamp) {
+    _vectorClock.setTimestampFor(nodeId, timestamp);
+  }
+
   /// Stream of events created by this node.
   Stream<Event> get onEventCreated => _eventCreatedController.stream;
 
@@ -329,6 +343,29 @@ class GossipNode {
   }
 
   /// Handles an incoming gossip digest from another node.
+  /// Handles an incoming gossip digest from a peer.
+  ///
+  /// This method implements vector clock reset detection to handle scenarios
+  /// where a peer's vector clock has been reset (e.g., due to storage loss,
+  /// system restart, or other failures). The detection works by:
+  ///
+  /// 1. **Normal Case**: If their timestamp > our timestamp, request missing events
+  /// 2. **Reset Detection**: If their timestamp < our timestamp, assume reset and request all events
+  /// 3. **Bidirectional Protection**: Also send recent events if we might have reset
+  ///
+  /// **Vector Clock Reset Scenarios:**
+  /// - Peer goes offline, loses vector clock state, comes back with timestamp 1
+  /// - Storage corruption causes vector clock to be reset to initial state
+  /// - Application restart without persisted vector clock state
+  ///
+  /// **Detection Strategy:**
+  /// When a peer reports a timestamp lower than what we believe they should have,
+  /// we assume they've reset their vector clock and request ALL their events from
+  /// timestamp 0. This ensures we don't miss new events created after the reset.
+  ///
+  /// **Safety:**
+  /// The gossip protocol handles duplicate events gracefully, so requesting from
+  /// timestamp 0 is safe even if it wasn't actually a reset.
   Future<void> _handleIncomingDigest(IncomingDigest incoming) async {
     try {
       final digest = incoming.digest;
@@ -345,16 +382,55 @@ class GossipNode {
             limit: config.maxEventsPerMessage,
           );
           eventsToSend.addAll(missingEvents);
+        } else if (entry.value < theirTimestamp) {
+          // Potential reset on our side - check if we have newer events they might need
+          // by looking at creation timestamps of recent events
+          final ourRecentEvents = await eventStore.getEventsSince(
+            entry.key,
+            0, // Get all our events for this node
+            limit: config.maxEventsPerMessage,
+          );
+
+          // Send events that were created recently even if they have lower logical timestamps
+          // This handles the case where we reset and created new events
+          final now = DateTime.now().millisecondsSinceEpoch;
+          final recentThreshold = now -
+              (config.gossipInterval.inMilliseconds *
+                  10); // Last 10 gossip intervals
+
+          final recentEvents = ourRecentEvents
+              .where((event) => event.creationTimestamp > recentThreshold)
+              .toList();
+
+          if (recentEvents.isNotEmpty) {
+            eventsToSend.addAll(recentEvents);
+          }
         }
       }
 
-      // Find events we're missing
+      // Find events we're missing (with vector clock reset detection)
       final eventRequests = <String, int>{};
       for (final entry in digest.vectorClock.entries) {
         final ourTimestamp = _vectorClock.getTimestampFor(entry.key);
         if (entry.value > ourTimestamp) {
+          // Normal case: they're ahead of us
           eventRequests[entry.key] = ourTimestamp;
+        } else if (entry.value < ourTimestamp) {
+          // **Vector Clock Reset Detection**
+          // Their reported timestamp is lower than what we think they should have.
+          // This indicates they may have reset their vector clock and created new
+          // events with lower logical timestamps than we expected.
+          //
+          // Example scenario:
+          // - We think peer is at timestamp 100
+          // - Peer reports timestamp 3 (after reset and creating 3 new events)
+          // - Without this detection, we'd miss their new events 1, 2, 3
+          //
+          // Solution: Request all their events from timestamp 0 to ensure we get
+          // any events created after the reset.
+          eventRequests[entry.key] = 0;
         }
+        // Note: If entry.value == ourTimestamp, no events are needed
       }
 
       // Send response
@@ -367,8 +443,17 @@ class GossipNode {
 
       await incoming.respond(response);
 
-      // Update our knowledge
-      _vectorClock.merge(theirClock);
+      // **Selective Vector Clock Merge**
+      // Only merge vector clock entries that advance our knowledge.
+      // Don't merge lower timestamps as they might indicate resets - we keep
+      // our higher timestamp until we receive confirmation that the peer
+      // actually has events at those higher timestamps.
+      for (final entry in theirClock.summary.entries) {
+        final ourTimestamp = _vectorClock.getTimestampFor(entry.key);
+        if (entry.value > ourTimestamp) {
+          _vectorClock.setTimestampFor(entry.key, entry.value);
+        }
+      }
 
       // Note: eventsToSend are events we're sending to them, not events we received
       // So we don't need to process them as received events here
@@ -544,12 +629,26 @@ class GossipNode {
       // Send requested events
       final eventsToSend = <Event>[];
       for (final request in response.eventRequests.entries) {
-        final events = await eventStore.getEventsSince(
-          request.key,
-          request.value,
-          limit: config.maxEventsPerMessage,
-        );
-        eventsToSend.addAll(events);
+        final requestedAfterTimestamp = request.value;
+        final nodeId = request.key;
+
+        if (requestedAfterTimestamp == 0) {
+          // Peer is requesting all events (likely after detecting a reset)
+          final events = await eventStore.getEventsSince(
+            nodeId,
+            0,
+            limit: config.maxEventsPerMessage,
+          );
+          eventsToSend.addAll(events);
+        } else {
+          // Normal request for events after a specific timestamp
+          final events = await eventStore.getEventsSince(
+            nodeId,
+            requestedAfterTimestamp,
+            limit: config.maxEventsPerMessage,
+          );
+          eventsToSend.addAll(events);
+        }
       }
 
       if (eventsToSend.isNotEmpty) {
