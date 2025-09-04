@@ -212,13 +212,13 @@ class CRDTOperation {
 
   /// Serialize this operation to JSON.
   Map<String, dynamic> toJson() => {
-    'crdtId': crdtId,
-    'operation': operation,
-    'data': data,
-    'nodeId': nodeId,
-    'timestamp': timestamp.millisecondsSinceEpoch,
-    'operationId': operationId,
-  };
+        'crdtId': crdtId,
+        'operation': operation,
+        'data': data,
+        'nodeId': nodeId,
+        'timestamp': timestamp.millisecondsSinceEpoch,
+        'operationId': operationId,
+      };
 
   /// Deserialize an operation from JSON.
   factory CRDTOperation.fromJson(Map<String, dynamic> json) {
@@ -254,8 +254,7 @@ class CRDTOperation {
       Object.hash(operationId, crdtId, operation, nodeId, timestamp);
 
   @override
-  String toString() =>
-      'CRDTOperation('
+  String toString() => 'CRDTOperation('
       'id: $operationId, '
       'crdtId: $crdtId, '
       'operation: $operation, '
@@ -315,9 +314,8 @@ mixin VectorClockMixin<T> on CRDT<T> {
   void mergeVectorClock(Map<String, int> otherClock) {
     for (final entry in otherClock.entries) {
       final currentValue = _vectorClock[entry.key] ?? 0;
-      _vectorClock[entry.key] = currentValue > entry.value
-          ? currentValue
-          : entry.value;
+      _vectorClock[entry.key] =
+          currentValue > entry.value ? currentValue : entry.value;
     }
   }
 
