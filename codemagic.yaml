@@ -1,0 +1,124 @@
+workflows:
+  android-release:
+    name: Android Release to Play Store
+    max_build_duration: 45
+    instance_type: mac_mini_m1
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+
+    environment:
+      android_signing:
+        - keystore_reference
+      flutter: stable
+      groups:
+        - google_play
+      vars:
+        PACKAGE_NAME: "com.example.gossip_chat_demo"
+
+    scripts:
+      - name: Set up local properties
+        script: |
+          echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/apps/gossip_chat/android/local.properties"
+
+      - name: Set up Melos
+        script: |
+          dart pub global activate melos
+
+      - name: Bootstrap project
+        script: |
+          melos bootstrap
+
+      - name: Get Flutter packages for app
+        script: |
+          cd apps/gossip_chat
+          flutter pub get
+
+      - name: Run tests
+        script: |
+          cd apps/gossip_chat
+          flutter test
+
+      - name: Build release AAB
+        script: |
+          cd apps/gossip_chat
+          flutter build appbundle --release
+
+    artifacts:
+      - apps/gossip_chat/build/app/outputs/bundle/release/*.aab
+      - flutter_drive.log
+
+    publishing:
+      email:
+        recipients:
+          - your.email@example.com
+        notify:
+          success: true
+          failure: true
+
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: false
+
+  android-debug:
+    name: Android Debug Build
+    max_build_duration: 30
+    instance_type: mac_mini_m1
+
+    triggering:
+      events:
+        - pull_request
+      branch_patterns:
+        - pattern: '*'
+          include: true
+
+    environment:
+      flutter: stable
+
+    scripts:
+      - name: Set up Melos
+        script: |
+          dart pub global activate melos
+
+      - name: Bootstrap project
+        script: |
+          melos bootstrap
+
+      - name: Get Flutter packages for app
+        script: |
+          cd apps/gossip_chat
+          flutter pub get
+
+      - name: Run tests
+        script: |
+          cd apps/gossip_chat
+          flutter test
+
+      - name: Analyze code
+        script: |
+          melos run analyze
+
+      - name: Check formatting
+        script: |
+          melos run format
+
+      - name: Build debug APK
+        script: |
+          cd apps/gossip_chat
+          flutter build apk --debug
+
+    artifacts:
+      - apps/gossip_chat/build/app/outputs/flutter-apk/*.apk
+
+    publishing:
+      email:
+        recipients:
+          - your.email@example.com
+        notify:
+          success: false
+          failure: true

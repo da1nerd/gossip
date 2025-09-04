@@ -1,0 +1,239 @@
+name: Release Management
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      publish_packages:
+        description: 'Publish packages to pub.dev'
+        required: true
+        default: true
+        type: boolean
+      create_release:
+        description: 'Create GitHub release'
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: stable
+          channel: stable
+
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap project
+        run: melos bootstrap
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Run pre-release checks
+        run: |
+          echo "🔍 Running pre-release checks..."
+          melos run analyze
+          melos run test
+          melos run format
+          melos run publish-dry-run
+
+      - name: Version packages
+        run: |
+          echo "🔢 Versioning packages..."
+          case "${{ github.event.inputs.release_type }}" in
+            "major")
+              melos version --all --no-private --major --yes
+              ;;
+            "minor")
+              melos version --all --no-private --minor --yes
+              ;;
+            "patch"|*)
+              melos version --all --no-private --patch --yes
+              ;;
+          esac
+
+      - name: Update app version
+        run: |
+          echo "📱 Updating app version..."
+          APP_PUBSPEC="apps/gossip_chat/pubspec.yaml"
+          CURRENT_VERSION=$(grep "version:" $APP_PUBSPEC | sed 's/version: //' | xargs)
+
+          # Extract version parts
+          VERSION_PART=$(echo $CURRENT_VERSION | cut -d'+' -f1)
+          BUILD_PART=$(echo $CURRENT_VERSION | cut -d'+' -f2)
+
+          # Increment version based on release type
+          case "${{ github.event.inputs.release_type }}" in
+            "major")
+              MAJOR=$(echo $VERSION_PART | cut -d'.' -f1)
+              MAJOR=$((MAJOR + 1))
+              NEW_VERSION="$MAJOR.0.0"
+              ;;
+            "minor")
+              MAJOR=$(echo $VERSION_PART | cut -d'.' -f1)
+              MINOR=$(echo $VERSION_PART | cut -d'.' -f2)
+              MINOR=$((MINOR + 1))
+              NEW_VERSION="$MAJOR.$MINOR.0"
+              ;;
+            "patch"|*)
+              MAJOR=$(echo $VERSION_PART | cut -d'.' -f1)
+              MINOR=$(echo $VERSION_PART | cut -d'.' -f2)
+              PATCH=$(echo $VERSION_PART | cut -d'.' -f3)
+              PATCH=$((PATCH + 1))
+              NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+              ;;
+          esac
+
+          # Increment build number
+          NEW_BUILD=$((BUILD_PART + 1))
+          FULL_VERSION="$NEW_VERSION+$NEW_BUILD"
+
+          # Update pubspec.yaml
+          sed -i "s/version: .*/version: $FULL_VERSION/" $APP_PUBSPEC
+
+          echo "Updated app version from $CURRENT_VERSION to $FULL_VERSION"
+          echo "APP_VERSION=$FULL_VERSION" >> $GITHUB_ENV
+
+      - name: Commit version changes
+        run: |
+          git add .
+          git commit -m "chore: release ${{ github.event.inputs.release_type }} version
+
+          - Updated package versions via melos
+          - Updated app version to ${{ env.APP_VERSION }}
+
+          [skip ci]"
+
+      - name: Push changes
+        run: git push origin main
+
+      - name: Setup pub credentials
+        if: ${{ github.event.inputs.publish_packages == 'true' }}
+        run: |
+          mkdir -p ~/.pub-cache
+          echo '${{ secrets.PUB_CREDENTIALS }}' > ~/.pub-cache/credentials.json
+
+      - name: Publish packages
+        if: ${{ github.event.inputs.publish_packages == 'true' }}
+        run: |
+          echo "🚀 Publishing packages to pub.dev..."
+          melos run publish-packages
+
+      - name: Get package versions
+        id: versions
+        run: |
+          echo "Collecting package versions..."
+          VERSIONS=""
+          for package_dir in packages/*/; do
+            if [ -f "$package_dir/pubspec.yaml" ]; then
+              package_name=$(basename "$package_dir")
+              version=$(cd "$package_dir" && grep "version:" pubspec.yaml | sed 's/version: //' | xargs)
+              if [[ "$version" != "null" ]]; then
+                VERSIONS="$VERSIONS- **$package_name**: v$version\n"
+              fi
+            fi
+          done
+          echo "PACKAGE_VERSIONS<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$VERSIONS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        if: ${{ github.event.inputs.create_release == 'true' }}
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.APP_VERSION }}
+          release_name: Release v${{ env.APP_VERSION }}
+          body: |
+            ## 🚀 Release v${{ env.APP_VERSION }}
+
+            ### 📦 Published Packages
+
+            ${{ steps.versions.outputs.PACKAGE_VERSIONS }}
+
+            ### 📱 App Changes
+
+            - Updated app version to v${{ env.APP_VERSION }}
+            - Ready for Play Store deployment via Codemagic
+
+            ### 🔄 Deployment Status
+
+            - ✅ Packages published to [pub.dev](https://pub.dev)
+            - 🔄 App deployment will trigger automatically on Codemagic
+            - 📱 Release will be available in Play Store internal track
+
+            ### 📚 Documentation
+
+            - [Deployment Guide](./DEPLOYMENT.md)
+            - [Package Documentation](./packages/)
+            - [App Documentation](./apps/gossip_chat/)
+
+            ---
+
+            **Release Type**: ${{ github.event.inputs.release_type }}
+            **Generated by**: GitHub Actions
+            **Commit**: ${{ github.sha }}
+          draft: false
+          prerelease: false
+
+      - name: Create release summary
+        run: |
+          echo "## 🎉 Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release Type**: ${{ github.event.inputs.release_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**App Version**: ${{ env.APP_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Published Packages" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.versions.outputs.PACKAGE_VERSIONS }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚡ Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. ✅ Packages are being published to pub.dev" >> $GITHUB_STEP_SUMMARY
+          echo "2. 🔄 Codemagic will automatically deploy the app" >> $GITHUB_STEP_SUMMARY
+          echo "3. 📱 Check Play Console for release status" >> $GITHUB_STEP_SUMMARY
+          echo "4. 📊 Monitor package downloads on pub.dev" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "## ❌ Release Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The release process encountered an error. Please check the logs above." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Troubleshooting" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. Check that all tests pass locally" >> $GITHUB_STEP_SUMMARY
+          echo "2. Verify pub.dev credentials are valid" >> $GITHUB_STEP_SUMMARY
+          echo "3. Ensure all packages have proper version numbers" >> $GITHUB_STEP_SUMMARY
+          echo "4. Review the [Deployment Guide](./DEPLOYMENT.md)" >> $GITHUB_STEP_SUMMARY

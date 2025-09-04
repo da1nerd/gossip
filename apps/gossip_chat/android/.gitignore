@@ -12,3 +12,19 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Release-specific files
+/app/release/
+/app/build/
+proguard/
+
+# Signing files (never commit these!)
+*.keystore
+*.jks
+*.p12
+*.key
+upload-keystore.jks
+
+# Local configuration files
+local.properties
+keystore.properties

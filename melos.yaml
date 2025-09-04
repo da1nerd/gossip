@@ -1,4 +1,3 @@
-# melos.yaml
 name: gossip_monorepo
 
 # Location of your packages
@@ -9,8 +8,6 @@ packages:
 # Scripts that can be run with `melos run <script_name>`
 scripts:
   test:
-    # This command runs tests in all packages that have a test/ directory.
-    # The --no-select flag ensures it runs even if a package isn't selected via filtering.
     run: melos exec --concurrency=10 -- "dart test --reporter=expanded"
     description: Run Dart tests in all packages.
 
@@ -18,20 +15,33 @@ scripts:
     run: melos exec --concurrency=10 -- "dart analyze --no-fatal-warnings"
     description: Run static analysis on all packages.
 
-  # You can add more scripts for formatting, etc.
   format:
     run: melos exec -- "dart format . --set-exit-if-changed"
     description: Format code in all packages.
 
-  # Version management
+  # Enhanced version management - only for packages, not apps
   version:
-    run: melos version --all
-    description: Version all packages together.
+    run: melos version --all --no-private
+    description: Version all publishable packages together.
 
-  # Publish dry run to check what would be published
+  # Enhanced publish commands
   publish-dry-run:
-    run: melos publish --dry-run
+    run: melos publish --dry-run --no-private
     description: Preview what would be published without actually publishing.
+
+  publish-packages:
+    run: melos publish --no-private --yes
+    description: Publish all packages to pub.dev.
+
+  # Pre-publish checks
+  pre-publish-check:
+    run: |
+      echo "🔍 Running pre-publish checks..."
+      melos run analyze &&
+      melos run test &&
+      melos run format &&
+      melos run publish-dry-run
+    description: Run all checks before publishing packages.
 
   # Clean workspace
   clean:
@@ -42,3 +52,42 @@ scripts:
   outdated:
     run: melos exec -- "dart pub outdated"
     description: Check for outdated dependencies across all packages.
+
+  # App-specific scripts
+  app-test:
+    run: |
+      cd apps/gossip_chat
+      flutter test
+    description: Run tests for the gossip chat app.
+
+  app-build-apk:
+    run: |
+      cd apps/gossip_chat
+      flutter build apk --release
+    description: Build release APK for the gossip chat app.
+
+  app-build-aab:
+    run: |
+      cd apps/gossip_chat
+      flutter build appbundle --release
+    description: Build release AAB for the gossip chat app.
+
+  # Development helpers
+  get-all:
+    run: melos exec -- "dart pub get"
+    description: Run pub get in all packages.
+
+  upgrade-all:
+    run: melos exec -- "dart pub upgrade"
+    description: Run pub upgrade in all packages.
+
+  deps-check:
+    run: |
+      echo "📦 Checking package dependencies..."
+      melos list --parsable --json | jq -r '.[].path' | while read package; do
+        echo "Checking $package"
+        cd "$package"
+        dart pub deps --json | jq -r '.packages[] | select(.kind == "direct") | "\(.name): \(.version)"' | sort
+        cd - > /dev/null
+      done
+    description: Check all package dependencies.

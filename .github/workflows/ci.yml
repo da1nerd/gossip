@@ -1,0 +1,119 @@
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  analyze:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: stable
+          channel: stable
+
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap project
+        run: melos bootstrap
+
+      - name: Analyze packages
+        run: melos run analyze
+
+      - name: Check formatting
+        run: melos run format
+
+      - name: Run package tests
+        run: melos run test
+
+      - name: Run app tests
+        run: melos run app-test
+
+  build-test:
+    name: Build Test
+    runs-on: ubuntu-latest
+    needs: analyze
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: stable
+          channel: stable
+
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap project
+        run: melos bootstrap
+
+      - name: Build debug APK
+        run: |
+          cd apps/gossip_chat
+          flutter build apk --debug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: apps/gossip_chat/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
+
+  check-packages:
+    name: Package Health Check
+    runs-on: ubuntu-latest
+    needs: analyze
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap project
+        run: melos bootstrap
+
+      - name: Check package scores
+        run: |
+          echo "## Package Health Scores" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          for package in packages/*/; do
+            if [ -f "$package/pubspec.yaml" ]; then
+              package_name=$(basename "$package")
+              echo "Checking $package_name..."
+              cd "$package"
+              dart pub publish --dry-run > /tmp/pub_check.txt 2>&1 || true
+              if grep -q "Package has 0 warnings" /tmp/pub_check.txt; then
+                echo "- ✅ **$package_name** - No warnings" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "- ⚠️ **$package_name** - Has warnings" >> $GITHUB_STEP_SUMMARY
+              fi
+              cd - > /dev/null
+            fi
+          done
+
+      - name: Dry run publish
+        run: melos run publish-dry-run

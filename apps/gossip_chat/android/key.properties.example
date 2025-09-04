@@ -1,0 +1,8 @@
+# Android Keystore Properties
+# Copy this file to key.properties and fill in your actual values
+# NEVER commit the actual key.properties file to version control
+
+storePassword=your_keystore_password_here
+keyPassword=your_key_password_here
+keyAlias=gossip-chat
+storeFile=../gossip-chat-release-key.keystore
