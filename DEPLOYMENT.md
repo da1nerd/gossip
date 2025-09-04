@@ -214,6 +214,132 @@ main                 # Production branch - triggers deployments
 └── hotfix/abc     # Emergency fixes
 ```
 
+### Conventional Commits
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) for standardized commit messages and automated changelog generation.
+
+#### Commit Message Format
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+#### Types
+
+| Type | Description | Changelog Section |
+|------|-------------|------------------|
+| `feat` | A new feature | Features |
+| `fix` | A bug fix | Bug Fixes |
+| `docs` | Documentation only changes | Documentation |
+| `style` | Changes that don't affect code meaning (whitespace, formatting) | - |
+| `refactor` | Code change that neither fixes a bug nor adds a feature | Code Refactoring |
+| `perf` | Performance improvements | Performance |
+| `test` | Adding missing tests or correcting existing tests | Tests |
+| `build` | Changes affecting build system or external dependencies | Build System |
+| `ci` | Changes to CI configuration files and scripts | CI |
+| `chore` | Other changes that don't modify src or test files | Maintenance |
+| `revert` | Reverts a previous commit | Reverts |
+
+#### Scopes
+
+Use one of these scopes to specify which part of the project is affected:
+
+**Packages:**
+- `gossip` - Core gossip protocol library
+- `gossip_crdts` - CRDT extensions package
+- `gossip_event_sourcing` - Event sourcing library
+- `gossip_typed_events` - Type-safe events package
+
+**Apps:**
+- `chat` - Gossip chat demo app
+- `app` - General app-related changes
+
+**Infrastructure:**
+- `ci` - Continuous integration
+- `deps` - Dependencies
+- `config` - Configuration files
+- `docs` - Documentation
+- `release` - Release management
+
+#### Examples
+
+```bash
+# Features
+git commit -m "feat(gossip): add vector clock synchronization"
+git commit -m "feat(chat): implement P2P message encryption"
+git commit -m "feat(gossip_crdts): add G-Counter CRDT implementation"
+
+# Bug fixes
+git commit -m "fix(gossip): resolve race condition in event ordering"
+git commit -m "fix(chat): prevent duplicate messages in UI"
+git commit -m "fix(gossip_event_sourcing): handle projection rebuild errors"
+
+# Documentation
+git commit -m "docs(gossip): add vector clock usage examples"
+git commit -m "docs: update deployment guide with new steps"
+git commit -m "docs(chat): add P2P testing instructions"
+
+# Refactoring
+git commit -m "refactor(gossip): extract transport interface"
+git commit -m "refactor(chat): reorganize service layer architecture"
+
+# Performance
+git commit -m "perf(gossip): optimize event batching algorithm"
+git commit -m "perf(chat): reduce memory usage in message store"
+
+# Tests
+git commit -m "test(gossip): add integration tests for anti-entropy"
+git commit -m "test(chat): add P2P connection reliability tests"
+
+# Build system
+git commit -m "build(deps): upgrade Flutter to 3.16.0"
+git commit -m "build: add ProGuard rules for release builds"
+
+# CI/CD
+git commit -m "ci: add automated package publishing workflow"
+git commit -m "ci: configure Codemagic for Play Store deployment"
+
+# Maintenance
+git commit -m "chore: update copyright notices"
+git commit -m "chore(deps): bump dependency versions"
+git commit -m "chore(release): prepare v1.2.0"
+
+# Breaking changes (add ! after type/scope)
+git commit -m "feat(gossip)!: change API signature for createEvent"
+git commit -m "refactor(chat)!: rename service methods for consistency"
+
+# Multi-line commits with body and footer
+git commit -m "feat(gossip): implement event compression
+
+This reduces network bandwidth usage by 60% during
+gossip exchanges between peers.
+
+Closes #123
+Co-authored-by: John Doe <john@example.com>"
+```
+
+#### Breaking Changes
+
+For breaking changes, add `!` after the type/scope:
+
+```bash
+git commit -m "feat(gossip)!: change vector clock API"
+git commit -m "refactor(chat)!: restructure service initialization"
+```
+
+Or use the footer:
+
+```bash
+git commit -m "feat(gossip): add new sync algorithm
+
+BREAKING CHANGE: The syncEvents method signature has changed.
+See migration guide for details."
+```
+
 ### Recommended Workflow
 
 1. **Create Feature Branch**:
@@ -229,15 +355,22 @@ main                 # Production branch - triggers deployments
    melos run format      # Format code
    ```
 
-3. **Create Pull Request**:
+3. **Commit with Conventional Format**:
+   ```bash
+   git add .
+   git commit -m "feat(gossip): add new vector clock feature"
+   ```
+
+4. **Create Pull Request**:
    - CI runs automatically
    - Code review required
    - All checks must pass
 
-4. **Merge to Main**:
+5. **Merge to Main**:
    - Triggers deployments
    - App builds and deploys to Play Store
    - Packages publish to pub.dev (if changed)
+   - Changelog generated from commit messages
 
 ### Local Development Commands
 
