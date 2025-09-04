@@ -21,3 +21,24 @@ scripts:
   # You can add more scripts for formatting, etc.
   format:
     run: melos exec -- "dart format . --set-exit-if-changed"
+    description: Format code in all packages.
+
+  # Version management
+  version:
+    run: melos version --all
+    description: Version all packages together.
+
+  # Publish dry run to check what would be published
+  publish-dry-run:
+    run: melos publish --dry-run
+    description: Preview what would be published without actually publishing.
+
+  # Clean workspace
+  clean:
+    run: melos clean
+    description: Clean all packages (removes build artifacts and .dart_tool directories).
+
+  # Check dependencies for updates
+  outdated:
+    run: melos exec -- "dart pub outdated"
+    description: Check for outdated dependencies across all packages.

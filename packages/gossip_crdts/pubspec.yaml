@@ -2,6 +2,7 @@ name: gossip_crdts
 description: CRDT (Conflict-free Replicated Data Types) extensions for the gossip protocol library
 version: 1.0.0
 repository: https://github.com/da1nerd/gossip-crdts
+publish_to: "none"
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
