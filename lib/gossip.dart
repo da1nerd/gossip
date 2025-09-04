@@ -47,9 +47,6 @@ export 'src/gossip_config.dart';
 export 'src/transport.dart';
 export 'src/exceptions.dart';
 
-// Simplified interfaces
-export 'src/typed_events.dart';
-
 // Implementations
 export 'src/stores/memory_event_store.dart';
 
