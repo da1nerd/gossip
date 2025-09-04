@@ -2,9 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gossip/gossip.dart';
 import 'package:gossip_event_sourcing/gossip_event_sourcing.dart';
 import 'package:gossip_chat_demo/services/event_sourcing/projections/chat_projection.dart';
-import 'package:gossip_chat_demo/services/hive_projection_store.dart';
+
 import 'package:gossip_chat_demo/models/chat_events.dart';
-import 'package:gossip_typed_events/gossip_typed_events.dart';
 
 void main() {
   group('Event Sourcing Integration Tests', () {
@@ -250,11 +249,10 @@ void main() {
 /// Simple in-memory projection store for testing
 class InMemoryProjectionStore implements ProjectionStore {
   final Map<String, ProjectionStateSnapshot> _states = {};
-  bool _isInitialized = false;
 
   @override
   Future<void> initialize() async {
-    _isInitialized = true;
+    // Initialization complete
   }
 
   @override
@@ -314,7 +312,7 @@ class InMemoryProjectionStore implements ProjectionStore {
   @override
   Future<void> close() async {
     _states.clear();
-    _isInitialized = false;
+    // Store closed
   }
 
   @override

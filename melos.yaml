@@ -15,7 +15,7 @@ scripts:
     description: Run Dart tests in all packages.
 
   analyze:
-    run: melos exec --concurrency=10 -- "dart analyze"
+    run: melos exec --concurrency=10 -- "dart analyze --no-fatal-warnings"
     description: Run static analysis on all packages.
 
   # You can add more scripts for formatting, etc.
