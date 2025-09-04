@@ -13,8 +13,7 @@ import 'event.dart';
 import 'event_store.dart';
 import 'exceptions.dart';
 import 'gossip_config.dart';
-import 'simple_transport.dart';
-import 'stores/memory_event_store.dart';
+
 import 'transport.dart';
 import 'vector_clock.dart';
 import 'vector_clock_store.dart';
@@ -76,29 +75,6 @@ class GossipNode {
     required this.transport,
     this.vectorClockStore,
   });
-
-  /// Creates a simple gossip node with custom simple transport.
-  ///
-  /// This factory constructor makes it easier to use simple transport
-  /// implementations by automatically wrapping them with the adapter.
-  ///
-  /// Parameters:
-  /// - [nodeId]: Unique identifier for this node
-  /// - [transport]: Simple transport implementation
-  /// - [eventStore]: Optional event store (defaults to MemoryEventStore)
-  /// - [config]: Optional configuration (uses nodeId if not provided)
-  factory GossipNode.simple({
-    required String nodeId,
-    required SimpleGossipTransport transport,
-    EventStore? eventStore,
-    GossipConfig? config,
-  }) {
-    return GossipNode(
-      config: config ?? GossipConfig(nodeId: nodeId),
-      eventStore: eventStore ?? MemoryEventStore(),
-      transport: SimpleTransportAdapter(transport),
-    );
-  }
 
   /// Initializes and starts the gossip node.
   ///

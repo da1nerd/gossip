@@ -9,7 +9,6 @@ import 'dart:async';
 
 import 'event.dart';
 import 'gossip_node.dart';
-import 'simple_gossip_node.dart';
 
 /// Base class for typed events.
 ///
@@ -84,45 +83,6 @@ extension TypedGossipNode on GossipNode {
       return fromJson(data);
     }).handleError((error) {
       // Log error but continue stream
-      print('Error deserializing typed event: $error');
-    });
-  }
-}
-
-/// Extension on SimpleGossipNode to support typed events.
-extension TypedSimpleGossipNode on SimpleGossipNode {
-  /// Broadcasts a typed event to all peers.
-  ///
-  /// Similar to the full GossipNode version, but for the simplified node.
-  Future<Event> broadcastTypedEvent<T extends TypedEvent>(T event) async {
-    return await createEvent({
-      'type': event.type,
-      'data': event.toJson(),
-    });
-  }
-
-  /// Stream of typed events of a specific type.
-  ///
-  /// Simplified version for the simple gossip node.
-  Stream<T> onTypedEvent<T extends TypedEvent>(
-    T Function(Map<String, dynamic>) fromJson,
-  ) {
-    return onEventReceived.where((event) {
-      try {
-        final eventType = event.payload['type'] as String?;
-        if (eventType == null) return false;
-
-        final registry = TypedEventRegistry();
-        final filterType = registry.getType<T>();
-
-        return eventType == filterType;
-      } catch (e) {
-        return false;
-      }
-    }).map((event) {
-      final data = event.payload['data'] as Map<String, dynamic>;
-      return fromJson(data);
-    }).handleError((error) {
       print('Error deserializing typed event: $error');
     });
   }

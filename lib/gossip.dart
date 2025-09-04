@@ -48,8 +48,6 @@ export 'src/transport.dart';
 export 'src/exceptions.dart';
 
 // Simplified interfaces
-export 'src/simple_transport.dart';
-export 'src/simple_gossip_node.dart';
 export 'src/typed_events.dart';
 
 // Implementations
