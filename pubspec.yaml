@@ -1,0 +1,22 @@
+# pubspec.yaml (at the monorepo root)
+
+name: gossip_workspace
+description: The root workspace for the Gossip project monorepo.
+# This version is for the workspace only and does not affect package versions.
+version: 1.0.0
+
+# Setting publish_to: 'none' is a best practice to prevent accidentally
+# publishing the entire workspace to pub.dev.
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+# 🛠️ Dev dependencies used for managing the whole repository.
+dev_dependencies:
+  # Pin the version of melos used by the project.
+  melos: ^4.0.0
+
+  # A common set of lints for all packages to share.
+  # This ensures consistent code style across the repo.
+  lints: ^3.0.0

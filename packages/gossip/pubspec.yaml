@@ -1,0 +1,19 @@
+name: gossip
+description: A Dart library for implementing gossip-based distributed event synchronization
+version: 1.0.0
+repository: https://github.com/da1nerd/gossip
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  meta: ^1.9.0
+dev_dependencies:
+  test: ^1.24.0
+  lints: ^3.0.0
+
+topics:
+  - distributed-systems
+  - gossip-protocol
+  - event-synchronization
+  - distributed-computing

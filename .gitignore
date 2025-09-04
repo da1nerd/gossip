@@ -1,0 +1,71 @@
+# === General ===
+# User-specific files from common IDEs
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Allow sharing of useful IDE settings
+!/.vscode/settings.json
+!/.vscode/extensions.json
+!/.vscode/launch.json
+
+# OS-generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+
+# === Melos ===
+# Cache directory for the Melos tool
+.melos_cache/
+
+
+# === Dart & Pub ===
+# General Dart tool cache
+.dart_tool/
+
+# Package resolution files (legacy)
+.packages
+
+# Build output folder for pure Dart projects
+/build/
+
+# Don't ignore pubspec.lock files! They are important for reproducible builds.
+# See the note below for more details.
+# !pubspec.lock
+
+
+# === Flutter ===
+# Flutter build output
+/build/
+
+# Generated plugin registrant files
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android build files and sensitive data
+/apps/gossip_chat/android/.gradle/
+/apps/gossip_chat/android/local.properties
+/apps/gossip_chat/android/app/src/main/jniLibs/
+# IMPORTANT: Never commit your keystore files!
+*.jks
+*.keystore
+
+# iOS build files and sensitive data
+/apps/gossip_chat/ios/Pods/
+/apps/gossip_chat/ios/.symlinks/
+/apps/gossip_chat/ios/Flutter/App.framework
+/apps/gossip_chat/ios/Flutter/engine
+/apps/gossip_chat/ios/Flutter/flutter_export_environment.sh
+
+
+# === Sensitive Data ===
+# General rule for files containing secrets
+*.env
+secrets.json

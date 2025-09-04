@@ -1,0 +1,23 @@
+name: gossip_event_sourcing
+description: Event Sourcing and CQRS library for Dart applications using the Gossip protocol. Provides core components for building scalable event-driven architectures.
+version: 1.0.0
+homepage: https://github.com/da1nerd/gossip_event_sourcing
+repository: https://github.com/da1nerd/gossip_event_sourcing
+publish_to: none
+
+environment:
+  sdk: ">=3.1.0 <4.0.0"
+
+dependencies:
+  gossip:
+    path: ../gossip
+
+dev_dependencies:
+  test: ^1.24.0
+  lints: ^2.0.0
+
+topics:
+  - event-sourcing
+  - cqrs
+  - distributed-systems
+  - gossip-protocol

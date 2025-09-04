@@ -1,0 +1,38 @@
+name: gossip_chat_demo
+description: A Flutter chat app using Gossip protocol and Nearby Connections.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.1.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+
+  gossip:
+    path: ../../packages/gossip
+  gossip_typed_events:
+    path: ../../packages/gossip_typed_events
+  gossip_event_sourcing:
+    path: ../../packages/gossip_event_sourcing
+  nearby_connections: ^4.3.0
+  permission_handler: ^11.3.1
+  location: ^5.0.3
+  device_info_plus: ^9.1.0
+  uuid: ^4.0.0
+  shared_preferences: ^2.2.2
+  provider: ^6.1.1
+  intl: ^0.18.1
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true

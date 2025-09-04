@@ -1,0 +1,3 @@
+- Review and commit approved changes often because the AI will occasionally produce incorrect or incomplete code.
+- The AI is excellent at extracting code and moving it into a seperate package.
+- The AI is really good at implementing well known algorithms or protocols.

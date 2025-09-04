@@ -1,0 +1,24 @@
+name: gossip_typed_events
+description: Type-safe event extensions for the Dart gossip protocol library
+version: 1.0.0
+repository: https://github.com/da1nerd/gossip_typed_events
+publish_to: none
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  gossip:
+    path: ../gossip
+  meta: ^1.9.0
+
+dev_dependencies:
+  test: ^1.24.0
+  lints: ^3.0.0
+
+topics:
+  - distributed-systems
+  - gossip-protocol
+  - event-synchronization
+  - type-safety
+  - distributed-computing

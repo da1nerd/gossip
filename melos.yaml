@@ -1,0 +1,23 @@
+# melos.yaml
+name: gossip_monorepo
+
+# Location of your packages
+packages:
+  - apps/**
+  - packages/**
+
+# Scripts that can be run with `melos run <script_name>`
+scripts:
+  test:
+    # This command runs tests in all packages that have a test/ directory.
+    # The --no-select flag ensures it runs even if a package isn't selected via filtering.
+    run: melos exec --concurrency=10 -- "dart test --reporter=expanded"
+    description: Run Dart tests in all packages.
+
+  analyze:
+    run: melos exec --concurrency=10 -- "dart analyze"
+    description: Run static analysis on all packages.
+
+  # You can add more scripts for formatting, etc.
+  format:
+    run: melos exec -- "dart format . --set-exit-if-changed"
