@@ -4,7 +4,6 @@
 /// and simulate a basic gossip network with event synchronization.
 
 import 'dart:async';
-import 'dart:math';
 
 import 'package:gossip/gossip.dart';
 
@@ -25,14 +24,11 @@ class InMemoryTransport implements GossipTransport {
   final StreamController<GossipPeer> _peerDisconnectionsController =
       StreamController<GossipPeer>.broadcast();
 
-  bool _isInitialized = false;
-
   InMemoryTransport(this.nodeId, this._nodeRegistry);
 
   @override
   Future<void> initialize() async {
     _nodeRegistry[nodeId] = this;
-    _isInitialized = true;
   }
 
   @override
@@ -41,7 +37,6 @@ class InMemoryTransport implements GossipTransport {
     await _digestController.close();
     await _eventsController.close();
     await _peerDisconnectionsController.close();
-    _isInitialized = false;
   }
 
   @override
@@ -95,11 +90,9 @@ class InMemoryTransport implements GossipTransport {
   @override
   Stream<IncomingEvents> get incomingEvents => _eventsController.stream;
 
-  @override
   Stream<GossipPeer> get peerDisconnections =>
       _peerDisconnectionsController.stream;
 
-  @override
   Future<List<GossipPeer>> discoverPeers() async {
     return _nodeRegistry.keys
         .where((id) => id != nodeId)

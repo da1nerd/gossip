@@ -492,7 +492,7 @@ void main() {
 
     test('should broadcast typed events', () async {
       final typedEvent = TestUserEvent(userId: 'user123', action: 'login');
-      final gossipEvent = await node.broadcastTypedEvent(typedEvent);
+      final gossipEvent = await node.createTypedEvent(typedEvent);
 
       expect(gossipEvent.payload['type'], equals('test_user_event'));
       expect(gossipEvent.payload['data'], isA<Map<String, dynamic>>());
@@ -509,7 +509,11 @@ void main() {
         TestUserEvent(userId: 'user2', action: 'logout'),
       ];
 
-      final gossipEvents = await node.broadcastTypedEvents(events);
+      final gossipEvents = <Event>[];
+      for (final event in events) {
+        final result = await node.createTypedEvent(event);
+        gossipEvents.add(result);
+      }
       expect(gossipEvents, hasLength(2));
 
       for (final event in gossipEvents) {
@@ -521,7 +525,7 @@ void main() {
       final invalidEvent = ValidatingEvent(data: 'ab'); // Too short
 
       expect(
-        () => node.broadcastTypedEvent(invalidEvent),
+        () => node.createTypedEvent(invalidEvent),
         throwsA(isA<TypedEventException>()),
       );
     });
@@ -549,13 +553,13 @@ void main() {
       );
 
       // Broadcast different types of events from sender
-      await senderNode.broadcastTypedEvent(
+      await senderNode.createTypedEvent(
         TestUserEvent(userId: 'user1', action: 'login'),
       );
-      await senderNode.broadcastTypedEvent(
+      await senderNode.createTypedEvent(
         TestOrderEvent(orderId: 'order1', amount: 100),
       );
-      await senderNode.broadcastTypedEvent(
+      await senderNode.createTypedEvent(
         TestUserEvent(userId: 'user2', action: 'logout'),
       );
 
@@ -594,7 +598,7 @@ void main() {
         const GossipPeer(id: 'test-node', address: 'mock://test-node'),
       );
 
-      await senderNode.broadcastTypedEvent(
+      await senderNode.createTypedEvent(
         TestOrderEvent(orderId: 'order123', amount: 99.99),
       );
 
@@ -638,10 +642,10 @@ void main() {
         const GossipPeer(id: 'test-node', address: 'mock://test-node'),
       );
 
-      await senderNode.broadcastTypedEvent(
+      await senderNode.createTypedEvent(
         TestUserEvent(userId: 'user1', action: 'login'),
       );
-      await senderNode.broadcastTypedEvent(
+      await senderNode.createTypedEvent(
         TestOrderEvent(orderId: 'order1', amount: 50),
       );
 
@@ -662,7 +666,7 @@ void main() {
       final badEvent = _BadSerializationEvent();
 
       expect(
-        () => node.broadcastTypedEvent(badEvent),
+        () => node.createTypedEvent(badEvent),
         throwsA(isA<TypedEventException>()),
       );
     });
@@ -902,7 +906,7 @@ void main() {
 
       // Create event on node 1
       final event = TestUserEvent(userId: 'distributed_user', action: 'test');
-      await nodes[0].broadcastTypedEvent(event);
+      await nodes[0].createTypedEvent(event);
 
       // Trigger gossip
       await nodes[0].gossip();
@@ -932,7 +936,7 @@ void main() {
         ..setMetadata('source', 'integration_test')
         ..setMetadata('priority', 'high');
 
-      await nodes[0].broadcastTypedEvent(event);
+      await nodes[0].createTypedEvent(event);
       await nodes[0].gossip();
       await Future.delayed(const Duration(milliseconds: 100));
 

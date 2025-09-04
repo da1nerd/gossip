@@ -196,12 +196,9 @@ class InMemoryTransport implements GossipTransport {
   final StreamController<IncomingEvents> _eventsController =
       StreamController<IncomingEvents>.broadcast();
 
-  bool _isInitialized = false;
-
   @override
   Future<void> initialize() async {
     _nodeRegistry[nodeId] = this;
-    _isInitialized = true;
   }
 
   @override
@@ -209,7 +206,6 @@ class InMemoryTransport implements GossipTransport {
     _nodeRegistry.remove(nodeId);
     await _digestController.close();
     await _eventsController.close();
-    _isInitialized = false;
   }
 
   @override
@@ -454,7 +450,7 @@ Future<void> _simulateBusinessActivity(List<GossipNode> nodes) async {
   loginEvent.setMetadata('app_version', '2.1.0');
 
   print('🔐 Broadcasting user login event...');
-  await webServer.broadcastTypedEvent(loginEvent);
+  await webServer.createTypedEvent(loginEvent);
   await Future.delayed(const Duration(milliseconds: 200));
 
   // 2. Customer creates an order
@@ -470,7 +466,7 @@ Future<void> _simulateBusinessActivity(List<GossipNode> nodes) async {
   );
 
   print('🛒 Broadcasting order creation event...');
-  await orderService.broadcastTypedEvent(orderEvent);
+  await orderService.createTypedEvent(orderEvent);
   await Future.delayed(const Duration(milliseconds: 200));
 
   // 3. Inventory gets updated (multiple events)
@@ -490,7 +486,9 @@ Future<void> _simulateBusinessActivity(List<GossipNode> nodes) async {
   ];
 
   print('📦 Broadcasting inventory updates...');
-  await inventoryService.broadcastTypedEvents(inventoryEvents);
+  for (final event in inventoryEvents) {
+    await inventoryService.createTypedEvent(event);
+  }
   await Future.delayed(const Duration(milliseconds: 200));
 
   // 4. Batch operation example
@@ -510,7 +508,9 @@ Future<void> _simulateBusinessActivity(List<GossipNode> nodes) async {
   ];
 
   print('📦 Broadcasting batch events...');
-  await webServer.broadcastTypedEvents(batchEvents);
+  for (final event in batchEvents) {
+    await webServer.createTypedEvent(event);
+  }
 }
 
 /// Show statistics for all nodes
@@ -559,7 +559,7 @@ Future<void> _demonstrateErrorHandling(GossipNode node) async {
       currency: 'USD',
     );
 
-    await node.broadcastTypedEvent(invalidOrder);
+    await node.createTypedEvent(invalidOrder);
   } on TypedEventException catch (e) {
     print('❌ Caught expected validation error: ${e.message}');
   }

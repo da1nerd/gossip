@@ -24,7 +24,7 @@ class MemoryEventStore implements EventStore {
   final List<Event> _events = [];
   final Map<String, List<Event>> _eventsByNode = {};
   final Map<String, Event> _eventsById = {};
-  final Completer<void>? _closeCompleter = null;
+
   bool _isClosed = false;
 
   /// Creates a new in-memory event store.

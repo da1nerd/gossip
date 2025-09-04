@@ -70,7 +70,7 @@
 ///   timestamp: DateTime.now(),
 /// );
 ///
-/// await node.broadcastTypedEvent(loginEvent);
+/// await node.createTypedEvent(loginEvent);
 ///
 /// // Listen for typed events
 /// node.onTypedEvent<UserLoginEvent>((json) => UserLoginEvent.fromJson(json))
@@ -196,7 +196,7 @@
 ///
 /// ```dart
 /// try {
-///   await node.broadcastTypedEvent(event);
+///   await node.createTypedEvent(event);
 /// } on TypedEventException catch (e) {
 ///   print('Failed to broadcast event: ${e.message}');
 /// } on TypedEventRegistryException catch (e) {

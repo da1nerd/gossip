@@ -170,7 +170,6 @@ class TextEditor {
 
   /// Perform a random editing operation
   Future<void> performRandomEdit() async {
-    final operations = [insertRandomText, deleteRandomCharacter, insertNewLine];
     final weights = [0.6, 0.3, 0.1]; // 60% insert, 30% delete, 10% newline
 
     final rand = _random.nextDouble();
@@ -228,8 +227,8 @@ void main() async {
       if (i != j) {
         final peerName = editorNames[j].toLowerCase();
         editors[i].node.gossipNode.addPeer(
-          GossipPeer(id: peerName, address: 'memory://$peerName'),
-        );
+              GossipPeer(id: peerName, address: 'memory://$peerName'),
+            );
       }
     }
   }
