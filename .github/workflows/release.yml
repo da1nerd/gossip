@@ -92,7 +92,7 @@ jobs:
         run: |
           echo "🏷️ Creating tag v${{ env.NEW_VERSION }}..."
           git tag -a "v${{ env.NEW_VERSION }}" -m "Release v${{ env.NEW_VERSION }}"
-          git push "v${{ env.NEW_VERSION }}"
+          git push origin "v${{ env.NEW_VERSION }}"
           echo "✅ Tag v${{ env.NEW_VERSION }} created and pushed"
 
       - name: Verify version consistency
