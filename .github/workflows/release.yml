@@ -16,6 +16,7 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    if: false # Workflow disabled - remove this line to re-enable
     permissions:
       contents: write
       pull-requests: write
