@@ -10,8 +10,7 @@ environment:
   sdk: ">=3.1.0 <4.0.0"
 
 dependencies:
-  gossip:
-    path: ../gossip
+  gossip: ^1.0.1
 
 dev_dependencies:
   test: ^1.25.0
@@ -22,6 +21,4 @@ topics:
   - cqrs
   - distributed-systems
   - gossip-protocol
-  - projections
-  - event-store
   - command-query

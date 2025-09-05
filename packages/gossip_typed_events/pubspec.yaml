@@ -10,8 +10,7 @@ environment:
   sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
-  gossip:
-    path: ../gossip
+  gossip: ^1.0.1
   meta: ^1.12.0
 
 dev_dependencies:
@@ -23,7 +22,3 @@ topics:
   - gossip-protocol
   - event-synchronization
   - type-safety
-  - distributed-computing
-  - serialization
-  - validation
-  - event-driven
