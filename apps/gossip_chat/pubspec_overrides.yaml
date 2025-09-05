@@ -1,0 +1,7 @@
+dependency_overrides:
+  gossip:
+    path: ../../packages/gossip
+  gossip_crdts:
+    path: ../../packages/gossip_crdts
+  gossip_event_sourcing:
+    path: ../../packages/gossip_event_sourcing
