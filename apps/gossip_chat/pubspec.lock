@@ -134,21 +134,21 @@ packages:
       path: "../../packages/gossip"
       relative: true
     source: path
-    version: "1.0.1"
+    version: "1.0.2"
   gossip_event_sourcing:
     dependency: "direct main"
     description:
       path: "../../packages/gossip_event_sourcing"
       relative: true
     source: path
-    version: "1.0.1"
+    version: "1.0.2"
   gossip_typed_events:
     dependency: "direct main"
     description:
       path: "../../packages/gossip_typed_events"
       relative: true
     source: path
-    version: "1.0.1"
+    version: "1.0.2"
   hive:
     dependency: "direct main"
     description:

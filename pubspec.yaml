@@ -3,7 +3,7 @@
 name: gossip_workspace
 description: The root workspace for the Gossip project monorepo.
 # This version is for the workspace only and does not affect package versions.
-version: 1.0.1
+version: 1.0.2
 
 # Setting publish_to: 'none' is a best practice to prevent accidentally
 # publishing the entire workspace to pub.dev.
@@ -15,7 +15,7 @@ environment:
 # 🛠️ Dev dependencies used for managing the whole repository.
 dev_dependencies:
   # Pin the version of melos used by the project.
-  melos: ^4.0.0
+  melos: ^4.1.0
 
   # A common set of lints for all packages to share.
   # This ensures consistent code style across the repo.

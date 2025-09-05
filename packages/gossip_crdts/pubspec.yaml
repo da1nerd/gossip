@@ -1,6 +1,6 @@
 name: gossip_crdts
 description: CRDT (Conflict-free Replicated Data Types) extensions for the gossip protocol library with support for distributed data structures
-version: 1.0.1
+version: 1.0.2
 homepage: https://github.com/da1nerd/gossip-mono
 repository: https://github.com/da1nerd/gossip-mono
 issue_tracker: https://github.com/da1nerd/gossip-mono/issues
@@ -10,7 +10,7 @@ environment:
   sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
-  gossip: ^1.0.1
+  gossip: ^1.0.2
   meta: ^1.12.0
 
 dev_dependencies:
