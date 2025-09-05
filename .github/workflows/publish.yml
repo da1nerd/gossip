@@ -73,7 +73,7 @@ jobs:
           echo "🔍 Running pre-publish validation..."
           melos run analyze
           melos run test
-          melos run format --set-exit-if-changed
+          melos format --set-exit-if-changed
 
       - name: Run publish dry-run
         run: |
