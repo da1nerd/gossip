@@ -129,10 +129,10 @@ class GCounter implements CRDT<int> {
 
   @override
   Map<String, dynamic> getState() => {
-        'type': type,
-        'id': id,
-        'counters': Map<String, int>.from(_counters),
-      };
+    'type': type,
+    'id': id,
+    'counters': Map<String, int>.from(_counters),
+  };
 
   @override
   void mergeState(Map<String, dynamic> otherState) {

@@ -227,8 +227,8 @@ void main() async {
       if (i != j) {
         final peerName = editorNames[j].toLowerCase();
         editors[i].node.gossipNode.addPeer(
-              GossipPeer(id: peerName, address: 'memory://$peerName'),
-            );
+          GossipPeer(id: peerName, address: 'memory://$peerName'),
+        );
       }
     }
   }

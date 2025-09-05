@@ -203,7 +203,8 @@ class LWWMap<K, V> implements CRDT<Map<K, V>> {
 
   @override
   void applyOperation(CRDTOperation operation) {
-    final timestamp = operation.data['timestamp'] as int? ??
+    final timestamp =
+        operation.data['timestamp'] as int? ??
         operation.timestamp.millisecondsSinceEpoch;
 
     switch (operation.operation) {
@@ -237,24 +238,24 @@ class LWWMap<K, V> implements CRDT<Map<K, V>> {
 
   @override
   Map<String, dynamic> getState() => {
-        'type': type,
-        'id': id,
-        'values': _values.map(
-          (key, value) => MapEntry(_serializeKey(key), _serializeValue(value)),
-        ),
-        'addTimestamps': _addTimestamps.map(
-          (key, entry) => MapEntry(_serializeKey(key), {
-            'timestamp': entry.timestamp,
-            'nodeId': entry.nodeId,
-          }),
-        ),
-        'removeTimestamps': _removeTimestamps.map(
-          (key, entry) => MapEntry(_serializeKey(key), {
-            'timestamp': entry.timestamp,
-            'nodeId': entry.nodeId,
-          }),
-        ),
-      };
+    'type': type,
+    'id': id,
+    'values': _values.map(
+      (key, value) => MapEntry(_serializeKey(key), _serializeValue(value)),
+    ),
+    'addTimestamps': _addTimestamps.map(
+      (key, entry) => MapEntry(_serializeKey(key), {
+        'timestamp': entry.timestamp,
+        'nodeId': entry.nodeId,
+      }),
+    ),
+    'removeTimestamps': _removeTimestamps.map(
+      (key, entry) => MapEntry(_serializeKey(key), {
+        'timestamp': entry.timestamp,
+        'nodeId': entry.nodeId,
+      }),
+    ),
+  };
 
   @override
   void mergeState(Map<String, dynamic> otherState) {
@@ -610,7 +611,8 @@ class LWWMap<K, V> implements CRDT<Map<K, V>> {
   int get hashCode => super.hashCode;
 
   @override
-  String toString() => 'LWWMap<$K, $V>(id: $id, length: $length, '
+  String toString() =>
+      'LWWMap<$K, $V>(id: $id, length: $length, '
       'totalKeys: ${allKeys.length})';
 }
 

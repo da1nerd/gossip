@@ -208,10 +208,10 @@ mixin TypedEventMixin on TypedEvent {
   /// Calculates a hash code that includes metadata.
   @override
   int get hashCode => Object.hash(
-        super.hashCode,
-        createdAt.millisecondsSinceEpoch,
-        _deepHashCode(_metadata),
-      );
+    super.hashCode,
+    createdAt.millisecondsSinceEpoch,
+    _deepHashCode(_metadata),
+  );
 
   /// Deep hash code calculation for nested structures.
   int _deepHashCode(value) {

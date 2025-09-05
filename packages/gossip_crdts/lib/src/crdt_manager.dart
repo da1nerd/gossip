@@ -505,7 +505,8 @@ class CRDTOperationEvent {
   });
 
   @override
-  String toString() => 'CRDTOperationEvent(operation: ${operation.operation}, '
+  String toString() =>
+      'CRDTOperationEvent(operation: ${operation.operation}, '
       'source: $source, timestamp: $timestamp)';
 }
 
@@ -524,7 +525,8 @@ class CRDTSyncEvent {
   });
 
   @override
-  String toString() => 'CRDTSyncEvent(peerId: $peerId, type: $type, '
+  String toString() =>
+      'CRDTSyncEvent(peerId: $peerId, type: $type, '
       'crdtCount: $crdtCount, timestamp: $timestamp)';
 }
 
@@ -543,7 +545,8 @@ class CRDTManagerStats {
   });
 
   @override
-  String toString() => 'CRDTManagerStats(totalCRDTs: $totalCRDTs, '
+  String toString() =>
+      'CRDTManagerStats(totalCRDTs: $totalCRDTs, '
       'crdtTypes: $crdtTypes, isInitialized: $isInitialized, '
       'isClosed: $isClosed)';
 }

@@ -54,12 +54,12 @@ class UserLoginEvent extends TypedEvent with TypedEventMixin {
 
   @override
   Map<String, dynamic> toJson() => {
-        ...toJsonWithMetadata(),
-        'userId': userId,
-        'sessionId': sessionId,
-        'ipAddress': ipAddress,
-        'loginTime': loginTime.millisecondsSinceEpoch,
-      };
+    ...toJsonWithMetadata(),
+    'userId': userId,
+    'sessionId': sessionId,
+    'ipAddress': ipAddress,
+    'loginTime': loginTime.millisecondsSinceEpoch,
+  };
 
   @override
   String toString() => 'UserLoginEvent(userId: $userId, sessionId: $sessionId)';
@@ -77,8 +77,10 @@ class OrderCreatedEvent extends TypedEvent with TypedEventMixin {
 
   factory OrderCreatedEvent.fromJson(Map<String, dynamic> json) {
     final itemsJson = json['items'] as List;
-    final items =
-        itemsJson.cast<Map<String, dynamic>>().map(OrderItem.fromJson).toList();
+    final items = itemsJson
+        .cast<Map<String, dynamic>>()
+        .map(OrderItem.fromJson)
+        .toList();
 
     final event = OrderCreatedEvent(
       orderId: json['orderId'] as String,
@@ -111,13 +113,13 @@ class OrderCreatedEvent extends TypedEvent with TypedEventMixin {
 
   @override
   Map<String, dynamic> toJson() => {
-        ...toJsonWithMetadata(),
-        'orderId': orderId,
-        'customerId': customerId,
-        'items': items.map((item) => item.toJson()).toList(),
-        'totalAmount': totalAmount,
-        'currency': currency,
-      };
+    ...toJsonWithMetadata(),
+    'orderId': orderId,
+    'customerId': customerId,
+    'items': items.map((item) => item.toJson()).toList(),
+    'totalAmount': totalAmount,
+    'currency': currency,
+  };
 
   @override
   String toString() =>
@@ -150,11 +152,11 @@ class InventoryUpdateEvent extends TypedEvent {
 
   @override
   Map<String, dynamic> toJson() => {
-        'productId': productId,
-        'quantityChange': quantityChange,
-        'newQuantity': newQuantity,
-        'reason': reason,
-      };
+    'productId': productId,
+    'quantityChange': quantityChange,
+    'newQuantity': newQuantity,
+    'reason': reason,
+  };
 
   @override
   String toString() =>
@@ -170,19 +172,19 @@ class OrderItem {
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
-        productId: json['productId'] as String,
-        quantity: json['quantity'] as int,
-        unitPrice: (json['unitPrice'] as num).toDouble(),
-      );
+    productId: json['productId'] as String,
+    quantity: json['quantity'] as int,
+    unitPrice: (json['unitPrice'] as num).toDouble(),
+  );
   final String productId;
   final int quantity;
   final double unitPrice;
 
   Map<String, dynamic> toJson() => {
-        'productId': productId,
-        'quantity': quantity,
-        'unitPrice': unitPrice,
-      };
+    'productId': productId,
+    'quantity': quantity,
+    'unitPrice': unitPrice,
+  };
 }
 
 /// Simple in-memory transport for the example
@@ -323,10 +325,7 @@ Future<void> _registerEventTypes() async {
 
   print('📝 Registering event types...');
 
-  registry.register<UserLoginEvent>(
-    'user_login',
-    UserLoginEvent.fromJson,
-  );
+  registry.register<UserLoginEvent>('user_login', UserLoginEvent.fromJson);
 
   registry.register<OrderCreatedEvent>(
     'order_created',
@@ -394,11 +393,9 @@ void _setupEventListeners(List<GossipNode> nodes) {
     });
 
     // Listen for order events
-    node
-        .onTypedEvent<OrderCreatedEvent>(
-      OrderCreatedEvent.fromJson,
-    )
-        .listen((event) {
+    node.onTypedEvent<OrderCreatedEvent>(OrderCreatedEvent.fromJson).listen((
+      event,
+    ) {
       print(
         '🛒 [$nodeId] Order ${event.orderId} created for customer ${event.customerId}',
       );

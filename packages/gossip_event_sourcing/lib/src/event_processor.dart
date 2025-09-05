@@ -27,9 +27,9 @@ class EventProcessor {
     ProjectionStore? projectionStore,
     ProjectionStoreConfig? storeConfig,
     void Function(String message)? logger,
-  })  : _projectionStore = projectionStore,
-        _storeConfig = storeConfig ?? const ProjectionStoreConfig(),
-        _logger = logger;
+  }) : _projectionStore = projectionStore,
+       _storeConfig = storeConfig ?? const ProjectionStoreConfig(),
+       _logger = logger;
 
   void _log(String message) {
     _logger?.call(message);
@@ -402,22 +402,22 @@ class ProjectionStoreConfig {
 
   /// Configuration for high-performance scenarios (less frequent saves)
   const ProjectionStoreConfig.highPerformance()
-      : autoSaveEnabled = true,
-        autoSaveInterval = 500,
-        saveAfterBatch = false,
-        loadOnRebuild = true;
+    : autoSaveEnabled = true,
+      autoSaveInterval = 500,
+      saveAfterBatch = false,
+      loadOnRebuild = true;
 
   /// Configuration for maximum durability (frequent saves)
   const ProjectionStoreConfig.maxDurability()
-      : autoSaveEnabled = true,
-        autoSaveInterval = 50,
-        saveAfterBatch = true,
-        loadOnRebuild = true;
+    : autoSaveEnabled = true,
+      autoSaveInterval = 50,
+      saveAfterBatch = true,
+      loadOnRebuild = true;
 
   /// Configuration that disables projection store features
   const ProjectionStoreConfig.disabled()
-      : autoSaveEnabled = false,
-        autoSaveInterval = 0,
-        saveAfterBatch = false,
-        loadOnRebuild = false;
+    : autoSaveEnabled = false,
+      autoSaveInterval = 0,
+      saveAfterBatch = false,
+      loadOnRebuild = false;
 }

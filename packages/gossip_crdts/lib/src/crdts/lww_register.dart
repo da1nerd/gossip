@@ -124,7 +124,8 @@ class LWWRegister<T> implements CRDT<T?> {
     switch (operation.operation) {
       case 'set':
         final newValue = operation.data['value'] as T?;
-        final timestamp = operation.data['timestamp'] as int? ??
+        final timestamp =
+            operation.data['timestamp'] as int? ??
             operation.timestamp.millisecondsSinceEpoch;
         set(newValue, timestamp, operation.nodeId);
         break;
@@ -139,12 +140,12 @@ class LWWRegister<T> implements CRDT<T?> {
 
   @override
   Map<String, dynamic> getState() => {
-        'type': type,
-        'id': id,
-        'value': _value,
-        'timestamp': _timestamp,
-        'nodeId': _nodeId,
-      };
+    'type': type,
+    'id': id,
+    'value': _value,
+    'timestamp': _timestamp,
+    'nodeId': _nodeId,
+  };
 
   @override
   void mergeState(Map<String, dynamic> otherState) {
@@ -299,6 +300,7 @@ class LWWRegister<T> implements CRDT<T?> {
   int get hashCode => super.hashCode;
 
   @override
-  String toString() => 'LWWRegister<$T>(id: $id, value: $_value, '
+  String toString() =>
+      'LWWRegister<$T>(id: $id, value: $_value, '
       'timestamp: $_timestamp, nodeId: $_nodeId)';
 }

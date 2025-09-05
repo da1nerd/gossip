@@ -286,20 +286,20 @@ class RGAArray<T> implements CRDT<List<T>> {
 
   @override
   Map<String, dynamic> getState() => {
-        'type': type,
-        'id': id,
-        'elements': _elements
-            .map(
-              (element) => {
-                'uid': element.uid,
-                'value': _serializeValue(element.value),
-                'timestamp': element.timestamp.millisecondsSinceEpoch,
-                'nodeId': element.nodeId,
-                'isDeleted': element.isDeleted,
-              },
-            )
-            .toList(),
-      };
+    'type': type,
+    'id': id,
+    'elements': _elements
+        .map(
+          (element) => {
+            'uid': element.uid,
+            'value': _serializeValue(element.value),
+            'timestamp': element.timestamp.millisecondsSinceEpoch,
+            'nodeId': element.nodeId,
+            'isDeleted': element.isDeleted,
+          },
+        )
+        .toList(),
+  };
 
   @override
   void mergeState(Map<String, dynamic> otherState) {
@@ -613,7 +613,8 @@ class RGAArray<T> implements CRDT<List<T>> {
   int get hashCode => super.hashCode;
 
   @override
-  String toString() => 'RGAArray<$T>(id: $id, length: $length, '
+  String toString() =>
+      'RGAArray<$T>(id: $id, length: $length, '
       'totalElements: $totalElements, deletedCount: $deletedCount)';
 }
 
@@ -634,6 +635,7 @@ class _RGAElement<T> {
   });
 
   @override
-  String toString() => '_RGAElement(uid: $uid, value: $value, '
+  String toString() =>
+      '_RGAElement(uid: $uid, value: $value, '
       'timestamp: $timestamp, nodeId: $nodeId, isDeleted: $isDeleted)';
 }

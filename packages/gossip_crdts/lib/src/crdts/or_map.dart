@@ -83,7 +83,7 @@ class ORMap<K, V extends CRDT> implements CRDT<Map<K, V>> {
   /// - [id]: Unique identifier for this map across all nodes
   /// - [crdtFactory]: Optional factory function to create CRDT values
   ORMap(this.id, {V Function(String crdtId, String crdtType)? crdtFactory})
-      : _crdtFactory = crdtFactory;
+    : _crdtFactory = crdtFactory;
 
   @override
   String get type => 'ORMap';
@@ -198,8 +198,9 @@ class ORMap<K, V extends CRDT> implements CRDT<Map<K, V>> {
     if (tags == null || tags.isEmpty) return false;
 
     // Mark all currently observed tags as removed
-    final tagsToRemove =
-        tags.where((tag) => !_removedTags.contains(tag)).toSet();
+    final tagsToRemove = tags
+        .where((tag) => !_removedTags.contains(tag))
+        .toSet();
     _removedTags.addAll(tagsToRemove);
 
     return tagsToRemove.isNotEmpty;
@@ -303,16 +304,16 @@ class ORMap<K, V extends CRDT> implements CRDT<Map<K, V>> {
 
   @override
   Map<String, dynamic> getState() => {
-        'type': type,
-        'id': id,
-        'keyTags': _keyTags.map(
-          (key, tags) => MapEntry(_serializeKey(key), tags.toList()),
-        ),
-        'removedTags': _removedTags.toList(),
-        'values': _values.map(
-          (key, crdt) => MapEntry(_serializeKey(key), crdt.getState()),
-        ),
-      };
+    'type': type,
+    'id': id,
+    'keyTags': _keyTags.map(
+      (key, tags) => MapEntry(_serializeKey(key), tags.toList()),
+    ),
+    'removedTags': _removedTags.toList(),
+    'values': _values.map(
+      (key, crdt) => MapEntry(_serializeKey(key), crdt.getState()),
+    ),
+  };
 
   @override
   void mergeState(Map<String, dynamic> otherState) {
@@ -600,7 +601,8 @@ class ORMap<K, V extends CRDT> implements CRDT<Map<K, V>> {
   int get hashCode => super.hashCode;
 
   @override
-  String toString() => 'ORMap<$K, $V>(id: $id, length: $length, '
+  String toString() =>
+      'ORMap<$K, $V>(id: $id, length: $length, '
       'totalTags: ${_keyTags.values.fold(0, (sum, tags) => sum + tags.length)}, '
       'removedTags: ${_removedTags.length})';
 }

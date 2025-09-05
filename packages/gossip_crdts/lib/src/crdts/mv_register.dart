@@ -198,12 +198,12 @@ class MVRegister<T> implements CRDT<Set<T>> {
 
   @override
   Map<String, dynamic> getState() => {
-        'type': type,
-        'id': id,
-        'valueClocks': _valueClocks.map(
-          (value, clock) => MapEntry(_serializeValue(value), clock),
-        ),
-      };
+    'type': type,
+    'id': id,
+    'valueClocks': _valueClocks.map(
+      (value, clock) => MapEntry(_serializeValue(value), clock),
+    ),
+  };
 
   @override
   void mergeState(Map<String, dynamic> otherState) {
@@ -227,8 +227,8 @@ class MVRegister<T> implements CRDT<Set<T>> {
 
     for (final entry in otherValueClocks.entries) {
       final valueStr = entry.key;
-      final otherClock =
-          (entry.value as Map<String, dynamic>).cast<String, int>();
+      final otherClock = (entry.value as Map<String, dynamic>)
+          .cast<String, int>();
       final value = _deserializeValue(valueStr);
 
       set(value, otherClock);
@@ -413,8 +413,8 @@ class MVRegister<T> implements CRDT<Set<T>> {
       for (final entry in clock.entries) {
         resolutionClock[entry.key] =
             (resolutionClock[entry.key] ?? 0) > entry.value
-                ? resolutionClock[entry.key]!
-                : entry.value;
+            ? resolutionClock[entry.key]!
+            : entry.value;
       }
     }
 
@@ -466,6 +466,7 @@ class MVRegister<T> implements CRDT<Set<T>> {
   int get hashCode => super.hashCode;
 
   @override
-  String toString() => 'MVRegister<$T>(id: $id, values: $valueCount, '
+  String toString() =>
+      'MVRegister<$T>(id: $id, values: $valueCount, '
       'hasConflict: $hasConflict, values: $values)';
 }

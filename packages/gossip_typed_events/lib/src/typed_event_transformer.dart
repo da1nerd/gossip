@@ -65,7 +65,7 @@ class TypedEventTransformer<T extends TypedEvent>
 
   /// Optional error handler for deserialization failures.
   final void Function(Event event, Object error, StackTrace stackTrace)?
-      onError;
+  onError;
 
   @override
   Stream<T> bind(Stream<Event> stream) => stream
@@ -137,7 +137,7 @@ class RegistryTypedEventTransformer<T extends TypedEvent>
 
   /// Optional error handler for deserialization failures.
   final void Function(Event event, Object error, StackTrace stackTrace)?
-      onError;
+  onError;
 
   /// The registry to use for deserialization.
   final TypedEventRegistry? registry;
@@ -241,7 +241,7 @@ class MultiTypeEventTransformer
 
   /// Optional error handler for deserialization failures.
   final void Function(Event event, Object error, StackTrace stackTrace)?
-      onError;
+  onError;
 
   /// The registry to use for deserialization.
   final TypedEventRegistry? registry;
@@ -343,13 +343,12 @@ TypedEventTransformer<T> typedEventTransformer<T extends TypedEvent>({
   required T Function(Map<String, dynamic>) factory,
   bool skipErrors = true,
   void Function(Event event, Object error, StackTrace stackTrace)? onError,
-}) =>
-    TypedEventTransformer<T>(
-      eventType: eventType,
-      factory: factory,
-      skipErrors: skipErrors,
-      onError: onError,
-    );
+}) => TypedEventTransformer<T>(
+  eventType: eventType,
+  factory: factory,
+  skipErrors: skipErrors,
+  onError: onError,
+);
 
 /// Helper function to create a registry-based typed event transformer.
 ///
@@ -365,16 +364,15 @@ TypedEventTransformer<T> typedEventTransformer<T extends TypedEvent>({
 /// final transformer = registryTypedEventTransformer<UserLoginEvent>();
 /// ```
 RegistryTypedEventTransformer<T>
-    registryTypedEventTransformer<T extends TypedEvent>({
+registryTypedEventTransformer<T extends TypedEvent>({
   bool skipErrors = true,
   void Function(Event event, Object error, StackTrace stackTrace)? onError,
   TypedEventRegistry? registry,
-}) =>
-        RegistryTypedEventTransformer<T>(
-          skipErrors: skipErrors,
-          onError: onError,
-          registry: registry,
-        );
+}) => RegistryTypedEventTransformer<T>(
+  skipErrors: skipErrors,
+  onError: onError,
+  registry: registry,
+);
 
 /// Helper function to create a multi-type event transformer.
 ///
@@ -399,14 +397,13 @@ MultiTypeEventTransformer multiTypeEventTransformer({
   TypedEventRegistry? registry,
   Set<String>? includeTypes,
   Set<String>? excludeTypes,
-}) =>
-    MultiTypeEventTransformer(
-      skipErrors: skipErrors,
-      onError: onError,
-      registry: registry,
-      includeTypes: includeTypes,
-      excludeTypes: excludeTypes,
-    );
+}) => MultiTypeEventTransformer(
+  skipErrors: skipErrors,
+  onError: onError,
+  registry: registry,
+  includeTypes: includeTypes,
+  excludeTypes: excludeTypes,
+);
 
 /// Exception thrown when typed event transformer operations fail.
 class TypedEventTransformerException implements Exception {

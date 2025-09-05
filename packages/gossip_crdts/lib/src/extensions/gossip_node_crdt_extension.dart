@@ -178,8 +178,7 @@ class CRDTEnabledGossipNode {
     String crdtId,
     String operation,
     Map<String, dynamic> data,
-  ) =>
-      _crdtManager.performOperation(crdtId, operation, data);
+  ) => _crdtManager.performOperation(crdtId, operation, data);
 
   /// Synchronize CRDT state with a specific peer.
   Future<void> syncCRDTsWith(String peerId) => _crdtManager.syncWith(peerId);
@@ -206,6 +205,7 @@ class CRDTEnabledGossipNode {
   }
 
   @override
-  String toString() => 'CRDTEnabledGossipNode(nodeId: ${config.nodeId}, '
+  String toString() =>
+      'CRDTEnabledGossipNode(nodeId: ${config.nodeId}, '
       'crdtCount: ${getCRDTIds().length})';
 }

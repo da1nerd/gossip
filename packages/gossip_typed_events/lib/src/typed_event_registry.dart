@@ -275,10 +275,10 @@ class TypedEventRegistry {
   /// Returns information about the current state of the registry
   /// that can be useful for debugging or monitoring.
   TypedEventRegistryStats getStats() => TypedEventRegistryStats(
-        totalRegisteredTypes: _factories.length,
-        registeredTypes: List.unmodifiable(_factories.keys),
-        registeredDartTypes: List.unmodifiable(_types.keys),
-      );
+    totalRegisteredTypes: _factories.length,
+    registeredTypes: List.unmodifiable(_factories.keys),
+    registeredDartTypes: List.unmodifiable(_types.keys),
+  );
 
   /// Creates a copy of the current type mappings.
   ///
@@ -309,7 +309,8 @@ class TypedEventRegistryStats {
   final List<Type> registeredDartTypes;
 
   @override
-  String toString() => 'TypedEventRegistryStats('
+  String toString() =>
+      'TypedEventRegistryStats('
       'totalRegisteredTypes: $totalRegisteredTypes, '
       'registeredTypes: $registeredTypes, '
       'registeredDartTypes: $registeredDartTypes'

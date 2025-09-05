@@ -134,12 +134,7 @@ class Event {
 
   @override
   int get hashCode {
-    return Object.hash(
-      id,
-      nodeId,
-      timestamp,
-      creationTimestamp,
-    );
+    return Object.hash(id, nodeId, timestamp, creationTimestamp);
   }
 
   @override

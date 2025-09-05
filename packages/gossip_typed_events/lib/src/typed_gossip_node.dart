@@ -124,15 +124,14 @@ extension TypedGossipNode on GossipNode {
   /// ```
   Stream<T> onTypedEvent<T extends TypedEvent>(
     T Function(Map<String, dynamic>) fromJson,
-  ) =>
-      onEventReceived
-          .where((receivedEvent) => _isTypedEventOfType<T>(receivedEvent.event))
-          .map(
-            (receivedEvent) =>
-                _deserializeTypedEvent<T>(receivedEvent.event, fromJson),
-          )
-          .where((event) => event != null)
-          .cast<T>();
+  ) => onEventReceived
+      .where((receivedEvent) => _isTypedEventOfType<T>(receivedEvent.event))
+      .map(
+        (receivedEvent) =>
+            _deserializeTypedEvent<T>(receivedEvent.event, fromJson),
+      )
+      .where((event) => event != null)
+      .cast<T>();
 
   /// Stream of typed events of a specific type using the registry.
   ///

@@ -93,8 +93,9 @@ class MemoryEventStore implements EventStore {
       return [];
     }
 
-    final result =
-        nodeEvents.where((e) => e.timestamp > afterTimestamp).toList();
+    final result = nodeEvents
+        .where((e) => e.timestamp > afterTimestamp)
+        .toList();
 
     if (limit != null && result.length > limit) {
       return result.take(limit).toList();
@@ -299,8 +300,9 @@ class MemoryEventStore implements EventStore {
       sizeInBytes: approximateSize,
       additionalStats: {
         'eventsById': _eventsById.length,
-        'averageEventsPerNode':
-            _eventsByNode.isEmpty ? 0.0 : _events.length / _eventsByNode.length,
+        'averageEventsPerNode': _eventsByNode.isEmpty
+            ? 0.0
+            : _events.length / _eventsByNode.length,
       },
     );
   }

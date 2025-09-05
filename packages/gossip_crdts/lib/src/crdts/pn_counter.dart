@@ -186,11 +186,11 @@ class PNCounter implements CRDT<int> {
 
   @override
   Map<String, dynamic> getState() => {
-        'type': type,
-        'id': id,
-        'pCounters': Map<String, int>.from(_pCounters),
-        'nCounters': Map<String, int>.from(_nCounters),
-      };
+    'type': type,
+    'id': id,
+    'pCounters': Map<String, int>.from(_pCounters),
+    'nCounters': Map<String, int>.from(_nCounters),
+  };
 
   @override
   void mergeState(Map<String, dynamic> otherState) {

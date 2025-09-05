@@ -92,9 +92,9 @@ class TestUserEvent extends TypedEvent {
   TestUserEvent({required this.userId, required this.action});
 
   factory TestUserEvent.fromJson(Map<String, dynamic> json) => TestUserEvent(
-        userId: json['userId'] as String,
-        action: json['action'] as String,
-      );
+    userId: json['userId'] as String,
+    action: json['action'] as String,
+  );
   final String userId;
   final String action;
 
@@ -257,8 +257,8 @@ void main() {
 
     test('should serialize with metadata', () {
       event.setMetadata('source', 'web');
-      final json =
-          event.toJson(); // Use toJson() which includes both data and metadata
+      final json = event
+          .toJson(); // Use toJson() which includes both data and metadata
 
       expect(json, containsPair('orderId', 'order123'));
       expect(json, containsPair('amount', 99.99));
@@ -379,10 +379,7 @@ void main() {
     });
 
     test('should allow re-registration of same type', () {
-      registry.register<TestUserEvent>(
-        'test_type',
-        TestUserEvent.fromJson,
-      );
+      registry.register<TestUserEvent>('test_type', TestUserEvent.fromJson);
 
       // Should not throw
       expect(
@@ -396,10 +393,7 @@ void main() {
 
     test('should validate input parameters', () {
       expect(
-        () => registry.register<TestUserEvent>(
-          '',
-          TestUserEvent.fromJson,
-        ),
+        () => registry.register<TestUserEvent>('', TestUserEvent.fromJson),
         throwsArgumentError,
       );
 
@@ -408,14 +402,8 @@ void main() {
 
     test('should provide registry statistics', () {
       registry
-        ..register<TestUserEvent>(
-          'user_event',
-          TestUserEvent.fromJson,
-        )
-        ..register<TestOrderEvent>(
-          'order_event',
-          TestOrderEvent.fromJson,
-        );
+        ..register<TestUserEvent>('user_event', TestUserEvent.fromJson)
+        ..register<TestOrderEvent>('order_event', TestOrderEvent.fromJson);
 
       final stats = registry.getStats();
       expect(stats.totalRegisteredTypes, equals(2));
@@ -436,10 +424,7 @@ void main() {
     });
 
     test('should support un-registration', () {
-      registry.register<TestUserEvent>(
-        'temp_type',
-        TestUserEvent.fromJson,
-      );
+      registry.register<TestUserEvent>('temp_type', TestUserEvent.fromJson);
 
       expect(registry.isRegistered('temp_type'), isTrue);
 
@@ -461,16 +446,9 @@ void main() {
       network = <String, MockTransport>{};
       registry = TypedEventRegistry()
         ..clear()
-
         // Register test events
-        ..register<TestUserEvent>(
-          'test_user_event',
-          TestUserEvent.fromJson,
-        )
-        ..register<TestOrderEvent>(
-          'test_order_event',
-          TestOrderEvent.fromJson,
-        )
+        ..register<TestUserEvent>('test_user_event', TestUserEvent.fromJson)
+        ..register<TestOrderEvent>('test_order_event', TestOrderEvent.fromJson)
         ..register<ValidatingEvent>(
           'validating_event',
           ValidatingEvent.fromJson,
@@ -579,8 +557,8 @@ void main() {
     test('should use registry for automatic deserialization', () async {
       final receivedEvents = <TestOrderEvent>[];
       final subscription = node.onRegisteredTypedEvent<TestOrderEvent>().listen(
-            receivedEvents.add,
-          );
+        receivedEvents.add,
+      );
 
       // Create a second node to send events
       final senderNode = GossipNode(
@@ -765,10 +743,7 @@ void main() {
 
     test('should use registry for transformation', () async {
       final registry = TypedEventRegistry()
-        ..register<TestUserEvent>(
-          'test_user_event',
-          TestUserEvent.fromJson,
-        );
+        ..register<TestUserEvent>('test_user_event', TestUserEvent.fromJson);
 
       final transformer = RegistryTypedEventTransformer<TestUserEvent>(
         registry: registry,
@@ -801,14 +776,8 @@ void main() {
 
     test('should handle multiple event types', () async {
       final registry = TypedEventRegistry()
-        ..register<TestUserEvent>(
-          'test_user_event',
-          TestUserEvent.fromJson,
-        )
-        ..register<TestOrderEvent>(
-          'test_order_event',
-          TestOrderEvent.fromJson,
-        );
+        ..register<TestUserEvent>('test_user_event', TestUserEvent.fromJson)
+        ..register<TestOrderEvent>('test_order_event', TestOrderEvent.fromJson);
 
       final transformer = MultiTypeEventTransformer(
         registry: registry,
@@ -868,10 +837,7 @@ void main() {
       network = <String, MockTransport>{};
       registry = TypedEventRegistry()
         ..clear()
-        ..register<TestUserEvent>(
-          'test_user_event',
-          TestUserEvent.fromJson,
-        );
+        ..register<TestUserEvent>('test_user_event', TestUserEvent.fromJson);
 
       nodes = [
         GossipNode(

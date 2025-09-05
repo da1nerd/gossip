@@ -136,10 +136,10 @@ class GSet<T> implements CRDT<Set<T>> {
 
   @override
   Map<String, dynamic> getState() => {
-        'type': type,
-        'id': id,
-        'elements': _elements.toList(),
-      };
+    'type': type,
+    'id': id,
+    'elements': _elements.toList(),
+  };
 
   @override
   void mergeState(Map<String, dynamic> otherState) {

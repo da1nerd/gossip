@@ -293,19 +293,20 @@ class GossipConfig {
   @override
   int get hashCode {
     return Object.hash(
-        nodeId,
-        gossipInterval,
-        fanout,
-        gossipTimeout,
-        maxEventsPerMessage,
-        maxMessageSizeBytes,
-        peerSelectionStrategy,
-        enableAntiEntropy,
-        antiEntropyInterval,
-        maxEventAge,
-        enableDuplicateDetection,
-        duplicateCacheSize,
-        peerDiscoveryInterval);
+      nodeId,
+      gossipInterval,
+      fanout,
+      gossipTimeout,
+      maxEventsPerMessage,
+      maxMessageSizeBytes,
+      peerSelectionStrategy,
+      enableAntiEntropy,
+      antiEntropyInterval,
+      maxEventAge,
+      enableDuplicateDetection,
+      duplicateCacheSize,
+      peerDiscoveryInterval,
+    );
   }
 }
 

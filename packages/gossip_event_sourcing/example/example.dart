@@ -343,8 +343,8 @@ class InMemoryProjectionStore implements ProjectionStore {
       totalStates: _states.length,
       lastSaveTime: _states.values.isNotEmpty
           ? _states.values
-              .map((s) => s.savedAt)
-              .reduce((a, b) => a.isAfter(b) ? a : b)
+                .map((s) => s.savedAt)
+                .reduce((a, b) => a.isAfter(b) ? a : b)
           : null,
       additionalStats: {
         'storageType': 'in-memory',

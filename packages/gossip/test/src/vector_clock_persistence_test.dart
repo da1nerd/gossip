@@ -218,17 +218,25 @@ void main() {
       test('throws proper exceptions', () async {
         final store = MemoryVectorClockStore();
 
-        expect(() => store.saveVectorClock('', VectorClock()),
-            throwsA(isA<VectorClockStoreException>()));
-        expect(() => store.loadVectorClock(''),
-            throwsA(isA<VectorClockStoreException>()));
-        expect(() => store.hasVectorClock(''),
-            throwsA(isA<VectorClockStoreException>()));
+        expect(
+          () => store.saveVectorClock('', VectorClock()),
+          throwsA(isA<VectorClockStoreException>()),
+        );
+        expect(
+          () => store.loadVectorClock(''),
+          throwsA(isA<VectorClockStoreException>()),
+        );
+        expect(
+          () => store.hasVectorClock(''),
+          throwsA(isA<VectorClockStoreException>()),
+        );
 
         await store.close();
 
-        expect(() => store.saveVectorClock('test', VectorClock()),
-            throwsA(isA<VectorClockStoreException>()));
+        expect(
+          () => store.saveVectorClock('test', VectorClock()),
+          throwsA(isA<VectorClockStoreException>()),
+        );
       });
     });
 
@@ -270,8 +278,9 @@ void main() {
 
       test('handles file system errors gracefully', () async {
         // Use invalid directory path
-        final store =
-            FileVectorClockStore('/invalid/path/that/should/not/exist');
+        final store = FileVectorClockStore(
+          '/invalid/path/that/should/not/exist',
+        );
 
         expect(
           () => store.saveVectorClock('test', VectorClock()),
@@ -349,8 +358,9 @@ void main() {
         await node.createEvent({'data': 'event2'});
 
         // Vector clock should be persisted
-        final persistedClock =
-            await vectorClockStore.loadVectorClock('test-node');
+        final persistedClock = await vectorClockStore.loadVectorClock(
+          'test-node',
+        );
         expect(persistedClock!.getTimestampFor('test-node'), equals(2));
 
         await node.stop();
@@ -527,8 +537,10 @@ void main() {
 
           // Vector clock should continue incrementing across restarts
           final expectedTimestamp = i * 3;
-          expect(node.vectorClock.getTimestampFor(nodeId),
-              equals(expectedTimestamp));
+          expect(
+            node.vectorClock.getTimestampFor(nodeId),
+            equals(expectedTimestamp),
+          );
 
           await node.stop();
           await eventStore.close();
@@ -620,34 +632,36 @@ void main() {
         await store.close();
       });
 
-      test('continues operating when persistence is temporarily unavailable',
-          () async {
-        final eventStore = MemoryEventStore();
-        final vectorClockStore = MemoryVectorClockStore();
-        final transport = MockTransport('test-node');
+      test(
+        'continues operating when persistence is temporarily unavailable',
+        () async {
+          final eventStore = MemoryEventStore();
+          final vectorClockStore = MemoryVectorClockStore();
+          final transport = MockTransport('test-node');
 
-        final node = GossipNode(
-          config: GossipConfig(nodeId: 'test-node'),
-          eventStore: eventStore,
-          transport: transport,
-          vectorClockStore: vectorClockStore,
-        );
+          final node = GossipNode(
+            config: GossipConfig(nodeId: 'test-node'),
+            eventStore: eventStore,
+            transport: transport,
+            vectorClockStore: vectorClockStore,
+          );
 
-        await node.start();
+          await node.start();
 
-        // Create event - should work
-        await node.createEvent({'data': 'before failure'});
+          // Create event - should work
+          await node.createEvent({'data': 'before failure'});
 
-        // Close the vector clock store (simulate persistence failure)
-        await vectorClockStore.close();
+          // Close the vector clock store (simulate persistence failure)
+          await vectorClockStore.close();
 
-        // Node should continue working despite persistence failure
-        await node.createEvent({'data': 'after failure'});
-        expect(node.vectorClock.getTimestampFor('test-node'), equals(2));
+          // Node should continue working despite persistence failure
+          await node.createEvent({'data': 'after failure'});
+          expect(node.vectorClock.getTimestampFor('test-node'), equals(2));
 
-        await node.stop();
-        await eventStore.close();
-      });
+          await node.stop();
+          await eventStore.close();
+        },
+      );
     });
   });
 }

@@ -25,7 +25,7 @@ class VectorClock {
 
   /// Creates a vector clock from an existing map of node timestamps.
   VectorClock.fromMap(Map<String, int> clocks)
-      : _clocks = Map<String, int>.from(clocks);
+    : _clocks = Map<String, int>.from(clocks);
 
   /// Creates a vector clock from a JSON representation.
   ///
@@ -221,8 +221,9 @@ class VectorClock {
   String toString() {
     if (_clocks.isEmpty) return 'VectorClock({})';
 
-    final entries =
-        _clocks.entries.map((e) => '${e.key}:${e.value}').join(', ');
+    final entries = _clocks.entries
+        .map((e) => '${e.key}:${e.value}')
+        .join(', ');
     return 'VectorClock({$entries})';
   }
 }

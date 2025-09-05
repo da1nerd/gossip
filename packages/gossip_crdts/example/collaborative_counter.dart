@@ -164,8 +164,9 @@ void main() async {
 
     node.onCRDTOperation.listen((operationEvent) {
       final op = operationEvent.operation;
-      final source =
-          operationEvent.source == CRDTOperationSource.local ? '📤' : '📥';
+      final source = operationEvent.source == CRDTOperationSource.local
+          ? '📤'
+          : '📥';
       print('$source $nodeId: ${op.operation}(${op.data}) on ${op.crdtId}');
     });
   }
@@ -250,8 +251,9 @@ void main() async {
   for (final counterName in counterNames) {
     // Check G-Counter convergence
     final gCounterId = '$counterName-grow';
-    final gValues =
-        nodes.map((n) => n.getCRDT<GCounter>(gCounterId)?.value ?? 0).toSet();
+    final gValues = nodes
+        .map((n) => n.getCRDT<GCounter>(gCounterId)?.value ?? 0)
+        .toSet();
     final gConverged = gValues.length == 1;
     print(
       '✓ $gCounterId: ${gConverged ? 'CONVERGED' : 'NOT CONVERGED'} (values: $gValues)',
@@ -260,8 +262,9 @@ void main() async {
 
     // Check PN-Counter convergence
     final pnCounterId = '$counterName-votes';
-    final pnValues =
-        nodes.map((n) => n.getCRDT<PNCounter>(pnCounterId)?.value ?? 0).toSet();
+    final pnValues = nodes
+        .map((n) => n.getCRDT<PNCounter>(pnCounterId)?.value ?? 0)
+        .toSet();
     final pnConverged = pnValues.length == 1;
     print(
       '✓ $pnCounterId: ${pnConverged ? 'CONVERGED' : 'NOT CONVERGED'} (values: $pnValues)',
