@@ -1,3 +1,7 @@
+## 1.0.5
+
+ - Bump "gossip" to `1.0.5`.
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
