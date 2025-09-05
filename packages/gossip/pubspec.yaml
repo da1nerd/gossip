@@ -20,7 +20,5 @@ topics:
   - distributed-systems
   - gossip-protocol
   - event-synchronization
-  - distributed-computing
   - peer-to-peer
-  - vector-clocks
   - eventual-consistency
