@@ -1,13 +1,15 @@
 name: gossip
 description: A Dart library for implementing gossip-based distributed event synchronization with vector clocks, anti-entropy, and peer-to-peer messaging
-version: 1.0.2
+version: 1.0.3
 homepage: https://github.com/da1nerd/gossip-mono
 repository: https://github.com/da1nerd/gossip-mono
 issue_tracker: https://github.com/da1nerd/gossip-mono/issues
 documentation: https://github.com/da1nerd/gossip-mono/tree/main/packages/gossip
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: ">=3.9.0 <4.0.0"
+
+resolution: workspace
 
 dependencies:
   meta: ^1.12.0

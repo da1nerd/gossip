@@ -1,8 +1,0 @@
-# melos_managed_dependency_overrides: gossip,gossip_event_sourcing,gossip_typed_events
-dependency_overrides:
-  gossip:
-    path: ../../packages/gossip
-  gossip_event_sourcing:
-    path: ../../packages/gossip_event_sourcing
-  gossip_typed_events:
-    path: ../../packages/gossip_typed_events

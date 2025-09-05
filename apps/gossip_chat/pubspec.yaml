@@ -7,7 +7,7 @@ repository: https://github.com/da1nerd/gossip-mono
 issue_tracker: https://github.com/da1nerd/gossip-mono/issues
 
 environment:
-  sdk: ">=3.1.0 <4.0.0"
+  sdk: ">=3.9.0 <4.0.0"
   flutter: ">=3.16.0"
 
 dependencies:
