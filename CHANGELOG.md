@@ -15,6 +15,27 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`gossip` - `v1.0.10`](#gossip---v1010)
+
+---
+
+#### `gossip` - `v1.0.10`
+
+ - Bump "gossip" to `1.0.10`.
+
+
+## 2025-09-05
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`gossip` - `v1.0.9`](#gossip---v109)
 
 ---
