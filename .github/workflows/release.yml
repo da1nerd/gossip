@@ -67,18 +67,33 @@ jobs:
         id: version_update
         run: |
           echo "🚀 Updating versions with Melos automatic dependency management..."
-          melos version gossip ${{ github.event.inputs.release_type }} --yes
+          # Use --no-git to prevent automatic git operations
+          melos version gossip ${{ github.event.inputs.release_type }} --yes --no-git
 
           # Get the new version for later steps
           NEW_VERSION=$(grep "^version:" packages/gossip/pubspec.yaml | sed 's/version: //' | xargs)
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-          echo "✅ Updated to version $NEW_VERSION - Git tag created automatically by Melos"
+          echo "✅ Updated to version $NEW_VERSION - ready to commit"
 
-      - name: Push version changes and tags
+      - name: Commit version changes
+        run: |
+          echo "📝 Committing version changes..."
+          git add .
+          git commit -m "chore(release): publish packages v${{ env.NEW_VERSION }}"
+          echo "✅ Version changes committed"
+
+      - name: Push version changes
         run: |
           echo "📤 Pushing version changes to repository..."
           git push
           echo "✅ Version changes pushed successfully"
+
+      - name: Create and push tag
+        run: |
+          echo "🏷️ Creating tag v${{ env.NEW_VERSION }}..."
+          git tag -a "v${{ env.NEW_VERSION }}" -m "Release v${{ env.NEW_VERSION }}"
+          git push "v${{ env.NEW_VERSION }}"
+          echo "✅ Tag v${{ env.NEW_VERSION }} created and pushed"
 
       - name: Verify version consistency
         run: |
