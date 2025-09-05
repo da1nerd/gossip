@@ -68,7 +68,7 @@ jobs:
         run: |
           echo "🚀 Updating versions with Melos automatic dependency management..."
           # Use --no-git to prevent automatic git operations
-          melos version gossip ${{ github.event.inputs.release_type }} --yes --no-git
+          melos version gossip ${{ github.event.inputs.release_type }} --yes --no-git-tag-version --no-git-commit-version
 
           # Get the new version for later steps
           NEW_VERSION=$(grep "^version:" packages/gossip/pubspec.yaml | sed 's/version: //' | xargs)
