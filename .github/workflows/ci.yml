@@ -21,6 +21,11 @@ jobs:
         with:
           sdk: stable
 
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
       - name: Install Melos
         run: dart pub global activate melos
 
