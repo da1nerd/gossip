@@ -8,8 +8,19 @@ packages:
 # Scripts that can be run with `melos run <script_name>`
 scripts:
   test:
-    run: melos exec --concurrency=10 -- "dart test --reporter=expanded"
-    description: Run Dart tests in all packages.
+    run: |
+      echo "🧪 Running tests for all packages and apps..."
+      melos run test:packages
+      melos run test:apps
+    description: Run appropriate tests for all packages and apps.
+
+  test:packages:
+    run: melos exec --concurrency=10 --scope="gossip*" --ignore="gossip_chat_demo" --dir-exists="test" -- "dart test --reporter=expanded"
+    description: Run Dart tests in packages only.
+
+  test:apps:
+    run: melos exec --scope="gossip_chat_demo" -- "flutter test"
+    description: Run Flutter tests in apps only.
 
   analyze:
     run: melos exec --concurrency=10 -- "dart analyze --no-fatal-warnings"
