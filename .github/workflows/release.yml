@@ -74,6 +74,12 @@ jobs:
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
           echo "✅ Updated to version $NEW_VERSION - Git tag created automatically by Melos"
 
+      - name: Push version changes and tags
+        run: |
+          echo "📤 Pushing version changes to repository..."
+          git push
+          echo "✅ Version changes pushed successfully"
+
       - name: Verify version consistency
         run: |
           echo "🔍 Verifying all packages have consistent dependency versions..."
