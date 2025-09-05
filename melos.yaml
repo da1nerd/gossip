@@ -30,10 +30,23 @@ scripts:
     run: melos exec -- "dart format . --set-exit-if-changed"
     description: Format code in all packages.
 
-  # Enhanced version management - only for packages, not apps
-  version:
-    run: melos version --all --no-private
-    description: Version all publishable packages together.
+  # Centralized version management - use root pubspec.yaml as source of truth
+  version-patch:
+    run: ./scripts/update_versions.sh patch && melos bootstrap
+    description: Increment patch version for all packages based on root pubspec.yaml.
+
+  version-minor:
+    run: ./scripts/update_versions.sh minor && melos bootstrap
+    description: Increment minor version for all packages based on root pubspec.yaml.
+
+  version-major:
+    run: ./scripts/update_versions.sh major && melos bootstrap
+    description: Increment major version for all packages based on root pubspec.yaml.
+
+  # Test version update locally (with backup/restore)
+  version-test:
+    run: ./scripts/test_version_update.sh test
+    description: Test version update process with backup and restore options.
 
   # Enhanced publish commands
   publish-dry-run:

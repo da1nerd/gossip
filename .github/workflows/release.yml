@@ -63,72 +63,30 @@ jobs:
           melos run analyze
           melos run test
           melos run format
+
+      - name: Update versions
+        id: version_update
+        run: |
+          echo "🔢 Updating all package versions to follow root version..."
+          ./scripts/update_versions.sh ${{ github.event.inputs.release_type }}
+
+      - name: Bootstrap after version update
+        run: |
+          echo "🔄 Re-bootstrapping project after version updates..."
+          melos bootstrap
+
+      - name: Run publish dry-run
+        run: |
+          echo "🧪 Testing package publishing..."
           melos run publish-dry-run
-
-      - name: Version packages
-        run: |
-          echo "🔢 Versioning packages..."
-          case "${{ github.event.inputs.release_type }}" in
-            "major")
-              melos version --all --no-private --major --yes
-              ;;
-            "minor")
-              melos version --all --no-private --minor --yes
-              ;;
-            "patch"|*)
-              melos version --all --no-private --patch --yes
-              ;;
-          esac
-
-      - name: Update app version
-        run: |
-          echo "📱 Updating app version..."
-          APP_PUBSPEC="apps/gossip_chat/pubspec.yaml"
-          CURRENT_VERSION=$(grep "version:" $APP_PUBSPEC | sed 's/version: //' | xargs)
-
-          # Extract version parts
-          VERSION_PART=$(echo $CURRENT_VERSION | cut -d'+' -f1)
-          BUILD_PART=$(echo $CURRENT_VERSION | cut -d'+' -f2)
-
-          # Increment version based on release type
-          case "${{ github.event.inputs.release_type }}" in
-            "major")
-              MAJOR=$(echo $VERSION_PART | cut -d'.' -f1)
-              MAJOR=$((MAJOR + 1))
-              NEW_VERSION="$MAJOR.0.0"
-              ;;
-            "minor")
-              MAJOR=$(echo $VERSION_PART | cut -d'.' -f1)
-              MINOR=$(echo $VERSION_PART | cut -d'.' -f2)
-              MINOR=$((MINOR + 1))
-              NEW_VERSION="$MAJOR.$MINOR.0"
-              ;;
-            "patch"|*)
-              MAJOR=$(echo $VERSION_PART | cut -d'.' -f1)
-              MINOR=$(echo $VERSION_PART | cut -d'.' -f2)
-              PATCH=$(echo $VERSION_PART | cut -d'.' -f3)
-              PATCH=$((PATCH + 1))
-              NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-              ;;
-          esac
-
-          # Increment build number
-          NEW_BUILD=$((BUILD_PART + 1))
-          FULL_VERSION="$NEW_VERSION+$NEW_BUILD"
-
-          # Update pubspec.yaml
-          sed -i "s/version: .*/version: $FULL_VERSION/" $APP_PUBSPEC
-
-          echo "Updated app version from $CURRENT_VERSION to $FULL_VERSION"
-          echo "APP_VERSION=$FULL_VERSION" >> $GITHUB_ENV
 
       - name: Commit version changes
         run: |
           git add .
-          git commit -m "chore: release ${{ github.event.inputs.release_type }} version
+          git commit -m "chore: release v${{ env.RELEASE_VERSION }}
 
-          - Updated package versions via melos
-          - Updated app version to ${{ env.APP_VERSION }}
+          - Updated all package versions to ${{ env.RELEASE_VERSION }}
+          - All packages now follow the root pubspec.yaml version
 
           [skip ci]"
 
@@ -147,23 +105,28 @@ jobs:
           echo "🚀 Publishing packages to pub.dev..."
           melos run publish-packages
 
-      - name: Get package versions
-        id: versions
+      - name: Get package info
+        id: package_info
         run: |
-          echo "Collecting package versions..."
-          VERSIONS=""
+          echo "Collecting package information..."
+          PACKAGE_LIST=""
+          PACKAGE_COUNT=0
+
           for package_dir in packages/*/; do
             if [ -f "$package_dir/pubspec.yaml" ]; then
               package_name=$(basename "$package_dir")
-              version=$(cd "$package_dir" && grep "version:" pubspec.yaml | sed 's/version: //' | xargs)
-              if [[ "$version" != "null" ]]; then
-                VERSIONS="$VERSIONS- **$package_name**: v$version\n"
+              version=$(cd "$package_dir" && grep "^version:" pubspec.yaml | sed 's/version: //' | xargs)
+              if [[ "$version" != "null" && -n "$version" ]]; then
+                PACKAGE_LIST="$PACKAGE_LIST- **$package_name**: v$version\n"
+                PACKAGE_COUNT=$((PACKAGE_COUNT + 1))
               fi
             fi
           done
-          echo "PACKAGE_VERSIONS<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$VERSIONS" >> $GITHUB_OUTPUT
+
+          echo "PACKAGE_LIST<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$PACKAGE_LIST" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+          echo "PACKAGE_COUNT=$PACKAGE_COUNT" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         if: ${{ github.event.inputs.create_release == 'true' }}
@@ -171,25 +134,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ env.APP_VERSION }}
-          release_name: Release v${{ env.APP_VERSION }}
+          tag_name: v${{ env.RELEASE_VERSION }}
+          release_name: Release v${{ env.RELEASE_VERSION }}
           body: |
-            ## 🚀 Release v${{ env.APP_VERSION }}
+            ## 🚀 Release v${{ env.RELEASE_VERSION }}
+
+            This release includes ${{ steps.package_info.outputs.PACKAGE_COUNT }} packages, all synchronized to version **${{ env.RELEASE_VERSION }}**.
 
             ### 📦 Published Packages
 
-            ${{ steps.versions.outputs.PACKAGE_VERSIONS }}
+            ${{ steps.package_info.outputs.PACKAGE_LIST }}
 
             ### 📱 App Changes
 
-            - Updated app version to v${{ env.APP_VERSION }}
-            - Ready for Play Store deployment via Codemagic
+            - App versioning is handled separately by Codemagic for Play Store deployment
 
-            ### 🔄 Deployment Status
+            ### 🔄 Version Management
 
+            - ✅ All packages now follow the root `pubspec.yaml` version
+            - ✅ Internal package dependencies updated to use consistent versions
             - ✅ Packages published to [pub.dev](https://pub.dev)
-            - 🔄 App deployment will trigger automatically on Codemagic
-            - 📱 Release will be available in Play Store internal track
 
             ### 📚 Documentation
 
@@ -202,6 +166,8 @@ jobs:
             **Release Type**: ${{ github.event.inputs.release_type }}
             **Generated by**: GitHub Actions
             **Commit**: ${{ github.sha }}
+
+            > **Note**: The app (`gossip_chat`) uses independent versioning for Play Store deployments via Codemagic, but follows the same base version number.
           draft: false
           prerelease: false
 
@@ -210,17 +176,25 @@ jobs:
           echo "## 🎉 Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Release Type**: ${{ github.event.inputs.release_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "**App Version**: ${{ env.APP_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Package Version**: v${{ env.RELEASE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Packages Updated**: ${{ steps.package_info.outputs.PACKAGE_COUNT }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 Published Packages" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.versions.outputs.PACKAGE_VERSIONS }}" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.package_info.outputs.PACKAGE_LIST }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Key Changes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ All packages now use synchronized versioning" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Root \`pubspec.yaml\` is the single source of truth for package versions" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Internal dependencies updated to use consistent versions" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ App version follows the same base version with independent build numbers" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### ⚡ Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. ✅ Packages are being published to pub.dev" >> $GITHUB_STEP_SUMMARY
+          echo "1. ✅ Packages are published to pub.dev" >> $GITHUB_STEP_SUMMARY
           echo "2. 🔄 Codemagic will automatically deploy the app" >> $GITHUB_STEP_SUMMARY
-          echo "3. 📱 Check Play Console for release status" >> $GITHUB_STEP_SUMMARY
+          echo "3. 📱 Check Play Console for app release status" >> $GITHUB_STEP_SUMMARY
           echo "4. 📊 Monitor package downloads on pub.dev" >> $GITHUB_STEP_SUMMARY
 
       - name: Notify on failure
@@ -232,7 +206,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔧 Troubleshooting" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. Check that all tests pass locally" >> $GITHUB_STEP_SUMMARY
-          echo "2. Verify pub.dev credentials are valid" >> $GITHUB_STEP_SUMMARY
-          echo "3. Ensure all packages have proper version numbers" >> $GITHUB_STEP_SUMMARY
-          echo "4. Review the [Deployment Guide](./DEPLOYMENT.md)" >> $GITHUB_STEP_SUMMARY
+          echo "1. Check that all tests pass locally: \`melos run test\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. Verify version update script: \`./scripts/update_versions.sh patch\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. Ensure pub.dev credentials are valid" >> $GITHUB_STEP_SUMMARY
+          echo "4. Check for any package dependency conflicts" >> $GITHUB_STEP_SUMMARY
+          echo "5. Review the [Deployment Guide](./DEPLOYMENT.md)" >> $GITHUB_STEP_SUMMARY

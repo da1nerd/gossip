@@ -130,17 +130,47 @@ melos run format
 melos run pre-publish-check
 ```
 
-### Package Management
+### Package Management & Versioning
+
+The monorepo uses **centralized version management** - all packages follow the version in the root `pubspec.yaml` as the single source of truth.
 
 ```bash
-# Version all packages
-melos version --all --no-private
+# Version all packages (patch increment)
+melos run version-patch
+
+# Version all packages (minor increment) 
+melos run version-minor
+
+# Version all packages (major increment)
+melos run version-major
+
+# Test version update locally (with backup/restore)
+melos run version-test
 
 # Dry run publishing
 melos run publish-dry-run
 
 # Publish packages to pub.dev
 melos run publish-packages
+```
+
+**How Version Management Works:**
+1. The root `pubspec.yaml` version is the single source of truth
+2. All packages in `/packages/` are updated to match this version
+3. Internal package dependencies are automatically updated to use consistent versions
+4. The app (`gossip_chat`) uses independent versioning for Play Store deployment
+5. GitHub releases are tagged with the package version
+
+**Local Testing:**
+```bash
+# Test version changes with backup/restore options
+./scripts/test_version_update.sh test patch
+
+# Show current versions across all packages
+./scripts/test_version_update.sh show
+
+# Manually update versions
+./scripts/update_versions.sh minor
 ```
 
 ### App Development
@@ -158,16 +188,37 @@ melos run app-build-aab
 
 ### Release Management
 
-```bash
-# Interactive release script
-./scripts/release.sh full
+The release process uses **GitHub Actions** with centralized version management:
 
-# Individual operations
-./scripts/release.sh check          # Run pre-release checks
-./scripts/release.sh version        # Bump package versions
-./scripts/release.sh publish        # Publish to pub.dev
-./scripts/release.sh app-version    # Update app version
+**Automated Release (Recommended):**
+```bash
+# Trigger release via GitHub CLI
+gh workflow run release.yml \
+  -f release_type=patch \
+  -f publish_packages=true \
+  -f create_release=true
+
+# Or use the GitHub web interface:
+# Actions → Release Management → Run workflow
 ```
+
+**Manual Local Testing:**
+```bash
+# Test the entire version update process
+./scripts/test_version_update.sh test patch
+
+# Just update versions locally
+./scripts/update_versions.sh minor
+melos bootstrap
+```
+
+**Release Process Overview:**
+1. **Version Update**: Root version is incremented, all packages updated to match
+2. **Dependency Update**: Internal package dependencies synchronized  
+3. **App Versioning**: App version updated with incremented build number
+4. **Publishing**: All packages published to pub.dev with consistent versions
+5. **Release Creation**: GitHub release created with the package version
+6. **App Deployment**: Codemagic automatically deploys app to Play Store
 
 ## 🏗️ Architecture
 
