@@ -12,16 +12,6 @@ on:
           - patch
           - minor
           - major
-      publish_packages:
-        description: "Publish packages to pub.dev"
-        required: true
-        default: true
-        type: boolean
-      create_release:
-        description: "Create GitHub release"
-        required: true
-        default: true
-        type: boolean
 
 jobs:
   release:
@@ -46,11 +36,8 @@ jobs:
         with:
           channel: stable
 
-      - name: Install Melos
-        run: dart pub global activate melos
-
-      - name: Bootstrap project
-        run: melos bootstrap
+      - name: Install dependencies
+        run: dart pub get
 
       - name: Configure Git
         run: |
@@ -60,57 +47,33 @@ jobs:
       - name: Run pre-release checks
         run: |
           echo "🔍 Running pre-release checks..."
-          melos run analyze
-          melos run test
-          melos run format
+          dart run melos run analyze
+          dart run melos run test
+          dart run melos run format
 
-      - name: Update versions
+      - name: Update versions using Melos 7.x
         id: version_update
         run: |
-          echo "🔢 Updating all package versions to follow root version..."
-          ./scripts/update_versions.sh ${{ github.event.inputs.release_type }}
+          echo "🚀 Updating versions with Melos automatic dependency management..."
+          dart run melos version gossip ${{ github.event.inputs.release_type }} --yes
 
-      - name: Bootstrap after version update
+          # Get the new version for later steps
+          NEW_VERSION=$(grep "^version:" packages/gossip/pubspec.yaml | sed 's/version: //' | xargs)
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "✅ Updated to version $NEW_VERSION - Git tag created automatically by Melos"
+
+      - name: Verify version consistency
         run: |
-          echo "🔄 Re-bootstrapping project after version updates..."
-          melos bootstrap
-
-      - name: Run publish dry-run
-        run: |
-          echo "🧪 Testing package publishing..."
-          melos run publish-dry-run
-
-      - name: Commit version changes
-        run: |
-          git add .
-          git commit -m "chore: release v${{ env.RELEASE_VERSION }}
-
-          - Updated all package versions to ${{ env.RELEASE_VERSION }}
-          - All packages now follow the root pubspec.yaml version
-
-          [skip ci]"
-
-      - name: Push changes
-        run: git push origin main
-
-      - name: Setup pub credentials
-        if: ${{ github.event.inputs.publish_packages == 'true' }}
-        run: |
-          mkdir -p ~/.pub-cache
-          echo '${{ secrets.PUB_CREDENTIALS }}' > ~/.pub-cache/credentials.json
-
-      - name: Publish packages
-        if: ${{ github.event.inputs.publish_packages == 'true' }}
-        run: |
-          echo "🚀 Publishing packages to pub.dev..."
-          melos run publish-packages
+          echo "🔍 Verifying all packages have consistent dependency versions..."
+          dart run melos run publish-dry-run
 
       - name: Get package info
         id: package_info
         run: |
-          echo "Collecting package information..."
+          echo "📦 Collecting package information..."
           PACKAGE_LIST=""
           PACKAGE_COUNT=0
+          CHANGELOG_ENTRIES=""
 
           for package_dir in packages/*/; do
             if [ -f "$package_dir/pubspec.yaml" ]; then
@@ -119,95 +82,136 @@ jobs:
               if [[ "$version" != "null" && -n "$version" ]]; then
                 PACKAGE_LIST="$PACKAGE_LIST- **$package_name**: v$version\n"
                 PACKAGE_COUNT=$((PACKAGE_COUNT + 1))
+
+                # Extract changelog entry for this version if it exists
+                if [ -f "$package_dir/CHANGELOG.md" ]; then
+                  changelog_entry=$(cd "$package_dir" && sed -n "/## $version/,/## /p" CHANGELOG.md | head -n -1 || true)
+                  if [ -n "$changelog_entry" ]; then
+                    CHANGELOG_ENTRIES="$CHANGELOG_ENTRIES\n### $package_name\n$changelog_entry\n"
+                  fi
+                fi
               fi
             fi
           done
 
-          echo "PACKAGE_LIST<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$PACKAGE_LIST" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "PACKAGE_COUNT=$PACKAGE_COUNT" >> $GITHUB_OUTPUT
+          {
+            echo "PACKAGE_LIST<<EOF"
+            echo -e "$PACKAGE_LIST"
+            echo "EOF"
+            echo "PACKAGE_COUNT=$PACKAGE_COUNT"
+            echo "CHANGELOG_ENTRIES<<EOF"
+            echo -e "$CHANGELOG_ENTRIES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        if: ${{ github.event.inputs.create_release == 'true' }}
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ env.RELEASE_VERSION }}
-          release_name: Release v${{ env.RELEASE_VERSION }}
+          tag_name: v${{ env.NEW_VERSION }}
+          release_name: Release v${{ env.NEW_VERSION }}
           body: |
-            ## 🚀 Release v${{ env.RELEASE_VERSION }}
+            ## 🚀 Release v${{ env.NEW_VERSION }}
 
-            This release includes ${{ steps.package_info.outputs.PACKAGE_COUNT }} packages, all synchronized to version **${{ env.RELEASE_VERSION }}**.
+            This release includes ${{ steps.package_info.outputs.PACKAGE_COUNT }} packages with **automatic dependency synchronization** using Melos 7.x and pub workspaces.
 
-            ### 📦 Published Packages
+            ### 📦 Packages in this Release
 
             ${{ steps.package_info.outputs.PACKAGE_LIST }}
 
-            ### 📱 App Changes
+            ### 📝 What's Changed
 
-            - App versioning is handled separately by Codemagic for Play Store deployment
+            ${{ steps.package_info.outputs.CHANGELOG_ENTRIES }}
 
-            ### 🔄 Version Management
+            ### ✨ Version Management Features
 
-            - ✅ All packages now follow the root `pubspec.yaml` version
-            - ✅ Internal package dependencies updated to use consistent versions
-            - ✅ Packages published to [pub.dev](https://pub.dev)
+            - ✅ **Smart dependency management**: Melos 7.x automatically updated all package dependencies
+            - ✅ **Pub workspaces**: Single shared dependency resolution for consistent versions
+            - ✅ **Automatic changelog generation**: Generated from conventional commits
+            - ✅ **Automatic git tagging**: Git tag created automatically by Melos
 
-            ### 📚 Documentation
+            ### 📦 Publishing
 
-            - [Deployment Guide](./DEPLOYMENT.md)
-            - [Package Documentation](./packages/)
-            - [App Documentation](./apps/gossip_chat/)
+            Packages will be automatically published to pub.dev via the tag-triggered workflow.
+
+            ### 📱 App Deployment
+
+            The gossip_chat app uses independent versioning managed by Codemagic for Play Store deployments.
+
+            ### 🔗 Links
+
+            - [View packages on pub.dev](https://pub.dev/publishers/da1nerd.dev)
+            - [Deployment Guide](https://github.com/${{ github.repository }}/blob/main/DEPLOYMENT.md)
+            - [Version Strategy](https://github.com/${{ github.repository }}/blob/main/VERSIONING.md)
 
             ---
 
             **Release Type**: ${{ github.event.inputs.release_type }}
-            **Generated by**: GitHub Actions
+            **Generated by**: GitHub Actions + Melos 7.x
             **Commit**: ${{ github.sha }}
 
-            > **Note**: The app (`gossip_chat`) uses independent versioning for Play Store deployments via Codemagic, but follows the same base version number.
+            > **Powered by**: [Melos 7.x](https://melos.invertase.dev/) + [Pub Workspaces](https://dart.dev/tools/pub/workspaces) for modern monorepo management
           draft: false
           prerelease: false
 
       - name: Create release summary
         run: |
-          echo "## 🎉 Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎉 Release v${{ env.NEW_VERSION }} Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Release Type**: ${{ github.event.inputs.release_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Package Version**: v${{ env.RELEASE_VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Packages Updated**: ${{ steps.package_info.outputs.PACKAGE_COUNT }}" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Release Details" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Published Packages" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release Type**: ${{ github.event.inputs.release_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: v${{ env.NEW_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Packages**: ${{ steps.package_info.outputs.PACKAGE_COUNT }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git Tag**: ✅ Created automatically by Melos" >> $GITHUB_STEP_SUMMARY
+          echo "- **GitHub Release**: ✅ Created" >> $GITHUB_STEP_SUMMARY
+          echo "- **Publishing**: ⏳ Will be triggered by tag event" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Updated Packages" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.package_info.outputs.PACKAGE_LIST }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🎯 Key Changes" >> $GITHUB_STEP_SUMMARY
+          echo "### ✨ Melos 7.x Magic" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ All packages now use synchronized versioning" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Root \`pubspec.yaml\` is the single source of truth for package versions" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Internal dependencies updated to use consistent versions" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ App version follows the same base version with independent build numbers" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Zero manual coordination**: Single command updated all packages and dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Pub workspaces**: Shared dependency resolution prevents version conflicts" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Automatic changelogs**: Generated from commits and version changes" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Git integration**: Automatic commits and tags handled by Melos" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Separate publishing**: Tag-triggered workflow will publish to pub.dev" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ⚡ Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. ✅ Packages are published to pub.dev" >> $GITHUB_STEP_SUMMARY
-          echo "2. 🔄 Codemagic will automatically deploy the app" >> $GITHUB_STEP_SUMMARY
-          echo "3. 📱 Check Play Console for app release status" >> $GITHUB_STEP_SUMMARY
-          echo "4. 📊 Monitor package downloads on pub.dev" >> $GITHUB_STEP_SUMMARY
+          echo "- [🏷️ Release Tag](https://github.com/${{ github.repository }}/releases/tag/v${{ env.NEW_VERSION }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [📦 View on pub.dev](https://pub.dev/publishers/da1nerd.dev) (after publishing)" >> $GITHUB_STEP_SUMMARY
+          echo "- [🔄 Publishing Workflow](https://github.com/${{ github.repository }}/actions) (check for tag trigger)" >> $GITHUB_STEP_SUMMARY
+          echo "- [📱 Codemagic Build](https://codemagic.io/apps)" >> $GITHUB_STEP_SUMMARY
 
       - name: Notify on failure
         if: failure()
         run: |
           echo "## ❌ Release Failed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The release process encountered an error. Please check the logs above." >> $GITHUB_STEP_SUMMARY
+          echo "The release process encountered an error. Here's how to troubleshoot:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔧 Troubleshooting" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Quick Fixes" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. Check that all tests pass locally: \`melos run test\`" >> $GITHUB_STEP_SUMMARY
-          echo "2. Verify version update script: \`./scripts/update_versions.sh patch\`" >> $GITHUB_STEP_SUMMARY
-          echo "3. Ensure pub.dev credentials are valid" >> $GITHUB_STEP_SUMMARY
-          echo "4. Check for any package dependency conflicts" >> $GITHUB_STEP_SUMMARY
-          echo "5. Review the [Deployment Guide](./DEPLOYMENT.md)" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Test locally first**:" >> $GITHUB_STEP_SUMMARY
+          echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "   dart run melos run version-${{ github.event.inputs.release_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "   dart run melos run publish-dry-run" >> $GITHUB_STEP_SUMMARY
+          echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Verify workspace setup**: \`dart pub workspace list\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Check for tag creation**: Ensure git tag was created by Melos" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "4. **Manual recovery**:" >> $GITHUB_STEP_SUMMARY
+          echo "   - If versioning succeeded, the tag should trigger publishing automatically" >> $GITHUB_STEP_SUMMARY
+          echo "   - If partially versioned, commit the changes and re-run" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📚 Documentation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- [Deployment Guide](https://github.com/${{ github.repository }}/blob/main/DEPLOYMENT.md)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Melos Documentation](https://melos.invertase.dev/)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Pub Workspaces Guide](https://dart.dev/tools/pub/workspaces)" >> $GITHUB_STEP_SUMMARY

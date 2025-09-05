@@ -1,7 +1,8 @@
 # 🗣️ Gossip Protocol Monorepo
 
 [![CI/CD Pipeline](https://github.com/da1nerd/gossip-mono/actions/workflows/ci.yml/badge.svg)](https://github.com/da1nerd/gossip-mono/actions/workflows/ci.yml)
-[![Publish Packages](https://github.com/da1nerd/gossip-mono/actions/workflows/publish-packages.yml/badge.svg)](https://github.com/da1nerd/gossip-mono/actions/workflows/publish-packages.yml)
+[![Release Management](https://github.com/da1nerd/gossip-mono/actions/workflows/release.yml/badge.svg)](https://github.com/da1nerd/gossip-mono/actions/workflows/release.yml)
+[![Publish Packages](https://github.com/da1nerd/gossip-mono/actions/workflows/publish.yml/badge.svg)](https://github.com/da1nerd/gossip-mono/actions/workflows/publish.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A comprehensive monorepo containing the Gossip distributed event synchronization protocol and related packages, plus a fully-functional Flutter peer-to-peer chat demonstration app.
@@ -50,8 +51,8 @@ gossip-mono/
 │   └── gossip_chat/              # Flutter P2P chat demo
 ├── 🔄 .github/workflows/         # CI/CD automation
 │   ├── ci.yml                    # Test and build validation
-│   ├── publish-packages.yml      # Auto-publish to pub.dev
-│   └── release.yml               # Release management
+│   ├── release.yml               # Version management & GitHub releases
+│   └── publish.yml               # Auto-publish to pub.dev (tag-triggered)
 ├── 📋 scripts/
 │   └── release.sh                # Release management script
 ├── 📖 DEPLOYMENT.md              # Comprehensive deployment guide
@@ -188,15 +189,16 @@ melos run app-build-aab
 
 ### Release Management
 
-The release process uses **GitHub Actions** with centralized version management:
+The release process uses a **two-workflow architecture** with Melos 7.x and pub workspaces:
 
 **Automated Release (Recommended):**
 ```bash
 # Trigger release via GitHub CLI
-gh workflow run release.yml \
-  -f release_type=patch \
-  -f publish_packages=true \
-  -f create_release=true
+# Step 1: Version & Release (Manual Trigger)
+gh workflow run release.yml -f release_type=patch
+
+# Step 2: Publishing (Automatic - triggered by git tag)
+# No manual intervention needed! 🎉
 
 # Or use the GitHub web interface:
 # Actions → Release Management → Run workflow
@@ -290,14 +292,16 @@ The [Gossip Chat app](./apps/gossip_chat/) demonstrates:
 ### Manual Operations
 
 ```bash
-# Trigger manual package release
-gh workflow run release.yml -f release_type=patch -f publish_packages=true
+# Step 1: Create release (versions packages, creates tag, GitHub release)
+gh workflow run release.yml -f release_type=patch
 
-# Check deployment status
-./scripts/release.sh check
+# Step 2: Publishing happens automatically when tag is created!
+# Check status in Actions tab
 
-# Full release process
-./scripts/release.sh full
+# Local release process
+dart run melos run version-patch  # Creates git tag automatically
+# Then push the tag to trigger publishing:
+git push origin --tags
 ```
 
 ### Setup Instructions

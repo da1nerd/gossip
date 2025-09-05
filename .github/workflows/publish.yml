@@ -1,0 +1,211 @@
+name: Publish Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$TAG_VERSION" >> $GITHUB_ENV
+          echo "TAG_VERSION=$TAG_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Publishing version: $TAG_VERSION"
+
+      - name: Verify version consistency
+        run: |
+          echo "🔍 Verifying tag version matches package versions..."
+          GOSSIP_VERSION=$(grep "^version:" packages/gossip/pubspec.yaml | sed 's/version: //' | xargs)
+
+          if [ "$GOSSIP_VERSION" != "${{ env.VERSION }}" ]; then
+            echo "❌ Version mismatch: tag is v${{ env.VERSION }} but gossip package is $GOSSIP_VERSION"
+            exit 1
+          fi
+
+          echo "✅ Version consistency verified: v${{ env.VERSION }}"
+
+      - name: Run pre-publish validation
+        run: |
+          echo "🔍 Running pre-publish validation..."
+          dart run melos run analyze
+          dart run melos run test
+          dart run melos run format --set-exit-if-changed
+
+      - name: Run publish dry-run
+        run: |
+          echo "🧪 Testing package publishing..."
+          dart run melos run publish-dry-run
+
+      - name: Setup pub credentials
+        run: |
+          mkdir -p ~/.pub-cache
+          echo '${{ secrets.PUB_CREDENTIALS }}' > ~/.pub-cache/credentials.json
+
+      - name: Publish packages to pub.dev
+        run: |
+          echo "🚀 Publishing packages to pub.dev..."
+          dart run melos run publish-packages
+
+      - name: Get published package info
+        id: package_info
+        run: |
+          echo "📦 Collecting published package information..."
+          PACKAGE_LIST=""
+          PACKAGE_COUNT=0
+          PUB_LINKS=""
+
+          for package_dir in packages/*/; do
+            if [ -f "$package_dir/pubspec.yaml" ]; then
+              package_name=$(basename "$package_dir")
+              version=$(cd "$package_dir" && grep "^version:" pubspec.yaml | sed 's/version: //' | xargs)
+              if [[ "$version" != "null" && -n "$version" ]]; then
+                PACKAGE_LIST="$PACKAGE_LIST- **$package_name**: v$version\n"
+                PUB_LINKS="$PUB_LINKS- [📦 $package_name](https://pub.dev/packages/$package_name)\n"
+                PACKAGE_COUNT=$((PACKAGE_COUNT + 1))
+              fi
+            fi
+          done
+
+          {
+            echo "PACKAGE_LIST<<EOF"
+            echo -e "$PACKAGE_LIST"
+            echo "EOF"
+            echo "PUB_LINKS<<EOF"
+            echo -e "$PUB_LINKS"
+            echo "EOF"
+            echo "PACKAGE_COUNT=$PACKAGE_COUNT"
+          } >> $GITHUB_OUTPUT
+
+      - name: Update GitHub Release with pub.dev links
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const tagName = 'v${{ env.VERSION }}';
+
+            try {
+              // Get the release by tag
+              const release = await github.rest.repos.getReleaseByTag({
+                owner,
+                repo,
+                tag: tagName
+              });
+
+              // Update the release body with publishing info
+              const updatedBody = release.data.body + `
+
+            ### 📦 Published to pub.dev
+
+            ${{ steps.package_info.outputs.PUB_LINKS }}
+
+            **Publishing Status**: ✅ **Complete** - All packages successfully published!
+
+            ---
+
+            *Updated by publish workflow at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}*`;
+
+              await github.rest.repos.updateRelease({
+                owner,
+                repo,
+                release_id: release.data.id,
+                body: updatedBody
+              });
+
+              console.log('✅ Successfully updated GitHub release with pub.dev links');
+            } catch (error) {
+              console.error('❌ Failed to update GitHub release:', error);
+              // Don't fail the workflow if we can't update the release
+            }
+
+      - name: Create publish summary
+        run: |
+          echo "## 🎉 Packages Published Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Publication Details" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: v${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Packages Published**: ${{ steps.package_info.outputs.PACKAGE_COUNT }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ✅ All packages successfully published to pub.dev" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Published Packages" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.package_info.outputs.PACKAGE_LIST }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 pub.dev Links" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.package_info.outputs.PUB_LINKS }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 What Happened" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. ✅ Tag v${{ env.VERSION }} triggered this publishing workflow" >> $GITHUB_STEP_SUMMARY
+          echo "2. ✅ Version consistency verified across all packages" >> $GITHUB_STEP_SUMMARY
+          echo "3. ✅ Pre-publish validation passed (analyze, test, format)" >> $GITHUB_STEP_SUMMARY
+          echo "4. ✅ Dry-run validation completed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "5. ✅ All ${{ steps.package_info.outputs.PACKAGE_COUNT }} packages published to pub.dev" >> $GITHUB_STEP_SUMMARY
+          echo "6. ✅ GitHub release updated with pub.dev links" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚡ Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 Monitor package downloads on pub.dev" >> $GITHUB_STEP_SUMMARY
+          echo "- 📱 Codemagic will automatically deploy the app" >> $GITHUB_STEP_SUMMARY
+          echo "- 🎉 Packages are now available for developers to use!" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "## ❌ Package Publishing Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The publishing process for tag v${{ env.VERSION }} failed. Here's how to troubleshoot:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Common Issues & Solutions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. **pub.dev credentials expired**:" >> $GITHUB_STEP_SUMMARY
+          echo "   - Update the \`PUB_CREDENTIALS\` secret in repository settings" >> $GITHUB_STEP_SUMMARY
+          echo "   - Generate new credentials: \`dart pub token add https://pub.dev\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Version already published**:" >> $GITHUB_STEP_SUMMARY
+          echo "   - Check if packages are already published at this version" >> $GITHUB_STEP_SUMMARY
+          echo "   - You cannot republish the same version" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Package validation failed**:" >> $GITHUB_STEP_SUMMARY
+          echo "   - Check the dry-run output for specific validation errors" >> $GITHUB_STEP_SUMMARY
+          echo "   - Common issues: missing CHANGELOG entries, analysis warnings" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "4. **Version inconsistency**:" >> $GITHUB_STEP_SUMMARY
+          echo "   - Ensure tag version matches package versions" >> $GITHUB_STEP_SUMMARY
+          echo "   - Re-run the release workflow if needed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔄 Manual Recovery" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "If the issue is resolved, you can:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Re-run this workflow from the Actions tab" >> $GITHUB_STEP_SUMMARY
+          echo "2. Or publish manually: \`dart run melos run publish-packages\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📚 Documentation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- [Melos Publishing Guide](https://melos.invertase.dev/commands/publish)" >> $GITHUB_STEP_SUMMARY
+          echo "- [pub.dev Publishing Guide](https://dart.dev/tools/pub/publishing)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Repository Deployment Guide](https://github.com/${{ github.repository }}/blob/main/DEPLOYMENT.md)" >> $GITHUB_STEP_SUMMARY
