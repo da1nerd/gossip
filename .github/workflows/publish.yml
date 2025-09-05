@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (e.g., v1.0.0)"
+        required: true
+        type: string
 
 jobs:
   publish:
@@ -36,10 +42,16 @@ jobs:
       - name: Extract version from tag
         id: version
         run: |
-          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_VERSION=${{ github.event.inputs.tag }}
+            TAG_VERSION=${TAG_VERSION#v}
+            echo "📦 Manual publish triggered for version: $TAG_VERSION"
+          else
+            TAG_VERSION=${GITHUB_REF#refs/tags/v}
+            echo "📦 Tag-triggered publish for version: $TAG_VERSION"
+          fi
           echo "VERSION=$TAG_VERSION" >> $GITHUB_ENV
           echo "TAG_VERSION=$TAG_VERSION" >> $GITHUB_OUTPUT
-          echo "📦 Publishing version: $TAG_VERSION"
 
       - name: Verify version consistency
         run: |
@@ -47,7 +59,10 @@ jobs:
           GOSSIP_VERSION=$(grep "^version:" packages/gossip/pubspec.yaml | sed 's/version: //' | xargs)
 
           if [ "$GOSSIP_VERSION" != "${{ env.VERSION }}" ]; then
-            echo "❌ Version mismatch: tag is v${{ env.VERSION }} but gossip package is $GOSSIP_VERSION"
+            echo "❌ Version mismatch: requested version is v${{ env.VERSION }} but gossip package is $GOSSIP_VERSION"
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "💡 Tip: Make sure you're using the correct tag version that matches the package versions"
+            fi
             exit 1
           fi
 
