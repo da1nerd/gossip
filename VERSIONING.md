@@ -27,19 +27,18 @@ The monorepo uses a **centralized versioning approach** where:
 - ✅ Simplified release workflow
 
 ## 📂 Version Management Structure
+## 📁 Project Structure
 
 ```
 gossip-mono/
-├── pubspec.yaml                    # 🎯 SOURCE OF TRUTH (v1.2.3)
+├── pubspec.yaml                    # 🎯 Workspace configuration + Melos scripts
 ├── packages/
-│   ├── gossip/pubspec.yaml        # 📦 Follows root (v1.2.3)
-│   ├── gossip_crdts/pubspec.yaml  # 📦 Follows root (v1.2.3)
-│   └── ...                        # 📦 All packages match
+│   ├── gossip/pubspec.yaml        # 📦 Base package (drives versioning)
+│   ├── gossip_crdts/pubspec.yaml  # 📦 Auto-updated by Melos
+│   └── ...                        # 📦 All dependencies auto-managed
 ├── apps/
 │   └── gossip_chat/pubspec.yaml   # 📱 Independent (v1.2.3+42)
-└── scripts/
-    ├── update_versions.sh          # 🔧 Version update script
-    └── test_version_update.sh      # 🧪 Testing script
+└── melos version commands          # 🚀 Built-in Melos 7.x versioning
 ```
 
 ## 🚀 Usage
@@ -81,19 +80,19 @@ melos run version-test
 ```
 
 #### Manual Scripts
+## 🚀 Quick Commands
 
 ```bash
-# Test version update (with backup)
-./scripts/test_version_update.sh test minor
+# 🎯 Smart versioning - updates base package + all dependencies automatically
+dart run melos run version-patch   # Patch version (1.0.0 → 1.0.1)
+dart run melos run version-minor   # Minor version (1.0.0 → 1.1.0)
+dart run melos run version-major   # Major version (1.0.0 → 2.0.0)
 
-# Direct version update  
-./scripts/update_versions.sh patch
+# 🔄 Alternative: Version all packages to same version
+dart run melos run version-all-patch
 
-# Show current versions
-./scripts/test_version_update.sh show
-
-# Restore from backup
-./scripts/test_version_update.sh restore
+# 📊 Show current versions
+dart run melos list
 ```
 
 ## 🔧 How It Works
@@ -161,23 +160,20 @@ This allows:
 If you need to release manually:
 
 ```bash
-# 1. Update versions
-./scripts/update_versions.sh patch
+# 1. Update versions (automatic dependency management!)
+dart run melos run version-patch
 
-# 2. Bootstrap dependencies  
-melos bootstrap
+# 2. Run validation
+dart run melos run pre-publish-check
 
-# 3. Run validation
-melos run pre-publish-check
-
-# 4. Commit changes
+# 3. Commit changes (if needed - versioning may auto-commit)
 git add .
-git commit -m "chore: release v$(grep '^version:' pubspec.yaml | sed 's/version: //')"
+git commit -m "chore: release packages"
 
-# 5. Publish packages
-melos run publish-packages
+# 4. Publish packages
+dart run melos run publish-packages
 
-# 6. Push and tag
+# 5. Push and tag
 git push origin main
 git tag "v$(grep '^version:' pubspec.yaml | sed 's/version: //')"
 git push --tags
@@ -240,8 +236,8 @@ If you have packages with different versions:
 
 1. **Choose target version**: Usually the highest existing version
 2. **Update root**: Set `version:` in root `pubspec.yaml`
-3. **Run sync**: `./scripts/update_versions.sh patch` (no increment)
-4. **Test**: `melos bootstrap && melos run test`
+3. **Run sync**: `dart run melos run version-patch` (updates dependencies automatically)
+4. **Test**: `dart run melos run test`
 5. **Commit**: Version synchronization commit
 
 ### From Melos `--patch/--minor/--major`
@@ -255,7 +251,7 @@ Replace old workflow steps:
 
 # NEW - Use centralized approach  
 - name: Update versions
-  run: ./scripts/update_versions.sh patch
+  run: dart run melos run version-patch
 ```
 
 ## 🚨 Important Notes
@@ -290,8 +286,8 @@ When making breaking changes:
 - Check file format and indentation
 
 **"Melos bootstrap fails"**  
-- Run `./scripts/update_versions.sh patch` to fix dependencies
-- Check for circular dependencies
+- Run `dart run melos run version-patch` to sync versions and dependencies
+- Check for circular dependencies with `dart run melos list --graph`
 
 **"Git conflicts during release"**
 - Ensure working directory is clean before running scripts

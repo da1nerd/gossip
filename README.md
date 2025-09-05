@@ -163,14 +163,14 @@ melos run publish-packages
 
 **Local Testing:**
 ```bash
-# Test version changes with backup/restore options
-./scripts/test_version_update.sh test patch
+# Version all packages with automatic dependency updates
+dart run melos run version-patch
 
-# Show current versions across all packages
-./scripts/test_version_update.sh show
+# Version all packages to same version (alternative)
+dart run melos run version-all-patch
 
-# Manually update versions
-./scripts/update_versions.sh minor
+# View current versions
+dart run melos list
 ```
 
 ### App Development
@@ -204,12 +204,10 @@ gh workflow run release.yml \
 
 **Manual Local Testing:**
 ```bash
-# Test the entire version update process
-./scripts/test_version_update.sh test patch
+# Update versions with automatic dependency management
+dart run melos run version-minor
 
-# Just update versions locally
-./scripts/update_versions.sh minor
-melos bootstrap
+# No need for melos bootstrap - workspace handles dependencies automatically!
 ```
 
 **Release Process Overview:**

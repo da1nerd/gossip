@@ -53,23 +53,50 @@ melos:
       run: melos exec -- "dart format . --set-exit-if-changed"
       description: Format code in all packages.
 
-    # Centralized version management - use root pubspec.yaml as source of truth
+    # ✨ Super simple version management with Melos 7.x!
+    # Just version the base package - all dependencies updated automatically! 🚀
     version-patch:
-      run: ./scripts/update_versions.sh patch && melos bootstrap
-      description: Increment patch version for all packages based on root pubspec.yaml.
+      run: melos version gossip patch --yes --no-git-tag-version
+      description: Increment patch version for gossip (dependent packages updated automatically).
 
     version-minor:
-      run: ./scripts/update_versions.sh minor && melos bootstrap
-      description: Increment minor version for all packages based on root pubspec.yaml.
+      run: melos version gossip minor --yes --no-git-tag-version
+      description: Increment minor version for gossip (dependent packages updated automatically).
 
     version-major:
-      run: ./scripts/update_versions.sh major && melos bootstrap
-      description: Increment major version for all packages based on root pubspec.yaml.
+      run: melos version gossip major --yes --no-git-tag-version
+      description: Increment major version for gossip (dependent packages updated automatically).
 
-    # Test version update locally (with backup/restore)
-    version-test:
-      run: ./scripts/test_version_update.sh test
-      description: Test version update process with backup and restore options.
+    # Alternative: Version all packages to same version independently
+    version-all-patch:
+      run: |
+        echo "🔢 Updating all packages with patch version..."
+        for pkg in gossip gossip_crdts gossip_event_sourcing gossip_typed_events; do
+          echo "  - Updating $pkg..."
+          melos version $pkg patch --yes --no-git-tag-version --no-changelog || true
+        done
+        echo "✅ All packages updated!"
+      description: Increment patch version for ALL packages to keep them in sync.
+
+    version-all-minor:
+      run: |
+        echo "🔢 Updating all packages with minor version..."
+        for pkg in gossip gossip_crdts gossip_event_sourcing gossip_typed_events; do
+          echo "  - Updating $pkg..."
+          melos version $pkg minor --yes --no-git-tag-version --no-changelog || true
+        done
+        echo "✅ All packages updated!"
+      description: Increment minor version for ALL packages to keep them in sync.
+
+    version-all-major:
+      run: |
+        echo "🔢 Updating all packages with major version..."
+        for pkg in gossip gossip_crdts gossip_event_sourcing gossip_typed_events; do
+          echo "  - Updating $pkg..."
+          melos version $pkg major --yes --no-git-tag-version --no-changelog || true
+        done
+        echo "✅ All packages updated!"
+      description: Increment major version for ALL packages to keep them in sync.
 
     # Enhanced publish commands
     publish-dry-run:
