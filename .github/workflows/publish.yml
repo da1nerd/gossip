@@ -3,7 +3,7 @@ name: Publish Packages
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   publish:
@@ -26,6 +26,12 @@ jobs:
 
       - name: Install dependencies
         run: dart pub get
+
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap project
+        run: melos bootstrap
 
       - name: Extract version from tag
         id: version
@@ -50,14 +56,14 @@ jobs:
       - name: Run pre-publish validation
         run: |
           echo "🔍 Running pre-publish validation..."
-          dart run melos run analyze
-          dart run melos run test
-          dart run melos run format --set-exit-if-changed
+          melos run analyze
+          melos run test
+          melos run format --set-exit-if-changed
 
       - name: Run publish dry-run
         run: |
           echo "🧪 Testing package publishing..."
-          dart run melos run publish-dry-run
+          melos run publish-dry-run
 
       - name: Setup pub credentials
         run: |
@@ -67,7 +73,7 @@ jobs:
       - name: Publish packages to pub.dev
         run: |
           echo "🚀 Publishing packages to pub.dev..."
-          dart run melos run publish-packages
+          melos run publish-packages
 
       - name: Get published package info
         id: package_info
@@ -202,7 +208,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "If the issue is resolved, you can:" >> $GITHUB_STEP_SUMMARY
           echo "1. Re-run this workflow from the Actions tab" >> $GITHUB_STEP_SUMMARY
-          echo "2. Or publish manually: \`dart run melos run publish-packages\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. Or publish manually: \`melos run publish-packages\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📚 Documentation" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

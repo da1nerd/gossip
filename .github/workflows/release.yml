@@ -39,6 +39,12 @@ jobs:
       - name: Install dependencies
         run: dart pub get
 
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap project
+        run: melos bootstrap
+
       - name: Configure Git
         run: |
           git config user.name "GitHub Actions"
@@ -47,15 +53,15 @@ jobs:
       - name: Run pre-release checks
         run: |
           echo "🔍 Running pre-release checks..."
-          dart run melos run analyze
-          dart run melos run test
-          dart run melos run format
+          melos run analyze
+          melos run test
+          melos run format
 
       - name: Update versions using Melos 7.x
         id: version_update
         run: |
           echo "🚀 Updating versions with Melos automatic dependency management..."
-          dart run melos version gossip ${{ github.event.inputs.release_type }} --yes
+          melos version gossip ${{ github.event.inputs.release_type }} --yes
 
           # Get the new version for later steps
           NEW_VERSION=$(grep "^version:" packages/gossip/pubspec.yaml | sed 's/version: //' | xargs)
@@ -65,7 +71,7 @@ jobs:
       - name: Verify version consistency
         run: |
           echo "🔍 Verifying all packages have consistent dependency versions..."
-          dart run melos run publish-dry-run
+          melos run publish-dry-run
 
       - name: Get package info
         id: package_info
@@ -198,8 +204,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "1. **Test locally first**:" >> $GITHUB_STEP_SUMMARY
           echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "   dart run melos run version-${{ github.event.inputs.release_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "   dart run melos run publish-dry-run" >> $GITHUB_STEP_SUMMARY
+          echo "   melos run version-${{ github.event.inputs.release_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "   melos run publish-dry-run" >> $GITHUB_STEP_SUMMARY
           echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "2. **Verify workspace setup**: \`dart pub workspace list\`" >> $GITHUB_STEP_SUMMARY
