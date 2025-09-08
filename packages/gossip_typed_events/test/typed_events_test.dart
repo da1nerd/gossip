@@ -29,18 +29,24 @@ class MockTransport implements GossipTransport {
 
   @override
   Future<GossipDigestResponse> sendDigest(
-    GossipPeer peer,
+    TransportPeer transportPeer,
     GossipDigest digest, {
     Duration? timeout,
   }) async {
-    final targetTransport = _network[peer.id];
+    final targetTransport = _network[transportPeer.transportId.value];
     if (targetTransport == null) {
-      throw TransportException('Peer ${peer.id} not reachable');
+      throw TransportException(
+        'Peer ${transportPeer.transportId} not reachable',
+      );
     }
 
     final completer = Completer<GossipDigestResponse>();
     final incomingDigest = IncomingDigest(
-      fromPeer: GossipPeer(id: nodeId, address: 'mock://$nodeId'),
+      fromTransportPeer: TransportPeer(
+        transportId: TransportPeerAddress(nodeId),
+        displayName: nodeId,
+        connectedAt: DateTime.now(),
+      ),
       digest: digest,
       respond: (response) async {
         completer.complete(response);
@@ -53,17 +59,23 @@ class MockTransport implements GossipTransport {
 
   @override
   Future<void> sendEvents(
-    GossipPeer peer,
+    TransportPeer transportPeer,
     GossipEventMessage message, {
     Duration? timeout,
   }) async {
-    final targetTransport = _network[peer.id];
+    final targetTransport = _network[transportPeer.transportId.value];
     if (targetTransport == null) {
-      throw TransportException('Peer ${peer.id} not reachable');
+      throw TransportException(
+        'Peer ${transportPeer.transportId} not reachable',
+      );
     }
 
     final incomingEvents = IncomingEvents(
-      fromPeer: GossipPeer(id: nodeId, address: 'mock://$nodeId'),
+      fromTransportPeer: TransportPeer(
+        transportId: TransportPeerAddress(nodeId),
+        displayName: nodeId,
+        connectedAt: DateTime.now(),
+      ),
       message: message,
     );
 
@@ -77,14 +89,20 @@ class MockTransport implements GossipTransport {
   Stream<IncomingEvents> get incomingEvents => _eventsController.stream;
 
   @override
-  Future<List<GossipPeer>> discoverPeers() async => _network.keys
+  Future<List<TransportPeer>> discoverPeers() async => _network.keys
       .where((id) => id != nodeId)
-      .map((id) => GossipPeer(id: id, address: 'mock://$id'))
+      .map(
+        (id) => TransportPeer(
+          transportId: TransportPeerAddress(id),
+          displayName: id,
+          connectedAt: DateTime.now(),
+        ),
+      )
       .toList();
 
   @override
-  Future<bool> isPeerReachable(GossipPeer peer) async =>
-      _network.containsKey(peer.id);
+  Future<bool> isPeerReachable(TransportPeer transportPeer) async =>
+      _network.containsKey(transportPeer.transportId.value);
 }
 
 /// Test event implementations
@@ -524,10 +542,16 @@ void main() {
 
       // Connect the nodes
       node.addPeer(
-        const GossipPeer(id: 'sender-node', address: 'mock://sender-node'),
+        GossipPeer(
+          id: GossipPeerID('sender-node'),
+          address: TransportPeerAddress('mock://sender-node'),
+        ),
       );
       senderNode.addPeer(
-        const GossipPeer(id: 'test-node', address: 'mock://test-node'),
+        GossipPeer(
+          id: GossipPeerID('test-node'),
+          address: TransportPeerAddress('mock://test-node'),
+        ),
       );
 
       // Broadcast different types of events from sender
@@ -543,7 +567,7 @@ void main() {
 
       // Trigger gossip to propagate events
       await senderNode.gossip();
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
 
       // Should only receive user events
       expect(receivedEvents, hasLength(2));
@@ -570,10 +594,16 @@ void main() {
 
       // Connect the nodes
       node.addPeer(
-        const GossipPeer(id: 'sender-node2', address: 'mock://sender-node2'),
+        GossipPeer(
+          id: GossipPeerID('sender-node2'),
+          address: TransportPeerAddress('mock://sender-node2'),
+        ),
       );
       senderNode.addPeer(
-        const GossipPeer(id: 'test-node', address: 'mock://test-node'),
+        GossipPeer(
+          id: GossipPeerID('test-node'),
+          address: TransportPeerAddress('mock://test-node'),
+        ),
       );
 
       await senderNode.createTypedEvent(
@@ -582,7 +612,7 @@ void main() {
 
       // Trigger gossip to propagate events
       await senderNode.gossip();
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
 
       expect(receivedEvents, hasLength(1));
       expect(receivedEvents.first.orderId, equals('order123'));
@@ -614,10 +644,16 @@ void main() {
 
       // Connect the nodes
       node.addPeer(
-        const GossipPeer(id: 'sender-node3', address: 'mock://sender-node3'),
+        GossipPeer(
+          id: GossipPeerID('sender-node3'),
+          address: TransportPeerAddress('mock://sender-node3'),
+        ),
       );
       senderNode.addPeer(
-        const GossipPeer(id: 'test-node', address: 'mock://test-node'),
+        GossipPeer(
+          id: GossipPeerID('test-node'),
+          address: TransportPeerAddress('mock://test-node'),
+        ),
       );
 
       await senderNode.createTypedEvent(
@@ -629,7 +665,7 @@ void main() {
 
       // Trigger gossip to propagate events
       await senderNode.gossip();
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
 
       expect(receivedEvents, hasLength(2));
       expect(receivedEvents[0].eventType, equals('test_user_event'));
@@ -699,7 +735,7 @@ void main() {
         ..add(matchingEvent)
         ..add(nonMatchingEvent);
 
-      await Future.delayed(const Duration(milliseconds: 50));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
 
       expect(receivedEvents, hasLength(1));
       expect(receivedEvents.first.userId, equals('user1'));
@@ -733,7 +769,7 @@ void main() {
       );
 
       eventController.add(badEvent);
-      await Future.delayed(const Duration(milliseconds: 50));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
 
       expect(receivedEvents, isEmpty);
       expect(errorCount, equals(1));
@@ -765,7 +801,7 @@ void main() {
       );
 
       eventController.add(event);
-      await Future.delayed(const Duration(milliseconds: 50));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
 
       expect(receivedEvents, hasLength(1));
       expect(receivedEvents.first.userId, equals('user123'));
@@ -817,7 +853,7 @@ void main() {
       eventController
         ..add(userEvent)
         ..add(orderEvent);
-      await Future.delayed(const Duration(milliseconds: 50));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
 
       expect(receivedEvents, hasLength(2));
       expect(receivedEvents[0], isA<TestUserEvent>());
@@ -855,8 +891,18 @@ void main() {
       await Future.wait(nodes.map((node) => node.start()));
 
       // Connect nodes
-      nodes[0].addPeer(const GossipPeer(id: 'node2', address: 'mock://node2'));
-      nodes[1].addPeer(const GossipPeer(id: 'node1', address: 'mock://node1'));
+      nodes[0].addPeer(
+        GossipPeer(
+          id: GossipPeerID('node2'),
+          address: TransportPeerAddress('mock://node2'),
+        ),
+      );
+      nodes[1].addPeer(
+        GossipPeer(
+          id: GossipPeerID('node1'),
+          address: TransportPeerAddress('mock://node1'),
+        ),
+      );
     });
 
     tearDown(() async {
@@ -876,7 +922,7 @@ void main() {
 
       // Trigger gossip
       await nodes[0].gossip();
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
 
       // Should receive on node 2
       expect(receivedEvents, hasLength(1));
@@ -904,7 +950,7 @@ void main() {
 
       await nodes[0].createTypedEvent(event);
       await nodes[0].gossip();
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
 
       expect(receivedEvents, hasLength(1));
       final received = receivedEvents.first;

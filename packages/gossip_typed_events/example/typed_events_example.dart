@@ -212,19 +212,23 @@ class InMemoryTransport implements GossipTransport {
 
   @override
   Future<GossipDigestResponse> sendDigest(
-    GossipPeer peer,
+    TransportPeer transportPeer,
     GossipDigest digest, {
     Duration? timeout,
   }) async {
-    final targetTransport = _nodeRegistry[peer.id];
+    final targetTransport = _nodeRegistry[transportPeer.transportId.value];
     if (targetTransport == null) {
-      throw TransportException('Peer ${peer.id} not found');
+      throw TransportException('Peer ${transportPeer.transportId} not found');
     }
 
     final completer = Completer<GossipDigestResponse>();
 
     final incomingDigest = IncomingDigest(
-      fromPeer: GossipPeer(id: nodeId, address: 'memory://$nodeId'),
+      fromTransportPeer: TransportPeer(
+        transportId: TransportPeerAddress(nodeId),
+        displayName: nodeId,
+        connectedAt: DateTime.now(),
+      ),
       digest: digest,
       respond: (response) async {
         completer.complete(response);
@@ -237,17 +241,21 @@ class InMemoryTransport implements GossipTransport {
 
   @override
   Future<void> sendEvents(
-    GossipPeer peer,
+    TransportPeer transportPeer,
     GossipEventMessage message, {
     Duration? timeout,
   }) async {
-    final targetTransport = _nodeRegistry[peer.id];
+    final targetTransport = _nodeRegistry[transportPeer.transportId.value];
     if (targetTransport == null) {
-      throw TransportException('Peer ${peer.id} not found');
+      throw TransportException('Peer ${transportPeer.transportId} not found');
     }
 
     final incomingEvents = IncomingEvents(
-      fromPeer: GossipPeer(id: nodeId, address: 'memory://$nodeId'),
+      fromTransportPeer: TransportPeer(
+        transportId: TransportPeerAddress(nodeId),
+        displayName: nodeId,
+        connectedAt: DateTime.now(),
+      ),
       message: message,
     );
 
@@ -261,14 +269,20 @@ class InMemoryTransport implements GossipTransport {
   Stream<IncomingEvents> get incomingEvents => _eventsController.stream;
 
   @override
-  Future<List<GossipPeer>> discoverPeers() async => _nodeRegistry.keys
+  Future<List<TransportPeer>> discoverPeers() async => _nodeRegistry.keys
       .where((id) => id != nodeId)
-      .map((id) => GossipPeer(id: id, address: 'memory://$id'))
+      .map(
+        (id) => TransportPeer(
+          transportId: TransportPeerAddress(id),
+          displayName: id,
+          connectedAt: DateTime.now(),
+        ),
+      )
       .toList();
 
   @override
-  Future<bool> isPeerReachable(GossipPeer peer) async =>
-      _nodeRegistry.containsKey(peer.id);
+  Future<bool> isPeerReachable(TransportPeer transportPeer) async =>
+      _nodeRegistry.containsKey(transportPeer.transportId.value);
 }
 
 void main() async {
@@ -290,7 +304,7 @@ void main() async {
     _setupEventListeners(nodes);
 
     // Wait for nodes to discover each other
-    await Future.delayed(const Duration(milliseconds: 100));
+    await Future<void>.delayed(const Duration(milliseconds: 100));
     await Future.wait(nodes.map((node) => node.discoverPeers()));
 
     print('🔗 Nodes connected and ready\n');
@@ -300,7 +314,7 @@ void main() async {
 
     // Wait for events to propagate
     print('\n⏳ Waiting for event propagation...');
-    await Future.delayed(const Duration(seconds: 3));
+    await Future<void>.delayed(const Duration(seconds: 3));
 
     // Show final statistics
     await _showStatistics(nodes);
@@ -448,7 +462,7 @@ Future<void> _simulateBusinessActivity(List<GossipNode> nodes) async {
 
   print('🔐 Broadcasting user login event...');
   await webServer.createTypedEvent(loginEvent);
-  await Future.delayed(const Duration(milliseconds: 200));
+  await Future<void>.delayed(const Duration(milliseconds: 200));
 
   // 2. Customer creates an order
   final orderEvent = OrderCreatedEvent(
@@ -464,7 +478,7 @@ Future<void> _simulateBusinessActivity(List<GossipNode> nodes) async {
 
   print('🛒 Broadcasting order creation event...');
   await orderService.createTypedEvent(orderEvent);
-  await Future.delayed(const Duration(milliseconds: 200));
+  await Future<void>.delayed(const Duration(milliseconds: 200));
 
   // 3. Inventory gets updated (multiple events)
   final inventoryEvents = [
@@ -486,7 +500,7 @@ Future<void> _simulateBusinessActivity(List<GossipNode> nodes) async {
   for (final event in inventoryEvents) {
     await inventoryService.createTypedEvent(event);
   }
-  await Future.delayed(const Duration(milliseconds: 200));
+  await Future<void>.delayed(const Duration(milliseconds: 200));
 
   // 4. Batch operation example
   final batchEvents = <TypedEvent>[
@@ -609,7 +623,7 @@ Future<void> _demonstrateStreamTransformers(GossipNode node) async {
   });
 
   // Simulate some events through the stream
-  await Future.delayed(const Duration(milliseconds: 100));
+  await Future<void>.delayed(const Duration(milliseconds: 100));
 
   // Create a mock typed event wrapped in gossip event format
   final mockLoginEvent = UserLoginEvent(
@@ -634,7 +648,7 @@ Future<void> _demonstrateStreamTransformers(GossipNode node) async {
   eventController.add(wrappedEvent);
 
   // Wait a bit for processing
-  await Future.delayed(const Duration(milliseconds: 100));
+  await Future<void>.delayed(const Duration(milliseconds: 100));
 
   // Clean up
   await userSubscription.cancel();

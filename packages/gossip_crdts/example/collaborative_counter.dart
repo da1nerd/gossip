@@ -36,18 +36,22 @@ class ExampleTransport implements GossipTransport {
 
   @override
   Future<GossipDigestResponse> sendDigest(
-    GossipPeer peer,
+    TransportPeer transportPeer,
     GossipDigest digest, {
     Duration? timeout,
   }) async {
-    final targetTransport = _network[peer.id];
+    final targetTransport = _network[transportPeer.transportId.value];
     if (targetTransport == null) {
-      throw TransportException('Peer ${peer.id} not found');
+      throw TransportException('Peer ${transportPeer.transportId} not found');
     }
 
     final completer = Completer<GossipDigestResponse>();
     final incomingDigest = IncomingDigest(
-      fromPeer: GossipPeer(id: nodeId, address: 'memory://$nodeId'),
+      fromTransportPeer: TransportPeer(
+        transportId: TransportPeerAddress(nodeId),
+        displayName: nodeId,
+        connectedAt: DateTime.now(),
+      ),
       digest: digest,
       respond: (response) async {
         completer.complete(response);
@@ -60,17 +64,21 @@ class ExampleTransport implements GossipTransport {
 
   @override
   Future<void> sendEvents(
-    GossipPeer peer,
+    TransportPeer transportPeer,
     GossipEventMessage message, {
     Duration? timeout,
   }) async {
-    final targetTransport = _network[peer.id];
+    final targetTransport = _network[transportPeer.transportId.value];
     if (targetTransport == null) {
-      throw TransportException('Peer ${peer.id} not found');
+      throw TransportException('Peer ${transportPeer.transportId} not found');
     }
 
     final incomingEvents = IncomingEvents(
-      fromPeer: GossipPeer(id: nodeId, address: 'memory://$nodeId'),
+      fromTransportPeer: TransportPeer(
+        transportId: TransportPeerAddress(nodeId),
+        displayName: nodeId,
+        connectedAt: DateTime.now(),
+      ),
       message: message,
     );
 
@@ -84,16 +92,22 @@ class ExampleTransport implements GossipTransport {
   Stream<IncomingEvents> get incomingEvents => _eventsController.stream;
 
   @override
-  Future<List<GossipPeer>> discoverPeers() async {
+  Future<List<TransportPeer>> discoverPeers() async {
     return _network.keys
         .where((id) => id != nodeId)
-        .map((id) => GossipPeer(id: id, address: 'memory://$id'))
+        .map(
+          (id) => TransportPeer(
+            transportId: TransportPeerAddress(id),
+            displayName: id,
+            connectedAt: DateTime.now(),
+          ),
+        )
         .toList();
   }
 
   @override
-  Future<bool> isPeerReachable(GossipPeer peer) async {
-    return _network.containsKey(peer.id);
+  Future<bool> isPeerReachable(TransportPeer transportPeer) async {
+    return _network.containsKey(transportPeer.transportId.value);
   }
 }
 

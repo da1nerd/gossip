@@ -211,10 +211,11 @@ class GossipNode {
   }
 
   /// Adds a peer to the gossip network.
+  /// You shouldn't normally add peers manually,
+  /// but this is helpful for testing.
   ///
   /// The peer will be included in future gossip exchanges and peer
   /// selection algorithms.
-  /// TODO: this is not used
   void addPeer(GossipPeer peer) {
     if (peer.id == config.nodeId) {
       throw ArgumentError('Cannot add self as peer');
