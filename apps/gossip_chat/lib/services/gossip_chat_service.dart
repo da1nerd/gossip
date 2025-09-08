@@ -73,7 +73,7 @@ class GossipChatService extends ChangeNotifier {
 
   // Event Sourcing components
   late final EventProcessor _eventProcessor;
-  late final ChatProjection _chatProjection;
+  final ChatProjection _chatProjection = ChatProjection();
 
   // Legacy state - keeping for backward compatibility during transition
   final Map<String, String> _peerIdToUserIdMap = {};
@@ -110,7 +110,8 @@ class GossipChatService extends ChangeNotifier {
   Future<void> _initializeComponents() async {
     if (_userId == null || _userName == null) {
       throw StateError(
-          'User ID and name must be set before initializing components');
+        'User ID and name must be set before initializing components',
+      );
     }
 
     // Create transport
@@ -139,8 +140,7 @@ class GossipChatService extends ChangeNotifier {
       logger: debugPrint,
     );
 
-    // Create and register projections
-    _chatProjection = ChatProjection();
+    // Register projections
     _eventProcessor.registerProjection(_chatProjection);
 
     // Create gossip node with chat-optimized configuration
@@ -254,7 +254,8 @@ class GossipChatService extends ChangeNotifier {
       await _eventProcessor.rebuildProjections(allEvents);
 
       debugPrint(
-          '✅ Rebuilt projections from ${allEvents.length} stored events');
+        '✅ Rebuilt projections from ${allEvents.length} stored events',
+      );
       debugPrint('💬 Messages in projection: ${_chatProjection.messageCount}');
       debugPrint('👥 Users in projection: ${_chatProjection.userCount}');
     } catch (e, stackTrace) {
@@ -374,7 +375,8 @@ class GossipChatService extends ChangeNotifier {
     final fromPeer = receivedEvent.fromPeer;
 
     debugPrint(
-        '📥 Remote event received: ${event.id} from peer: ${fromPeer.id}');
+      '📥 Remote event received: ${event.id} from peer: ${fromPeer.id}',
+    );
 
     // Establish mapping between transport peer ID and user ID.
     // This allows us to correlate ChatPeer with GossipPeer.
@@ -435,14 +437,18 @@ class GossipChatService extends ChangeNotifier {
       // Add metadata for context
       presenceEvent.setMetadata('source', 'gossip_chat_service');
       presenceEvent.setMetadata(
-          'action', isLeaving ? 'departure' : 'announcement');
+        'action',
+        isLeaving ? 'departure' : 'announcement',
+      );
 
       await _gossipNode.createTypedEvent(presenceEvent);
       debugPrint(
-          '📢 Announced ${isLeaving ? 'departure' : 'presence'} for $_userName (typed event)');
+        '📢 Announced ${isLeaving ? 'departure' : 'presence'} for $_userName (typed event)',
+      );
       debugPrint('🌐 Connected transport peers: $connectedPeerCount');
       debugPrint(
-          '👥 Known chat users: ${users.length} (${onlineUsers.length} online)');
+        '👥 Known chat users: ${users.length} (${onlineUsers.length} online)',
+      );
     } catch (e) {
       debugPrint('❌ Failed to announce presence: $e');
     }
@@ -499,23 +505,27 @@ class GossipChatService extends ChangeNotifier {
   /// Get all known users.
   List<ChatUser> get users => _chatProjection.users.values
       .cast<ChatPeer>()
-      .map((peer) => ChatUser(
-            id: peer.id,
-            name: peer.name,
-            isOnline: peer.isOnline,
-            lastSeen: peer.lastSeen,
-          ))
+      .map(
+        (peer) => ChatUser(
+          id: peer.id,
+          name: peer.name,
+          isOnline: peer.isOnline,
+          lastSeen: peer.lastSeen,
+        ),
+      )
       .toList();
 
   /// Get online users only.
   List<ChatUser> get onlineUsers => _chatProjection.onlineUsers
       .cast<ChatPeer>()
-      .map((peer) => ChatUser(
-            id: peer.id,
-            name: peer.name,
-            isOnline: peer.isOnline,
-            lastSeen: peer.lastSeen,
-          ))
+      .map(
+        (peer) => ChatUser(
+          id: peer.id,
+          name: peer.name,
+          isOnline: peer.isOnline,
+          lastSeen: peer.lastSeen,
+        ),
+      )
       .toList();
 
   /// Get the current user.
@@ -630,7 +640,8 @@ class GossipChatService extends ChangeNotifier {
   Future<void> saveProjectionStates() async {
     if (!_isInitialized) {
       throw StateError(
-          'Service must be initialized before saving projection states');
+        'Service must be initialized before saving projection states',
+      );
     }
 
     try {
@@ -647,7 +658,8 @@ class GossipChatService extends ChangeNotifier {
   Future<void> clearSavedProjectionStates() async {
     if (!_isInitialized) {
       throw StateError(
-          'Service must be initialized before clearing projection states');
+        'Service must be initialized before clearing projection states',
+      );
     }
 
     try {
