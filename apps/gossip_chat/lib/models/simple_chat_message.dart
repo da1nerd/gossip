@@ -15,8 +15,8 @@ class SimpleChatMessage {
     required this.content,
     DateTime? timestamp,
     this.type = ChatMessageType.text,
-  })  : id = id ?? const Uuid().v4(),
-        timestamp = timestamp ?? DateTime.now();
+  }) : id = id ?? const Uuid().v4(),
+       timestamp = timestamp ?? DateTime.now();
 
   // Create from JSON (for Gossip event payload)
   factory SimpleChatMessage.fromJson(Map<String, dynamic> json) {
@@ -79,9 +79,4 @@ class SimpleChatMessage {
   }
 }
 
-enum ChatMessageType {
-  text,
-  userJoined,
-  userLeft,
-  system,
-}
+enum ChatMessageType { text, userJoined, userLeft, system }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gossip_chat_demo/models/chat_peer.dart';
 import 'package:provider/provider.dart';
 
 import '../services/gossip_chat_service.dart';
@@ -12,18 +13,12 @@ class UserListDrawer extends StatelessWidget {
       child: Column(
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor,
-            ),
+            decoration: BoxDecoration(color: Theme.of(context).primaryColor),
             child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Icon(
-                  Icons.people,
-                  color: Colors.white,
-                  size: 48,
-                ),
+                Icon(Icons.people, color: Colors.white, size: 48),
                 SizedBox(height: 16),
                 Text(
                   'Connected Users',
@@ -39,33 +34,23 @@ class UserListDrawer extends StatelessWidget {
           Expanded(
             child: Consumer<GossipChatService>(
               builder: (context, chatService, child) {
-                if (chatService.users.isEmpty) {
+                if (chatService.peers.isEmpty) {
                   return const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.wifi_find,
-                          size: 64,
-                          color: Colors.grey,
-                        ),
+                        Icon(Icons.wifi_find, size: 64, color: Colors.grey),
                         SizedBox(height: 16),
                         Text(
                           'No users connected',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey,
-                          ),
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
                         ),
                         SizedBox(height: 8),
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 32),
                           child: Text(
                             'Make sure other devices are nearby with the app open',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                            ),
+                            style: TextStyle(color: Colors.grey, fontSize: 14),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -76,10 +61,10 @@ class UserListDrawer extends StatelessWidget {
 
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: chatService.users.length,
+                  itemCount: chatService.peers.length,
                   itemBuilder: (context, index) {
-                    final user = chatService.users[index];
-                    return UserTile(user: user);
+                    final user = chatService.peers[index];
+                    return UserTile(peer: user);
                   },
                 );
               },
@@ -89,9 +74,7 @@ class UserListDrawer extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(color: Colors.grey.shade300),
-              ),
+              border: Border(top: BorderSide(color: Colors.grey.shade300)),
             ),
             child: Consumer<GossipChatService>(
               builder: (context, chatService, child) {
@@ -137,11 +120,7 @@ class UserListDrawer extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const Icon(
-                      Icons.star,
-                      color: Colors.amber,
-                      size: 16,
-                    ),
+                    const Icon(Icons.star, color: Colors.amber, size: 16),
                   ],
                 );
               },
@@ -164,12 +143,9 @@ class UserListDrawer extends StatelessWidget {
 }
 
 class UserTile extends StatelessWidget {
-  final ChatUser user;
+  final ChatPeer peer;
 
-  const UserTile({
-    super.key,
-    required this.user,
-  });
+  const UserTile({super.key, required this.peer});
 
   @override
   Widget build(BuildContext context) {
@@ -183,7 +159,7 @@ class UserTile extends StatelessWidget {
         ),
         child: Center(
           child: Text(
-            _getInitials(user.name),
+            _getInitials(peer.name),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 14,
@@ -193,10 +169,8 @@ class UserTile extends StatelessWidget {
         ),
       ),
       title: Text(
-        user.name,
-        style: const TextStyle(
-          fontWeight: FontWeight.w500,
-        ),
+        peer.name,
+        style: const TextStyle(fontWeight: FontWeight.w500),
       ),
       subtitle: Text(_getStatusText()),
       trailing: Container(
@@ -221,16 +195,16 @@ class UserTile extends StatelessWidget {
   }
 
   Color _getStatusColor() {
-    return user.isOnline ? Colors.green : Colors.grey;
+    return peer.isOnline ? Colors.green : Colors.grey;
   }
 
   String _getStatusText() {
-    if (user.isOnline) {
+    if (peer.isOnline) {
       return 'Online';
     } else {
-      if (user.lastSeen != null) {
+      if (peer.lastSeen != null) {
         final now = DateTime.now();
-        final difference = now.difference(user.lastSeen!);
+        final difference = now.difference(peer.lastSeen!);
         if (difference.inMinutes < 1) {
           return 'Last seen just now';
         } else if (difference.inHours < 1) {

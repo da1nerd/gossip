@@ -7,11 +7,7 @@ class MessageBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isMe;
 
-  const MessageBubble({
-    super.key,
-    required this.message,
-    required this.isMe,
-  });
+  const MessageBubble({super.key, required this.message, required this.isMe});
 
   @override
   Widget build(BuildContext context) {
@@ -24,18 +20,17 @@ class MessageBubble extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: Row(
-        mainAxisAlignment:
-            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isMe
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!isMe) ...[
-            _buildAvatar(),
-            const SizedBox(width: 8),
-          ],
+          if (!isMe) ...[_buildAvatar(), const SizedBox(width: 8)],
           Flexible(
             child: Column(
-              crossAxisAlignment:
-                  isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isMe
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 if (!isMe) ...[
                   Padding(
@@ -90,10 +85,7 @@ class MessageBubble extends StatelessWidget {
               ],
             ),
           ),
-          if (isMe) ...[
-            const SizedBox(width: 8),
-            _buildAvatar(),
-          ],
+          if (isMe) ...[const SizedBox(width: 8), _buildAvatar()],
         ],
       ),
     );

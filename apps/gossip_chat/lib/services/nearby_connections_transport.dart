@@ -142,7 +142,8 @@ class NearbyConnectionsTransport implements GossipTransport {
       _connectedPeers[id] = peer;
       _connectionAttempts.remove(id);
       debugPrint(
-          '🎉 Successfully connected to peer $id (Total: ${_connectedPeers.length})');
+        '🎉 Successfully connected to peer $id (Total: ${_connectedPeers.length})',
+      );
     } else {
       _connectedPeers.remove(id);
       debugPrint('❌ Connection failed with $id: $status');
@@ -169,7 +170,8 @@ class NearbyConnectionsTransport implements GossipTransport {
     if (_connectedPeers.length + _pendingConnections.length >=
         _maxConcurrentConnections) {
       debugPrint(
-          '⚠️ Connection limit reached, skipping connection to $name ($id)');
+        '⚠️ Connection limit reached, skipping connection to $name ($id)',
+      );
       return;
     }
 
@@ -213,7 +215,8 @@ class NearbyConnectionsTransport implements GossipTransport {
     _connectionAttempts[id] = attempts + 1;
 
     debugPrint(
-        '📞 Requesting connection to $name ($id) (attempt ${attempts + 1}/$_maxConnectionAttempts)');
+      '📞 Requesting connection to $name ($id) (attempt ${attempts + 1}/$_maxConnectionAttempts)',
+    );
 
     try {
       await Nearby().requestConnection(
@@ -269,7 +272,9 @@ class NearbyConnectionsTransport implements GossipTransport {
   }
 
   void _onPayloadTransferUpdate(
-      String endpointId, PayloadTransferUpdate update) {
+    String endpointId,
+    PayloadTransferUpdate update,
+  ) {
     if (update.status == PayloadStatus.SUCCESS) {
       debugPrint('✅ Payload transfer successful to $endpointId');
     } else if (update.status == PayloadStatus.FAILURE) {
@@ -302,7 +307,9 @@ class NearbyConnectionsTransport implements GossipTransport {
   }
 
   void _handleIncomingDigestResponse(
-      String endpointId, Map<String, dynamic> json) {
+    String endpointId,
+    Map<String, dynamic> json,
+  ) {
     try {
       final response = GossipDigestResponse.fromJson(json['response']);
       final requestId = json['requestId'] as String?;
@@ -312,7 +319,8 @@ class NearbyConnectionsTransport implements GossipTransport {
         _pendingDigestRequests.remove(requestId);
       } else {
         debugPrint(
-            '❌ Received digest response for unknown request: $requestId');
+          '❌ Received digest response for unknown request: $requestId',
+        );
       }
     } catch (e) {
       debugPrint('❌ Error handling digest response from $endpointId: $e');
@@ -344,7 +352,9 @@ class NearbyConnectionsTransport implements GossipTransport {
   }
 
   void _handleEventsAcknowledgment(
-      String endpointId, Map<String, dynamic> json) {
+    String endpointId,
+    Map<String, dynamic> json,
+  ) {
     try {
       final requestId = json['requestId'] as String?;
 
@@ -357,8 +367,11 @@ class NearbyConnectionsTransport implements GossipTransport {
     }
   }
 
-  Future<void> _sendDigestResponse(String endpointId,
-      GossipDigestResponse response, String? requestId) async {
+  Future<void> _sendDigestResponse(
+    String endpointId,
+    GossipDigestResponse response,
+    String? requestId,
+  ) async {
     try {
       final message = {
         'type': 'digest_response',
@@ -368,7 +381,8 @@ class NearbyConnectionsTransport implements GossipTransport {
 
       await _sendMessage(endpointId, message);
       debugPrint(
-          '📤 Sent digest response to $endpointId for request $requestId');
+        '📤 Sent digest response to $endpointId for request $requestId',
+      );
     } catch (e) {
       debugPrint('❌ Failed to send digest response to $endpointId: $e');
       rethrow;
@@ -376,7 +390,9 @@ class NearbyConnectionsTransport implements GossipTransport {
   }
 
   Future<void> _sendEventsAcknowledgment(
-      String endpointId, String? requestId) async {
+    String endpointId,
+    String? requestId,
+  ) async {
     try {
       final message = {
         'type': 'events_ack',
@@ -392,7 +408,9 @@ class NearbyConnectionsTransport implements GossipTransport {
   }
 
   Future<void> _sendMessage(
-      String endpointId, Map<String, dynamic> message) async {
+    String endpointId,
+    Map<String, dynamic> message,
+  ) async {
     final json = jsonEncode(message);
     final bytes = Uint8List.fromList(utf8.encode(json));
 
@@ -408,8 +426,9 @@ class NearbyConnectionsTransport implements GossipTransport {
     final digestKeysToRemove = <String>[];
     _pendingDigestRequests.forEach((key, completer) {
       if (key.startsWith(peerId)) {
-        completer
-            .completeError(TransportException('Peer disconnected: $peerId'));
+        completer.completeError(
+          TransportException('Peer disconnected: $peerId'),
+        );
         digestKeysToRemove.add(key);
       }
     });
@@ -421,8 +440,9 @@ class NearbyConnectionsTransport implements GossipTransport {
     final eventKeysToRemove = <String>[];
     _pendingEventRequests.forEach((key, completer) {
       if (key.startsWith(peerId)) {
-        completer
-            .completeError(TransportException('Peer disconnected: $peerId'));
+        completer.completeError(
+          TransportException('Peer disconnected: $peerId'),
+        );
         eventKeysToRemove.add(key);
       }
     });
@@ -551,14 +571,16 @@ class NearbyConnectionsTransport implements GossipTransport {
 
       // Cancel all pending requests
       for (final completer in _pendingDigestRequests.values) {
-        completer
-            .completeError(const TransportException('Transport shutting down'));
+        completer.completeError(
+          const TransportException('Transport shutting down'),
+        );
       }
       _pendingDigestRequests.clear();
 
       for (final completer in _pendingEventRequests.values) {
-        completer
-            .completeError(const TransportException('Transport shutting down'));
+        completer.completeError(
+          const TransportException('Transport shutting down'),
+        );
       }
       _pendingEventRequests.clear();
 
@@ -633,7 +655,8 @@ class NearbyConnectionsTransport implements GossipTransport {
       buffer.writeln('\nConnected Peers:');
       for (var peer in _connectedPeers.values) {
         buffer.writeln(
-            '  • ${peer.id} (${peer.isActive ? "active" : "inactive"})');
+          '  • ${peer.id} (${peer.isActive ? "active" : "inactive"})',
+        );
       }
     }
 

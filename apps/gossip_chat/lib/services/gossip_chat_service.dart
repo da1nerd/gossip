@@ -17,44 +17,6 @@ import 'package:uuid/uuid.dart';
 import 'nearby_connections_transport.dart';
 import 'permissions_service.dart';
 
-/// Represents a user in the chat system.
-class ChatUser {
-  final String id;
-  final String name;
-  final bool isOnline;
-  final DateTime? lastSeen;
-
-  const ChatUser({
-    required this.id,
-    required this.name,
-    required this.isOnline,
-    this.lastSeen,
-  });
-
-  ChatUser copyWith({
-    String? id,
-    String? name,
-    bool? isOnline,
-    DateTime? lastSeen,
-  }) {
-    return ChatUser(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      isOnline: isOnline ?? this.isOnline,
-      lastSeen: lastSeen ?? this.lastSeen,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is ChatUser && other.id == id;
-  }
-
-  @override
-  int get hashCode => id.hashCode;
-}
-
 /// Chat service using the GossipNode.
 ///
 /// This service provides a clean, type-safe interface for chat functionality
@@ -447,7 +409,7 @@ class GossipChatService extends ChangeNotifier {
       );
       debugPrint('🌐 Connected transport peers: $connectedPeerCount');
       debugPrint(
-        '👥 Known chat users: ${users.length} (${onlineUsers.length} online)',
+        '👥 Known chat peers: ${peers.length} (${onlinePeers.length} online)',
       );
     } catch (e) {
       debugPrint('❌ Failed to announce presence: $e');
@@ -502,44 +464,25 @@ class GossipChatService extends ChangeNotifier {
   /// Get all chat messages, sorted by timestamp.
   List<ChatMessage> get messages => _chatProjection.messages;
 
-  /// Get all known users.
-  List<ChatUser> get users => _chatProjection.users.values
-      .cast<ChatPeer>()
-      .map(
-        (peer) => ChatUser(
-          id: peer.id,
-          name: peer.name,
-          isOnline: peer.isOnline,
-          lastSeen: peer.lastSeen,
-        ),
-      )
-      .toList();
+  /// Get all known peers.
+  List<ChatPeer> get peers => _chatProjection.users.values.where((peer) {
+    // Skip the current user
+    return peer.id != _userId;
+  }).toList();
 
-  /// Get online users only.
-  List<ChatUser> get onlineUsers => _chatProjection.onlineUsers
-      .cast<ChatPeer>()
-      .map(
-        (peer) => ChatUser(
-          id: peer.id,
-          name: peer.name,
-          isOnline: peer.isOnline,
-          lastSeen: peer.lastSeen,
-        ),
-      )
-      .toList();
+  /// Get online peers only.
+  List<ChatPeer> get onlinePeers => _chatProjection.onlineUsers.where((peer) {
+    // Skip the current user
+    return peer.id != _userId;
+  }).toList();
 
-  /// Get the current user.
-  ChatUser get currentUser {
+  /// Get the current peer.
+  ChatPeer get currentPeer {
     final peer = _chatProjection.getUser(_userId!);
     if (peer != null) {
-      return ChatUser(
-        id: peer.id,
-        name: peer.name,
-        isOnline: peer.isOnline,
-        lastSeen: peer.lastSeen,
-      );
+      return peer;
     }
-    return ChatUser(id: _userId!, name: _userName!, isOnline: true);
+    return ChatPeer(id: _userId!, name: _userName!);
   }
 
   /// Get the current user ID.

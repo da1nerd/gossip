@@ -257,15 +257,9 @@ class ChatEventRegistry {
       ChatMessageEvent.fromJson,
     );
 
-    registry.register<UserJoinedEvent>(
-      'user_joined',
-      UserJoinedEvent.fromJson,
-    );
+    registry.register<UserJoinedEvent>('user_joined', UserJoinedEvent.fromJson);
 
-    registry.register<UserLeftEvent>(
-      'user_left',
-      UserLeftEvent.fromJson,
-    );
+    registry.register<UserLeftEvent>('user_left', UserLeftEvent.fromJson);
 
     registry.register<UserPresenceEvent>(
       'user_presence',

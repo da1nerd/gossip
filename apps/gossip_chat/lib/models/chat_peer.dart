@@ -22,8 +22,9 @@ class ChatPeer {
       id: json['id'] as String,
       name: json['name'] as String,
       address: json['address'] as String?,
-      connectedAt:
-          DateTime.fromMillisecondsSinceEpoch(json['connectedAt'] as int),
+      connectedAt: DateTime.fromMillisecondsSinceEpoch(
+        json['connectedAt'] as int,
+      ),
       status: ChatPeerStatus.values.firstWhere(
         (e) => e.name == json['status'],
         orElse: () => ChatPeerStatus.connected,
@@ -81,9 +82,4 @@ class ChatPeer {
   }
 }
 
-enum ChatPeerStatus {
-  connecting,
-  connected,
-  disconnected,
-  failed,
-}
+enum ChatPeerStatus { connecting, connected, disconnected, failed }

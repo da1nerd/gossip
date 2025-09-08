@@ -38,8 +38,10 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     try {
-      final chatService =
-          Provider.of<GossipChatService>(context, listen: false);
+      final chatService = Provider.of<GossipChatService>(
+        context,
+        listen: false,
+      );
       if (!chatService.isStarted) {
         await chatService.start();
       }
@@ -95,9 +97,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 const Text('Gossip Chat'),
                 Text(
                   '${chatService.connectedPeerCount} peer${chatService.connectedPeerCount != 1 ? 's' : ''} connected (Debug: ${chatService.isStarted ? "Started" : "Stopped"})',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: Colors.white70),
                 ),
               ],
             );
@@ -222,9 +224,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         const SizedBox(height: 8),
                         Text(
                           'Start a conversation or wait for others to join',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                          ),
+                          style: TextStyle(color: Colors.grey[500]),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -245,10 +245,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     final message = chatService.messages[index];
                     final isMe = message.senderId == chatService.userId;
 
-                    return MessageBubble(
-                      message: message,
-                      isMe: isMe,
-                    );
+                    return MessageBubble(message: message, isMe: isMe);
                   },
                 );
               },
@@ -259,9 +256,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Container(
             decoration: BoxDecoration(
               color: Theme.of(context).scaffoldBackgroundColor,
-              border: Border(
-                top: BorderSide(color: Colors.grey.shade300),
-              ),
+              border: Border(top: BorderSide(color: Colors.grey.shade300)),
             ),
             child: Padding(
               padding: const EdgeInsets.all(12),

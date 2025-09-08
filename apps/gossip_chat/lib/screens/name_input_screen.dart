@@ -69,8 +69,10 @@ class _NameInputScreenState extends State<NameInputScreen> {
     });
 
     try {
-      final chatService =
-          Provider.of<GossipChatService>(context, listen: false);
+      final chatService = Provider.of<GossipChatService>(
+        context,
+        listen: false,
+      );
 
       // Set the username
       chatService.setUserName(name);
@@ -83,9 +85,7 @@ class _NameInputScreenState extends State<NameInputScreen> {
       // Navigate to chat screen
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const ChatScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const ChatScreen()),
         );
       }
     } catch (e) {
@@ -129,9 +129,9 @@ class _NameInputScreenState extends State<NameInputScreen> {
               Text(
                 'Welcome to Gossip Chat',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).primaryColor,
-                    ),
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColor,
+                ),
                 textAlign: TextAlign.center,
               ),
 
@@ -140,9 +140,9 @@ class _NameInputScreenState extends State<NameInputScreen> {
               // Subtitle
               Text(
                 'Connect and chat with nearby devices using peer-to-peer networking',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
 

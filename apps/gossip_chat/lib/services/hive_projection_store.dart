@@ -62,14 +62,17 @@ class HiveProjectionStore implements ProjectionStore {
       debugPrint('✅ HiveProjectionStore initialized successfully');
     } catch (e) {
       throw ProjectionStoreException(
-          'Failed to initialize Hive projection store', e);
+        'Failed to initialize Hive projection store',
+        e,
+      );
     }
   }
 
   void _ensureInitialized() {
     if (!_isInitialized || _isClosed) {
       throw const ProjectionStoreException(
-          'ProjectionStore is not initialized or has been closed');
+        'ProjectionStore is not initialized or has been closed',
+      );
     }
   }
 
@@ -120,7 +123,8 @@ class HiveProjectionStore implements ProjectionStore {
 
   @override
   Future<ProjectionStateSnapshot?> loadProjectionState(
-      String projectionType) async {
+    String projectionType,
+  ) async {
     _ensureInitialized();
 
     try {
@@ -173,7 +177,9 @@ class HiveProjectionStore implements ProjectionStore {
       debugPrint('🗑️ Cleared all projection states');
     } catch (e) {
       throw ProjectionStoreException(
-          'Failed to clear all projection states', e);
+        'Failed to clear all projection states',
+        e,
+      );
     }
   }
 
@@ -187,13 +193,15 @@ class HiveProjectionStore implements ProjectionStore {
       for (final key in _projectionMetadataBox!.keys) {
         final data = _projectionMetadataBox!.get(key);
         if (data != null) {
-          metadata.add(ProjectionStateMetadata(
-            projectionType: data['projectionType'] as String,
-            lastProcessedEventId: data['lastProcessedEventId'] as String?,
-            eventCount: data['eventCount'] as int,
-            savedAt: DateTime.parse(data['savedAt'] as String),
-            version: data['version'] as String? ?? '1.0.0',
-          ));
+          metadata.add(
+            ProjectionStateMetadata(
+              projectionType: data['projectionType'] as String,
+              lastProcessedEventId: data['lastProcessedEventId'] as String?,
+              eventCount: data['eventCount'] as int,
+              savedAt: DateTime.parse(data['savedAt'] as String),
+              version: data['version'] as String? ?? '1.0.0',
+            ),
+          );
         }
       }
 

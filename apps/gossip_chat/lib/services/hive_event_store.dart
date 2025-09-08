@@ -51,8 +51,9 @@ class HiveEventStore implements EventStore {
       }
 
       // Open the events box (lazy for better memory usage)
-      _eventsBox =
-          await Hive.openLazyBox<Map<dynamic, dynamic>>(_eventsBoxName);
+      _eventsBox = await Hive.openLazyBox<Map<dynamic, dynamic>>(
+        _eventsBoxName,
+      );
 
       // Open metadata box for storing additional info
       _metadataBox = await Hive.openBox(_metadataBoxName);
@@ -67,7 +68,8 @@ class HiveEventStore implements EventStore {
   void _checkInitialized() {
     if (!_isInitialized) {
       throw const EventStoreException(
-          'Event store not initialized. Call initialize() first.');
+        'Event store not initialized. Call initialize() first.',
+      );
     }
     if (_isClosed) {
       throw const EventStoreException('Event store has been closed');
@@ -151,7 +153,8 @@ class HiveEventStore implements EventStore {
       return matchingEvents;
     } catch (e) {
       throw EventStoreException(
-          'Failed to get events since $afterTimestamp for node $nodeId: $e');
+        'Failed to get events since $afterTimestamp for node $nodeId: $e',
+      );
     }
   }
 
@@ -171,8 +174,9 @@ class HiveEventStore implements EventStore {
       }
 
       // Sort by creation timestamp for consistent ordering
-      allEvents
-          .sort((a, b) => a.creationTimestamp.compareTo(b.creationTimestamp));
+      allEvents.sort(
+        (a, b) => a.creationTimestamp.compareTo(b.creationTimestamp),
+      );
 
       return allEvents;
     } catch (e) {
@@ -219,7 +223,8 @@ class HiveEventStore implements EventStore {
       return matchingEvents;
     } catch (e) {
       throw EventStoreException(
-          'Failed to get events in range [$startTimestamp, $endTimestamp]: $e');
+        'Failed to get events in range [$startTimestamp, $endTimestamp]: $e',
+      );
     }
   }
 
@@ -279,7 +284,8 @@ class HiveEventStore implements EventStore {
       return count;
     } catch (e) {
       throw EventStoreException(
-          'Failed to get event count for node $nodeId: $e');
+        'Failed to get event count for node $nodeId: $e',
+      );
     }
   }
 
@@ -292,7 +298,8 @@ class HiveEventStore implements EventStore {
       return nodeTimestamps[nodeId] ?? 0;
     } catch (e) {
       throw EventStoreException(
-          'Failed to get latest timestamp for node $nodeId: $e');
+        'Failed to get latest timestamp for node $nodeId: $e',
+      );
     }
   }
 
@@ -304,7 +311,8 @@ class HiveEventStore implements EventStore {
       return Map<String, int>.from(_getNodeTimestamps());
     } catch (e) {
       throw EventStoreException(
-          'Failed to get latest timestamps for all nodes: $e');
+        'Failed to get latest timestamps for all nodes: $e',
+      );
     }
   }
 
@@ -333,11 +341,13 @@ class HiveEventStore implements EventStore {
       await _rebuildNodeTimestamps();
 
       debugPrint(
-          '🧹 Removed ${keysToRemove.length} events older than $timestamp');
+        '🧹 Removed ${keysToRemove.length} events older than $timestamp',
+      );
       return keysToRemove.length;
     } catch (e) {
       throw EventStoreException(
-          'Failed to remove events older than $timestamp: $e');
+        'Failed to remove events older than $timestamp: $e',
+      );
     }
   }
 

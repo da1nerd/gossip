@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:location/location.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 
@@ -39,9 +40,7 @@ class PermissionsService {
         ]);
       } else {
         // Android 11 and below
-        permissionsToRequest.addAll([
-          ph.Permission.bluetooth,
-        ]);
+        permissionsToRequest.addAll([ph.Permission.bluetooth]);
       }
 
       // Nearby WiFi devices permission for Android 13+
@@ -73,10 +72,11 @@ class PermissionsService {
           // Only fail for critical permissions
           if (criticalPermissions.contains(permission)) {
             allGranted = false;
-            print('Critical permission $permission was denied');
+            debugPrint('Critical permission $permission was denied');
           } else {
-            print(
-                'Optional permission $permission was denied (continuing anyway)');
+            debugPrint(
+              'Optional permission $permission was denied (continuing anyway)',
+            );
           }
         }
       }
@@ -85,14 +85,14 @@ class PermissionsService {
       if (allGranted) {
         final isLocationServiceEnabled = await _ensureLocationServiceEnabled();
         if (!isLocationServiceEnabled) {
-          print('Location service is not enabled');
+          debugPrint('Location service is not enabled');
           return false;
         }
       }
 
       return allGranted;
     } catch (e) {
-      print('Error requesting permissions: $e');
+      debugPrint('Error requesting permissions: $e');
       return false;
     }
   }
@@ -111,7 +111,7 @@ class PermissionsService {
 
       return true;
     } catch (e) {
-      print('Error checking location service: $e');
+      debugPrint('Error checking location service: $e');
       return false;
     }
   }
@@ -143,9 +143,7 @@ class PermissionsService {
           ph.Permission.bluetoothScan,
         ]);
       } else {
-        requiredPermissions.addAll([
-          ph.Permission.bluetooth,
-        ]);
+        requiredPermissions.addAll([ph.Permission.bluetooth]);
       }
 
       // Check all required permissions (be more forgiving)
@@ -179,7 +177,7 @@ class PermissionsService {
 
       return serviceEnabled;
     } catch (e) {
-      print('Error checking permissions status: $e');
+      debugPrint('Error checking permissions status: $e');
       return false;
     }
   }
