@@ -13,8 +13,6 @@ class MockTransport implements GossipTransport {
   final StreamController<IncomingEvents> _eventsController =
       StreamController<IncomingEvents>.broadcast();
 
-  final List<GossipPeer> _discoveredPeers = [];
-
   MockTransport(this.nodeId, this._network);
 
   @override
@@ -30,19 +28,32 @@ class MockTransport implements GossipTransport {
   }
 
   @override
+  Stream<IncomingDigest> get incomingDigests => _digestController.stream;
+
+  @override
+  Stream<IncomingEvents> get incomingEvents => _eventsController.stream;
+
+  @override
   Future<GossipDigestResponse> sendDigest(
-    GossipPeer peer,
+    TransportPeer transportPeer,
     GossipDigest digest, {
     Duration? timeout,
   }) async {
-    final targetTransport = _network[peer.id];
+    final targetTransport = _network[transportPeer.transportId.value];
     if (targetTransport == null) {
-      throw TransportException('Peer ${peer.id} not reachable');
+      throw TransportException(
+        'Transport peer ${transportPeer.transportId.value} not found',
+      );
     }
 
     final completer = Completer<GossipDigestResponse>();
+
     final incomingDigest = IncomingDigest(
-      fromPeer: GossipPeer(id: nodeId, address: 'mock://$nodeId'),
+      fromTransportPeer: TransportPeer(
+        transportId: TransportPeerAddress(nodeId),
+        displayName: 'Node $nodeId',
+        connectedAt: DateTime.now(),
+      ),
       digest: digest,
       respond: (response) async {
         completer.complete(response);
@@ -50,22 +61,29 @@ class MockTransport implements GossipTransport {
     );
 
     targetTransport._digestController.add(incomingDigest);
-    return completer.future;
+
+    return completer.future.timeout(timeout ?? const Duration(seconds: 5));
   }
 
   @override
   Future<void> sendEvents(
-    GossipPeer peer,
+    TransportPeer transportPeer,
     GossipEventMessage message, {
     Duration? timeout,
   }) async {
-    final targetTransport = _network[peer.id];
+    final targetTransport = _network[transportPeer.transportId.value];
     if (targetTransport == null) {
-      throw TransportException('Peer ${peer.id} not reachable');
+      throw TransportException(
+        'Transport peer ${transportPeer.transportId.value} not found',
+      );
     }
 
     final incomingEvents = IncomingEvents(
-      fromPeer: GossipPeer(id: nodeId, address: 'mock://$nodeId'),
+      fromTransportPeer: TransportPeer(
+        transportId: TransportPeerAddress(nodeId),
+        displayName: 'Node $nodeId',
+        connectedAt: DateTime.now(),
+      ),
       message: message,
     );
 
@@ -73,23 +91,22 @@ class MockTransport implements GossipTransport {
   }
 
   @override
-  Stream<IncomingDigest> get incomingDigests => _digestController.stream;
-
-  @override
-  Stream<IncomingEvents> get incomingEvents => _eventsController.stream;
-
-  @override
-  Future<List<GossipPeer>> discoverPeers() async {
-    return _discoveredPeers;
+  Future<List<TransportPeer>> discoverPeers() async {
+    return _network.keys
+        .where((id) => id != nodeId)
+        .map(
+          (id) => TransportPeer(
+            transportId: TransportPeerAddress(id),
+            displayName: 'Node $id',
+            connectedAt: DateTime.now(),
+          ),
+        )
+        .toList();
   }
 
-  void addDiscoverablePeer(GossipPeer peer) {
-    _discoveredPeers.add(peer);
-  }
-
   @override
-  Future<bool> isPeerReachable(GossipPeer peer) async {
-    return _network.containsKey(peer.id);
+  Future<bool> isPeerReachable(TransportPeer transportPeer) async {
+    return _network.containsKey(transportPeer.transportId.value);
   }
 }
 
@@ -457,17 +474,20 @@ void main() {
 
       await node.start();
 
-      final peer = GossipPeer(id: 'peer-1', address: 'mock://peer-1');
+      final peer = GossipPeer(
+        id: GossipPeerID('peer-1'),
+        address: TransportPeerAddress('mock://peer-1'),
+      );
       node.addPeer(peer);
 
       expect(node.peers, hasLength(1));
-      expect(node.peers.first.id, equals('peer-1'));
+      expect(node.peers.first.id, equals(GossipPeerID('peer-1')));
 
-      final removed = node.removePeer('peer-1');
+      final removed = node.removePeer(GossipPeerID('peer-1'));
       expect(removed, isTrue);
       expect(node.peers, isEmpty);
 
-      final removedAgain = node.removePeer('peer-1');
+      final removedAgain = node.removePeer(GossipPeerID('peer-1'));
       expect(removedAgain, isFalse);
 
       await node.stop();
@@ -490,19 +510,32 @@ void main() {
       await nodeA.start();
       await nodeB.start();
 
-      // Add each other as peers
-      nodeA.addPeer(GossipPeer(id: 'nodeB', address: 'mock://nodeB'));
-      nodeB.addPeer(GossipPeer(id: 'nodeA', address: 'mock://nodeA'));
-
-      // Create events on each node
+      // Create events on each node first
       await nodeA.createEvent({'from': 'A', 'message': 'Hello from A'});
       await nodeB.createEvent({'from': 'B', 'message': 'Hello from B'});
+
+      // Add peers manually since we need to establish relationships
+      // In the new architecture, peers are discovered via transport but relationships
+      // are established through gossip digest exchange
+      nodeA.addPeer(
+        GossipPeer(
+          id: GossipPeerID('nodeB'),
+          address: TransportPeerAddress('nodeB'),
+        ),
+      );
+      nodeB.addPeer(
+        GossipPeer(
+          id: GossipPeerID('nodeA'),
+          address: TransportPeerAddress('nodeA'),
+        ),
+      );
 
       // Wait a bit for any immediate processing
       await Future.delayed(Duration(milliseconds: 10));
 
-      // Manually trigger gossip
+      // Manually trigger gossip to establish peer relationships and sync events
       await nodeA.gossip();
+      await nodeB.gossip();
 
       // Wait for gossip to complete
       await Future.delayed(Duration(milliseconds: 100));

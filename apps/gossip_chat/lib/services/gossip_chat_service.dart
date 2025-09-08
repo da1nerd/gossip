@@ -38,7 +38,7 @@ class GossipChatService extends ChangeNotifier {
   final ChatProjection _chatProjection = ChatProjection();
 
   // Legacy state - keeping for backward compatibility during transition
-  final Map<String, String> _peerIdToNodeIdMap = {};
+  final Map<TransportPeerAddress, String> _peerIdToNodeIdMap = {};
 
   StreamSubscription<Event>? _eventCreatedSubscription;
   StreamSubscription<ReceivedEvent>? _eventReceivedSubscription;
@@ -343,9 +343,10 @@ class GossipChatService extends ChangeNotifier {
     // The transport creates temporary GossipPeers with transport IDs,
     // but we map to the stable node ID from the gossip protocol.
     final nodeId = event.nodeId;
-    if (nodeId != _nodeId && !_peerIdToNodeIdMap.containsKey(fromPeer.id)) {
-      _peerIdToNodeIdMap[fromPeer.id] = nodeId;
-      debugPrint('🔗 Mapped transport ${fromPeer.id} to node $nodeId');
+    if (nodeId != _nodeId &&
+        !_peerIdToNodeIdMap.containsKey(fromPeer.address)) {
+      _peerIdToNodeIdMap[fromPeer.address] = nodeId;
+      debugPrint('🔗 Mapped transport ${fromPeer.address} to node $nodeId');
     }
 
     // Process through Event Sourcing pipeline
@@ -362,7 +363,7 @@ class GossipChatService extends ChangeNotifier {
   void _handlePeerRemoved(GossipPeer peer) {
     debugPrint('👋 Peer removed: ${peer.id}');
 
-    final nodeId = _peerIdToNodeIdMap[peer.id];
+    final nodeId = _peerIdToNodeIdMap[peer.address];
     if (nodeId != null) {
       final user = _chatProjection.getUser(nodeId);
       if (user != null) {

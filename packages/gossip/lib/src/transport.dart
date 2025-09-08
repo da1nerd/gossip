@@ -11,6 +11,109 @@ import 'dart:async';
 import 'event.dart';
 import 'exceptions.dart';
 
+/// Type-safe identifier for gossip peers (stable node IDs).
+class GossipPeerID {
+  /// The underlying string identifier.
+  final String value;
+
+  /// Creates a gossip peer ID.
+  const GossipPeerID(this.value);
+
+  @override
+  String toString() => value;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! GossipPeerID) return false;
+    return value == other.value;
+  }
+
+  @override
+  int get hashCode => value.hashCode;
+}
+
+/// Type-safe address for transport peers (transport-specific addresses).
+class TransportPeerAddress {
+  /// The underlying string address.
+  final String value;
+
+  /// Creates a transport peer address.
+  const TransportPeerAddress(this.value);
+
+  @override
+  String toString() => value;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! TransportPeerAddress) return false;
+    return value == other.value;
+  }
+
+  @override
+  int get hashCode => value.hashCode;
+}
+
+/// Transport-level peer representation.
+/// This represents a peer at the transport layer before we know their node ID.
+class TransportPeer {
+  /// Transport-specific identifier (e.g., endpoint ID, connection ID).
+  final TransportPeerAddress transportId;
+
+  /// Display name discovered during peer discovery.
+  final String displayName;
+
+  /// When this transport peer was connected.
+  final DateTime connectedAt;
+
+  /// Whether this transport peer is currently active.
+  final bool isActive;
+
+  /// Optional metadata about this transport peer.
+  final Map<String, dynamic> metadata;
+
+  const TransportPeer({
+    required this.transportId,
+    required this.displayName,
+    required this.connectedAt,
+    this.isActive = true,
+    this.metadata = const {},
+  });
+
+  /// Creates a copy with modified values.
+  TransportPeer copyWith({
+    TransportPeerAddress? transportId,
+    String? displayName,
+    DateTime? connectedAt,
+    bool? isActive,
+    Map<String, dynamic>? metadata,
+  }) {
+    return TransportPeer(
+      transportId: transportId ?? this.transportId,
+      displayName: displayName ?? this.displayName,
+      connectedAt: connectedAt ?? this.connectedAt,
+      isActive: isActive ?? this.isActive,
+      metadata: metadata ?? this.metadata,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'TransportPeer(transportId: $transportId, displayName: $displayName, isActive: $isActive)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! TransportPeer) return false;
+    return transportId == other.transportId;
+  }
+
+  @override
+  int get hashCode => transportId.hashCode;
+}
+
 /// Represents a peer in the gossip network.
 ///
 /// A peer contains the necessary information to communicate with another
@@ -18,13 +121,13 @@ import 'exceptions.dart';
 /// on the transport implementation.
 class GossipPeer {
   /// Unique identifier for this peer.
-  final String id;
+  final GossipPeerID id;
 
   /// Transport-specific address for this peer.
   ///
   /// This could be an HTTP URL, TCP socket address, etc.
   /// The format depends on the transport implementation.
-  final String address;
+  final TransportPeerAddress address;
 
   /// Optional metadata about this peer.
   final Map<String, dynamic> metadata;
@@ -45,8 +148,8 @@ class GossipPeer {
 
   /// Creates a copy of this peer with optionally modified values.
   GossipPeer copyWith({
-    String? id,
-    String? address,
+    GossipPeerID? id,
+    TransportPeerAddress? address,
     Map<String, dynamic>? metadata,
     DateTime? lastContactTime,
     bool? isActive,
@@ -259,37 +362,37 @@ abstract class GossipTransport {
   /// should not be used.
   Future<void> shutdown();
 
-  /// Sends a gossip digest to a peer and waits for a response.
+  /// Sends a gossip digest to a transport peer and waits for a response.
   ///
   /// This initiates the first step of the gossip protocol by sending
-  /// a digest of the local node's knowledge to the specified peer.
+  /// a digest of the local node's knowledge to the specified transport peer.
   ///
   /// Parameters:
-  /// - [peer]: The peer to send the digest to
+  /// - [transportPeer]: The transport peer to send the digest to
   /// - [digest]: The digest to send
   /// - [timeout]: Maximum time to wait for a response
   ///
   /// Returns the peer's response digest, or throws [TransportException]
   /// if the operation fails or times out.
   Future<GossipDigestResponse> sendDigest(
-    GossipPeer peer,
+    TransportPeer transportPeer,
     GossipDigest digest, {
     Duration? timeout,
   });
 
-  /// Sends events to a peer in response to their digest.
+  /// Sends events to a transport peer in response to their digest.
   ///
   /// This is the final step of the gossip protocol where the original
   /// sender provides the events that the peer requested.
   ///
   /// Parameters:
-  /// - [peer]: The peer to send events to
+  /// - [transportPeer]: The transport peer to send events to
   /// - [message]: The events to send
   /// - [timeout]: Maximum time to wait for confirmation
   ///
   /// Throws [TransportException] if the operation fails or times out.
   Future<void> sendEvents(
-    GossipPeer peer,
+    TransportPeer transportPeer,
     GossipEventMessage message, {
     Duration? timeout,
   });
@@ -307,27 +410,27 @@ abstract class GossipTransport {
   /// where peers send the events that were requested.
   Stream<IncomingEvents> get incomingEvents;
 
-  /// Discovers and returns available peers in the network.
+  /// Discovers and returns available transport peers in the network.
   ///
   /// This method is used for peer discovery and maintenance. The exact
   /// mechanism depends on the transport implementation (could be multicast,
   /// centralized discovery service, etc.).
   ///
-  /// Returns a list of discovered peers. May return an empty list if
+  /// Returns a list of discovered transport peers. May return an empty list if
   /// no peers are currently available.
-  Future<List<GossipPeer>> discoverPeers();
+  Future<List<TransportPeer>> discoverPeers();
 
-  /// Checks if a peer is currently reachable.
+  /// Checks if a transport peer is currently reachable.
   ///
   /// This can be used for peer health checking and maintenance.
   /// The implementation should be lightweight and fast.
-  Future<bool> isPeerReachable(GossipPeer peer);
+  Future<bool> isPeerReachable(TransportPeer transportPeer);
 }
 
 /// Represents an incoming gossip digest from another node.
 class IncomingDigest {
-  /// The peer that sent this digest.
-  final GossipPeer fromPeer;
+  /// The transport peer that sent this digest.
+  final TransportPeer fromTransportPeer;
 
   /// The digest that was received.
   final GossipDigest digest;
@@ -336,7 +439,7 @@ class IncomingDigest {
   final Future<void> Function(GossipDigestResponse response) respond;
 
   const IncomingDigest({
-    required this.fromPeer,
+    required this.fromTransportPeer,
     required this.digest,
     required this.respond,
   });
@@ -344,13 +447,16 @@ class IncomingDigest {
 
 /// Represents incoming events from another node.
 class IncomingEvents {
-  /// The peer that sent these events.
-  final GossipPeer fromPeer;
+  /// The transport peer that sent these events.
+  final TransportPeer fromTransportPeer;
 
   /// The events that were received.
   final GossipEventMessage message;
 
-  const IncomingEvents({required this.fromPeer, required this.message});
+  const IncomingEvents({
+    required this.fromTransportPeer,
+    required this.message,
+  });
 }
 
 /// Configuration for transport behavior.

@@ -53,16 +53,21 @@ class MockTransport implements GossipTransport {
 
   @override
   Future<GossipDigestResponse> sendDigest(
-    GossipPeer peer,
+    TransportPeer transportPeer,
     GossipDigest digest, {
     Duration? timeout,
   }) async {
-    final target = _connections[peer.id];
-    if (target == null) throw StateError('No connection to ${peer.id}');
+    final target = _connections[transportPeer.transportId.value];
+    if (target == null)
+      throw StateError('No connection to ${transportPeer.transportId.value}');
 
     final completer = Completer<GossipDigestResponse>();
     final incoming = IncomingDigest(
-      fromPeer: GossipPeer(id: nodeId, address: nodeId),
+      fromTransportPeer: TransportPeer(
+        transportId: TransportPeerAddress(nodeId),
+        displayName: 'Node $nodeId',
+        connectedAt: DateTime.now(),
+      ),
       digest: digest,
       respond: (response) async => completer.complete(response),
     );
@@ -73,16 +78,21 @@ class MockTransport implements GossipTransport {
 
   @override
   Future<void> sendEvents(
-    GossipPeer peer,
-    GossipEventMessage eventMessage, {
+    TransportPeer transportPeer,
+    GossipEventMessage message, {
     Duration? timeout,
   }) async {
-    final target = _connections[peer.id];
-    if (target == null) throw StateError('No connection to ${peer.id}');
+    final target = _connections[transportPeer.transportId.value];
+    if (target == null)
+      throw StateError('No connection to ${transportPeer.transportId.value}');
 
     final incoming = IncomingEvents(
-      fromPeer: GossipPeer(id: nodeId, address: nodeId),
-      message: eventMessage,
+      fromTransportPeer: TransportPeer(
+        transportId: TransportPeerAddress(nodeId),
+        displayName: 'Node $nodeId',
+        connectedAt: DateTime.now(),
+      ),
+      message: message,
     );
 
     target._eventsController.add(incoming);
@@ -95,11 +105,12 @@ class MockTransport implements GossipTransport {
   Stream<IncomingEvents> get incomingEvents => _eventsController.stream;
 
   @override
-  Future<List<GossipPeer>> discoverPeers() async => [];
+  Future<List<TransportPeer>> discoverPeers() async => [];
 
   @override
-  Future<bool> isPeerReachable(GossipPeer peer) async =>
-      _connections.containsKey(peer.id);
+  Future<bool> isPeerReachable(TransportPeer transportPeer) async {
+    return _connections.containsKey(transportPeer.transportId.value);
+  }
 
   @override
   Future<void> shutdown() async {
@@ -487,7 +498,12 @@ void main() {
         await nodeA.start();
         await nodeB.start();
 
-        nodeA.addPeer(GossipPeer(id: 'node-b', address: 'node-b'));
+        nodeA.addPeer(
+          GossipPeer(
+            id: GossipPeerID('node-b'),
+            address: TransportPeerAddress('node-b'),
+          ),
+        );
 
         // Create event on node A
         await nodeA.createEvent({'source': 'A', 'data': 'test'});

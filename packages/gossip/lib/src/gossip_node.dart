@@ -37,6 +37,12 @@ class GossipNode {
   final VectorClockStore? vectorClockStore;
   final VectorClock _vectorClock = VectorClock();
   final List<GossipPeer> _peers = [];
+  final Map<TransportPeerAddress, GossipPeerID> _transportToNodeIdMap =
+      {}; // transport address -> gossip peer ID
+  final Map<GossipPeerID, GossipPeer> _nodeIdToGossipPeerMap =
+      {}; // gossip peer ID -> GossipPeer
+  final Map<GossipPeerID, TransportPeer> _nodeIdToTransportPeerMap =
+      {}; // gossip peer ID -> TransportPeer
   final math.Random _random = math.Random();
 
   Timer? _gossipTimer;
@@ -60,8 +66,8 @@ class GossipNode {
 
   // Peer selection state for round-robin strategy
   int _lastPeerIndex = 0;
-  final Map<String, DateTime> _lastContactTimes = {};
-  final Map<String, int> _peerReliabilityScores = {};
+  final Map<GossipPeerID, DateTime> _lastContactTimes = {};
+  final Map<GossipPeerID, double> _peerReliabilityScores = {};
 
   /// Creates a new gossip node with the specified configuration.
   ///
@@ -224,12 +230,22 @@ class GossipNode {
   /// Removes a peer from the gossip network.
   ///
   /// Returns true if the peer was found and removed, false otherwise.
-  bool removePeer(String peerId) {
+  bool removePeer(GossipPeerID peerId) {
     final peerIndex = _peers.indexWhere((p) => p.id == peerId);
     if (peerIndex >= 0) {
       final removedPeer = _peers.removeAt(peerIndex);
+
+      // Clean up all mappings for this node ID
       _lastContactTimes.remove(peerId);
       _peerReliabilityScores.remove(peerId);
+      _nodeIdToGossipPeerMap.remove(peerId);
+      _nodeIdToTransportPeerMap.remove(peerId);
+
+      // Remove reverse mapping from transport address to gossip peer ID
+      _transportToNodeIdMap.removeWhere(
+        (transportAddress, gossipPeerID) => gossipPeerID == peerId,
+      );
+
       _peerRemovedController.add(removedPeer);
       return true;
     }
@@ -279,27 +295,39 @@ class GossipNode {
   }
 
   /// Performs peer discovery to find new nodes in the network.
+  /// TODO: this seems useless.
   Future<void> discoverPeers() async {
+    await _discoverPeers();
+  }
+
+  /// Internal peer discovery that handles transport peers properly.
+  Future<void> _discoverPeers() async {
     _checkStarted();
 
     try {
-      final discoveredPeers = await transport.discoverPeers();
+      final discoveredTransportPeers = await transport.discoverPeers();
 
-      // Add new peers
-      for (final peer in discoveredPeers) {
-        if (peer.id != config.nodeId && !_peers.any((p) => p.id == peer.id)) {
-          addPeer(peer);
+      // Note: We can't create GossipPeers until we know node IDs from gossip handshake
+      // The transport peers will be converted to GossipPeers in _getOrCreateGossipPeer
+      // when we receive gossip messages from them
+
+      // Remove peers whose transport connections were lost
+      final activeTransportIds = discoveredTransportPeers
+          .map((tp) => tp.transportId)
+          .toSet();
+
+      final peersToRemove = <GossipPeerID>[];
+      for (final entry in _transportToNodeIdMap.entries) {
+        if (!activeTransportIds.contains(entry.key)) {
+          peersToRemove.add(entry.value); // Remove by gossip peer ID
         }
       }
 
-      // Remove lost peers
-      for (final peer in _peers) {
-        if (!discoveredPeers.any((p) => p.id == peer.id)) {
-          removePeer(peer.id);
-        }
+      for (final gossipPeerID in peersToRemove) {
+        removePeer(gossipPeerID);
       }
     } catch (e) {
-      // TODO: Log discovery failure but don't throw - this is best effort
+      // Log discovery failure but don't throw - this is best effort
     }
   }
 
@@ -320,6 +348,10 @@ class GossipNode {
     try {
       final digest = incoming.digest;
       final theirClock = VectorClock.fromMap(digest.vectorClock);
+      final senderNodeId = GossipPeerID(digest.senderId);
+
+      // Create or update GossipPeer now that we know their node ID from digest
+      _getOrCreateGossipPeer(incoming.fromTransportPeer, senderNodeId);
 
       // Find events they're missing
       final eventsToSend = <Event>[];
@@ -360,6 +392,9 @@ class GossipNode {
       // Persist the updated vector clock
       await _saveVectorClockState();
 
+      // Update peer contact time
+      _lastContactTimes[senderNodeId] = DateTime.now();
+
       // Note: eventsToSend are events we're sending to them, not events we received
       // So we don't need to process them as received events here
     } catch (e) {
@@ -372,30 +407,43 @@ class GossipNode {
     try {
       final receivedAt = DateTime.now();
 
-      for (final event in incoming.message.events) {
-        await eventStore.saveEvent(event);
+      // Check if we have a GossipPeer established for this transport peer
+      // before processing any events to avoid updating vector clock unnecessarily
+      final senderNodeId = incoming.message.events.isNotEmpty
+          ? GossipPeerID(incoming.message.events.first.nodeId)
+          : null;
 
-        // Update vector clock
-        _vectorClock.merge(
-          VectorClock()..setTimestampFor(event.nodeId, event.timestamp),
-        );
+      final existingGossipPeer = senderNodeId != null
+          ? _nodeIdToGossipPeerMap[senderNodeId]
+          : null;
 
-        // Create ReceivedEvent with peer information
-        final receivedEvent = ReceivedEvent(
-          event: event,
-          fromPeer: incoming.fromPeer,
-          receivedAt: receivedAt,
-        );
+      // Only process events if we have established a GossipPeer relationship
+      // through digest exchange. Don't process events from unknown peers.
+      if (existingGossipPeer != null && senderNodeId != null) {
+        for (final event in incoming.message.events) {
+          await eventStore.saveEvent(event);
 
-        _eventReceivedController.add(receivedEvent);
+          // Update vector clock
+          _vectorClock.merge(
+            VectorClock()..setTimestampFor(event.nodeId, event.timestamp),
+          );
+
+          final receivedEvent = ReceivedEvent(
+            event: event,
+            fromPeer: existingGossipPeer,
+            receivedAt: receivedAt,
+          );
+          _eventReceivedController.add(receivedEvent);
+        }
+
+        // Update peer contact time
+        _lastContactTimes[senderNodeId] = DateTime.now();
+
+        // Persist the updated vector clock after processing events
+        await _saveVectorClockState();
       }
-
-      // Persist the updated vector clock after processing events
-      await _saveVectorClockState();
-
-      // Update peer contact time
-      final peerId = incoming.fromPeer.id;
-      _lastContactTimes[peerId] = DateTime.now();
+      // If we don't have a GossipPeer yet, ignore the events completely
+      // The peer relationship will be established when we do digest exchange
     } catch (e) {
       // Log error but continue - we want to be resilient
     }
@@ -415,11 +463,48 @@ class GossipNode {
     });
   }
 
+  /// Gets or creates a GossipPeer from transport peer and gossip peer ID.
+  GossipPeer _getOrCreateGossipPeer(
+    TransportPeer transportPeer,
+    GossipPeerID gossipPeerID,
+  ) {
+    // Check if we already have a GossipPeer for this gossip peer ID
+    if (_nodeIdToGossipPeerMap.containsKey(gossipPeerID)) {
+      return _nodeIdToGossipPeerMap[gossipPeerID]!;
+    }
+
+    // Create new GossipPeer with proper gossip peer ID and transport address
+    final gossipPeer = GossipPeer(
+      id: gossipPeerID, // Use stable gossip peer ID
+      address: transportPeer.transportId, // Use transport address
+      lastContactTime: transportPeer.connectedAt,
+      isActive: transportPeer.isActive,
+      metadata: {
+        'displayName': transportPeer.displayName,
+        'transportId': transportPeer.transportId.value,
+        ...transportPeer.metadata,
+      },
+    );
+
+    // Store the mappings
+    _transportToNodeIdMap[transportPeer.transportId] = gossipPeerID;
+    _nodeIdToGossipPeerMap[gossipPeerID] = gossipPeer;
+    _nodeIdToTransportPeerMap[gossipPeerID] = transportPeer;
+
+    // Add to peers list if not already present
+    if (!_peers.any((p) => p.id == gossipPeerID)) {
+      _peers.add(gossipPeer);
+      _peerAddedController.add(gossipPeer);
+    }
+
+    return gossipPeer;
+  }
+
   /// Starts the peer discovery timer.
   void _startPeerDiscoveryTimer() {
     _peerDiscoveryTimer = Timer.periodic(
       config.peerDiscoveryInterval,
-      (_) => discoverPeers(),
+      (_) => _discoverPeers(),
     );
   }
 
@@ -427,10 +512,11 @@ class GossipNode {
   Future<void> _performGossipCycle() async {
     if (_peers.isEmpty) return;
 
+    // Select a subset of peers for gossip (fanout)
     final selectedPeers = _selectPeersForGossip();
 
-    // Gossip with selected peers concurrently
-    final futures = selectedPeers.map(_gossipWithPeer);
+    // Perform gossip with selected peers concurrently
+    final futures = selectedPeers.map((peer) => _gossipWithPeer(peer));
     await Future.wait(futures, eagerError: false);
   }
 
@@ -503,6 +589,12 @@ class GossipNode {
     String? error;
 
     try {
+      // Find the corresponding transport peer from our mapping
+      final transportPeer = _nodeIdToTransportPeerMap[peer.id];
+      if (transportPeer == null) {
+        throw StateError('Transport peer not found for gossip peer ${peer.id}');
+      }
+
       // Create and send digest
       final digest = GossipDigest(
         senderId: config.nodeId,
@@ -511,7 +603,7 @@ class GossipNode {
       );
 
       final response = await transport.sendDigest(
-        peer,
+        transportPeer,
         digest,
         timeout: config.gossipTimeout,
       );
@@ -566,7 +658,7 @@ class GossipNode {
           createdAt: DateTime.now(),
         );
 
-        await transport.sendEvents(peer, eventMessage);
+        await transport.sendEvents(transportPeer, eventMessage);
         eventsExchanged += eventsToSend.length;
       }
 
@@ -596,12 +688,12 @@ class GossipNode {
   }
 
   /// Updates the reliability score for a peer based on exchange success.
-  void _updatePeerReliability(String peerId, bool success) {
-    final currentScore = _peerReliabilityScores[peerId] ?? 100;
+  void _updatePeerReliability(GossipPeerID peerId, bool success) {
+    final currentScore = _peerReliabilityScores[peerId] ?? 100.0;
     if (success) {
-      _peerReliabilityScores[peerId] = math.min(100, currentScore + 1);
+      _peerReliabilityScores[peerId] = math.min(100.0, currentScore + 1.0);
     } else {
-      _peerReliabilityScores[peerId] = math.max(0, currentScore - 5);
+      _peerReliabilityScores[peerId] = math.max(0.0, currentScore - 5.0);
     }
   }
 
