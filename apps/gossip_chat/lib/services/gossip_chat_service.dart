@@ -339,12 +339,13 @@ class GossipChatService extends ChangeNotifier {
       '📥 Remote event received: ${event.id} from peer: ${fromPeer.id}',
     );
 
-    // Establish mapping between transport peer ID and node ID.
-    // This allows us to correlate ChatPeer with GossipPeer.
+    // Establish mapping between transport ID and stable node ID.
+    // The transport creates temporary GossipPeers with transport IDs,
+    // but we map to the stable node ID from the gossip protocol.
     final nodeId = event.nodeId;
     if (nodeId != _nodeId && !_peerIdToNodeIdMap.containsKey(fromPeer.id)) {
       _peerIdToNodeIdMap[fromPeer.id] = nodeId;
-      debugPrint('🔗 Mapped peer ${fromPeer.id} to node $nodeId');
+      debugPrint('🔗 Mapped transport ${fromPeer.id} to node $nodeId');
     }
 
     // Process through Event Sourcing pipeline

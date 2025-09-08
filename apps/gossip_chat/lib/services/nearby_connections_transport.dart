@@ -6,10 +6,78 @@ import 'package:flutter/foundation.dart';
 import 'package:gossip/gossip.dart';
 import 'package:nearby_connections/nearby_connections.dart';
 
+/// Transport-level peer representation for nearby connections.
+/// This represents a peer at the transport layer before we know their node ID.
+class TransportPeer {
+  /// Transport-specific identifier (nearby connections endpoint ID).
+  final String transportId;
+
+  /// Display name discovered during peer discovery.
+  final String displayName;
+
+  /// When this transport peer was connected.
+  final DateTime connectedAt;
+
+  /// Whether this transport peer is currently active.
+  final bool isActive;
+
+  const TransportPeer({
+    required this.transportId,
+    required this.displayName,
+    required this.connectedAt,
+    this.isActive = true,
+  });
+
+  /// Creates a copy with modified values.
+  TransportPeer copyWith({
+    String? transportId,
+    String? displayName,
+    DateTime? connectedAt,
+    bool? isActive,
+  }) {
+    return TransportPeer(
+      transportId: transportId ?? this.transportId,
+      displayName: displayName ?? this.displayName,
+      connectedAt: connectedAt ?? this.connectedAt,
+      isActive: isActive ?? this.isActive,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'TransportPeer(transportId: $transportId, displayName: $displayName, isActive: $isActive)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! TransportPeer) return false;
+    return transportId == other.transportId;
+  }
+
+  @override
+  int get hashCode => transportId.hashCode;
+}
+
 /// Realization of [GossipTransport] using Nearby Connections API.
 ///
 /// This transport provides automatic peer discovery and connection management
 /// using Android's Nearby Connections API with Bluetooth and Wi-Fi Direct.
+///
+/// ## Architecture
+///
+/// This transport uses a two-tier peer management approach:
+///
+/// 1. **Transport Level**: Manages [TransportPeer] objects that represent
+///    connections at the transport layer using nearby connections endpoint IDs.
+///    These are temporary identifiers that change between sessions.
+///
+/// 2. **Gossip Level**: Creates temporary [GossipPeer] objects for interface
+///    compatibility. The actual stable node IDs are revealed through the
+///    gossip protocol handshake and managed by the [GossipNode].
+///
+/// This separation allows the transport to handle connection mechanics while
+/// keeping node identity management at the application layer where it belongs.
 ///
 /// Implements the full 3-phase gossip protocol:
 /// 1. Digest phase: Exchange vector clocks to determine what events are missing
@@ -19,8 +87,9 @@ class NearbyConnectionsTransport implements GossipTransport {
   final String serviceId;
   final String userName;
 
-  // Connection management
-  final Map<String, GossipPeer> _connectedPeers = {};
+  // Connection management - transport level peers
+  final Map<String, TransportPeer> _connectedTransportPeers = {};
+  final Map<String, String> _transportIdToDisplayName = {};
   final Set<String> _pendingConnections = {};
   final Map<String, int> _connectionAttempts = {};
 
@@ -102,7 +171,7 @@ class NearbyConnectionsTransport implements GossipTransport {
     debugPrint('🤝 Connection initiated with $id: ${info.endpointName}');
 
     // Check connection limits before accepting
-    if (_connectedPeers.length >= _maxConcurrentConnections) {
+    if (_connectedTransportPeers.length >= _maxConcurrentConnections) {
       debugPrint('❌ Connection limit reached, rejecting connection from $id');
       try {
         Nearby().rejectConnection(id);
@@ -131,41 +200,48 @@ class NearbyConnectionsTransport implements GossipTransport {
     _pendingConnections.remove(id);
 
     if (status == Status.CONNECTED) {
-      final peer = GossipPeer(
-        id: id,
-        address: id,
-        lastContactTime: DateTime.now(),
+      final displayName = _transportIdToDisplayName[id] ?? 'Unknown';
+      final transportPeer = TransportPeer(
+        transportId: id,
+        displayName: displayName,
+        connectedAt: DateTime.now(),
         isActive: true,
       );
-      _connectedPeers[id] = peer;
+      _connectedTransportPeers[id] = transportPeer;
       _connectionAttempts.remove(id);
       debugPrint(
-        '🎉 Successfully connected to peer $id (Total: ${_connectedPeers.length})',
+        '🎉 Successfully connected to transport peer $id ($displayName) (Total: ${_connectedTransportPeers.length})',
       );
     } else {
-      _connectedPeers.remove(id);
+      _connectedTransportPeers.remove(id);
       debugPrint('❌ Connection failed with $id: $status');
     }
   }
 
   void _onDisconnected(String id) {
-    debugPrint('💔 Disconnected from peer $id');
+    debugPrint('💔 Disconnected from transport peer $id');
 
-    _connectedPeers.remove(id);
+    _connectedTransportPeers.remove(id);
+    _transportIdToDisplayName.remove(id);
     _pendingConnections.remove(id);
     _connectionAttempts.remove(id);
 
     // Cancel any pending requests for this peer
     _cancelPendingRequestsForPeer(id);
 
-    debugPrint('📊 Remaining peers: ${_connectedPeers.length}');
+    debugPrint(
+      '📊 Remaining transport peers: ${_connectedTransportPeers.length}',
+    );
   }
 
   void _onEndpointFound(String id, String name, String serviceId) {
     debugPrint('🎯 FOUND DEVICE! ID: $id, Name: $name, Service: $serviceId');
 
+    // Store display name for later use
+    _transportIdToDisplayName[id] = name;
+
     // Check connection limits before attempting connection
-    if (_connectedPeers.length + _pendingConnections.length >=
+    if (_connectedTransportPeers.length + _pendingConnections.length >=
         _maxConcurrentConnections) {
       debugPrint(
         '⚠️ Connection limit reached, skipping connection to $name ($id)',
@@ -181,7 +257,7 @@ class NearbyConnectionsTransport implements GossipTransport {
 
     // Throttle connection attempts
     Future.delayed(_connectionThrottleDelay, () {
-      if (!_connectedPeers.containsKey(id) &&
+      if (!_connectedTransportPeers.containsKey(id) &&
           !_pendingConnections.contains(id)) {
         _requestConnection(id, name);
       }
@@ -191,13 +267,15 @@ class NearbyConnectionsTransport implements GossipTransport {
   void _onEndpointLost(String? id) {
     if (id != null) {
       debugPrint('📤 Lost device: $id');
-      _connectedPeers.remove(id);
+      _connectedTransportPeers.remove(id);
+      _transportIdToDisplayName.remove(id);
     }
   }
 
   void _requestConnection(String id, String name) async {
     // Check if already connected or pending
-    if (_connectedPeers.containsKey(id) || _pendingConnections.contains(id)) {
+    if (_connectedTransportPeers.containsKey(id) ||
+        _pendingConnections.contains(id)) {
       debugPrint('⚠️ Connection to $name ($id) already exists or is pending');
       return;
     }
@@ -284,15 +362,27 @@ class NearbyConnectionsTransport implements GossipTransport {
     try {
       final digest = GossipDigest.fromJson(json['digest']);
       final requestId = json['requestId'] as String?;
-      final peer = _connectedPeers[endpointId];
+      final transportPeer = _connectedTransportPeers[endpointId];
 
-      if (peer == null) {
-        debugPrint('❌ Received digest from unknown peer: $endpointId');
+      if (transportPeer == null) {
+        debugPrint(
+          '❌ Received digest from unknown transport peer: $endpointId',
+        );
         return;
       }
 
+      // Create temporary GossipPeer for interface compatibility
+      // The GossipNode will create proper GossipPeers with node IDs after handshake
+      final temporaryGossipPeer = GossipPeer(
+        id: endpointId, // Temporary - will be replaced with node ID
+        address: endpointId,
+        lastContactTime: transportPeer.connectedAt,
+        isActive: transportPeer.isActive,
+        metadata: {'displayName': transportPeer.displayName},
+      );
+
       final incomingDigest = IncomingDigest(
-        fromPeer: peer,
+        fromPeer: temporaryGossipPeer,
         digest: digest,
         respond: (response) =>
             _sendDigestResponse(endpointId, response, requestId),
@@ -328,18 +418,29 @@ class NearbyConnectionsTransport implements GossipTransport {
   void _handleIncomingEvents(String endpointId, Map<String, dynamic> json) {
     try {
       final eventMessage = GossipEventMessage.fromJson(json['message']);
-      final peer = _connectedPeers[endpointId];
+      final transportPeer = _connectedTransportPeers[endpointId];
 
-      if (peer == null) {
-        debugPrint('❌ Received events from unknown peer: $endpointId');
+      if (transportPeer == null) {
+        debugPrint(
+          '❌ Received events from unknown transport peer: $endpointId',
+        );
         return;
       }
 
       // Send acknowledgment
       _sendEventsAcknowledgment(endpointId, json['requestId'] as String?);
 
+      // Create temporary GossipPeer for interface compatibility
+      final temporaryGossipPeer = GossipPeer(
+        id: endpointId, // Temporary - will be replaced with node ID
+        address: endpointId,
+        lastContactTime: transportPeer.connectedAt,
+        isActive: transportPeer.isActive,
+        metadata: {'displayName': transportPeer.displayName},
+      );
+
       final incomingEvents = IncomingEvents(
-        fromPeer: peer,
+        fromPeer: temporaryGossipPeer,
         message: eventMessage,
       );
 
@@ -462,7 +563,17 @@ class NearbyConnectionsTransport implements GossipTransport {
       throw StateError('Transport not initialized');
     }
 
-    return _connectedPeers.values.toList();
+    // Convert transport peers to temporary GossipPeers for interface compatibility
+    return _connectedTransportPeers.values.map((transportPeer) {
+      return GossipPeer(
+        id: transportPeer
+            .transportId, // Temporary - will be replaced with node ID
+        address: transportPeer.transportId,
+        lastContactTime: transportPeer.connectedAt,
+        isActive: transportPeer.isActive,
+        metadata: {'displayName': transportPeer.displayName},
+      );
+    }).toList();
   }
 
   @override
@@ -471,7 +582,7 @@ class NearbyConnectionsTransport implements GossipTransport {
       return false;
     }
 
-    return _connectedPeers.containsKey(peer.id);
+    return _connectedTransportPeers.containsKey(peer.address);
   }
 
   @override
@@ -484,8 +595,10 @@ class NearbyConnectionsTransport implements GossipTransport {
       throw StateError('Transport not initialized');
     }
 
-    if (!_connectedPeers.containsKey(peer.id)) {
-      throw TransportException('Peer ${peer.id} is not connected');
+    if (!_connectedTransportPeers.containsKey(peer.address)) {
+      throw TransportException(
+        'Peer ${peer.address} is not connected at transport level',
+      );
     }
 
     final requestId = _generateRequestId();
@@ -499,15 +612,17 @@ class NearbyConnectionsTransport implements GossipTransport {
     _pendingDigestRequests[requestId] = completer;
 
     try {
-      await _sendMessage(peer.id, message);
-      debugPrint('📤 Sent digest to ${peer.id}');
+      await _sendMessage(peer.address, message);
+      debugPrint('📤 Sent digest to ${peer.address}');
 
       // Wait for response with timeout
       final response = await completer.future.timeout(
         timeout ?? _defaultTimeout,
         onTimeout: () {
           _pendingDigestRequests.remove(requestId);
-          throw TransportException('Digest request to ${peer.id} timed out');
+          throw TransportException(
+            'Digest request to ${peer.address} timed out',
+          );
         },
       );
 
@@ -528,8 +643,10 @@ class NearbyConnectionsTransport implements GossipTransport {
       throw StateError('Transport not initialized');
     }
 
-    if (!_connectedPeers.containsKey(peer.id)) {
-      throw TransportException('Peer ${peer.id} is not connected');
+    if (!_connectedTransportPeers.containsKey(peer.address)) {
+      throw TransportException(
+        'Peer ${peer.address} is not connected at transport level',
+      );
     }
 
     final requestId = _generateRequestId();
@@ -543,15 +660,17 @@ class NearbyConnectionsTransport implements GossipTransport {
     _pendingEventRequests[requestId] = completer;
 
     try {
-      await _sendMessage(peer.id, messagePayload);
-      debugPrint('📤 Sent events to ${peer.id}');
+      await _sendMessage(peer.address, messagePayload);
+      debugPrint('📤 Sent events to ${peer.address}');
 
       // Wait for acknowledgment with timeout
       await completer.future.timeout(
         timeout ?? _defaultTimeout,
         onTimeout: () {
           _pendingEventRequests.remove(requestId);
-          throw TransportException('Events request to ${peer.id} timed out');
+          throw TransportException(
+            'Events request to ${peer.address} timed out',
+          );
         },
       );
     } catch (e) {
@@ -597,7 +716,8 @@ class NearbyConnectionsTransport implements GossipTransport {
       await _incomingEventsController.close();
 
       // Clear state
-      _connectedPeers.clear();
+      _connectedTransportPeers.clear();
+      _transportIdToDisplayName.clear();
       _pendingConnections.clear();
       _connectionAttempts.clear();
       _initialized = false;
@@ -612,12 +732,12 @@ class NearbyConnectionsTransport implements GossipTransport {
   Map<String, dynamic> getStats() {
     return {
       'initialized': _initialized,
-      'connectedPeers': _connectedPeers.length,
+      'connectedTransportPeers': _connectedTransportPeers.length,
       'pendingConnections': _pendingConnections.length,
       'connectionAttempts': _connectionAttempts.length,
       'pendingDigestRequests': _pendingDigestRequests.length,
       'pendingEventRequests': _pendingEventRequests.length,
-      'peerIds': _connectedPeers.keys.toList(),
+      'transportIds': _connectedTransportPeers.keys.toList(),
       'pendingIds': _pendingConnections.toList(),
       'userName': userName,
       'serviceId': serviceId,
@@ -625,14 +745,14 @@ class NearbyConnectionsTransport implements GossipTransport {
     };
   }
 
-  /// Get the number of connected peers
-  int get peerCount => _connectedPeers.length;
+  /// Get the number of connected transport peers
+  int get peerCount => _connectedTransportPeers.length;
 
-  /// Check if we have any connected peers
-  bool get hasConnectedPeers => _connectedPeers.isNotEmpty;
+  /// Check if we have any connected transport peers
+  bool get hasConnectedPeers => _connectedTransportPeers.isNotEmpty;
 
-  /// Get list of connected peer IDs
-  List<String> get connectedPeerIds => _connectedPeers.keys.toList();
+  /// Get list of connected transport IDs
+  List<String> get connectedPeerIds => _connectedTransportPeers.keys.toList();
 
   /// Get detailed connection status for debugging
   String getConnectionStatus() {
@@ -642,17 +762,19 @@ class NearbyConnectionsTransport implements GossipTransport {
     buffer.writeln('Service ID: $serviceId');
     buffer.writeln('Initialized: $_initialized');
     buffer.writeln('Strategy: $_connectionStrategy');
-    buffer.writeln('Connected Peers: ${_connectedPeers.length}');
+    buffer.writeln(
+      'Connected Transport Peers: ${_connectedTransportPeers.length}',
+    );
     buffer.writeln('Pending Connections: ${_pendingConnections.length}');
     buffer.writeln('Connection Attempts: ${_connectionAttempts.length}');
     buffer.writeln('Pending Digest Requests: ${_pendingDigestRequests.length}');
     buffer.writeln('Pending Event Requests: ${_pendingEventRequests.length}');
 
-    if (_connectedPeers.isNotEmpty) {
-      buffer.writeln('\nConnected Peers:');
-      for (var peer in _connectedPeers.values) {
+    if (_connectedTransportPeers.isNotEmpty) {
+      buffer.writeln('\nConnected Transport Peers:');
+      for (var transportPeer in _connectedTransportPeers.values) {
         buffer.writeln(
-          '  • ${peer.id} (${peer.isActive ? "active" : "inactive"})',
+          '  • ${transportPeer.transportId} (${transportPeer.displayName}) - ${transportPeer.isActive ? "active" : "inactive"}',
         );
       }
     }
