@@ -347,34 +347,34 @@ class FailingProjectionStore implements ProjectionStore {
     String? lastProcessedEventId,
     int eventCount,
   ) async {
-    throw ProjectionStoreException('Save failed');
+    throw const ProjectionStoreException('Save failed');
   }
 
   @override
   Future<ProjectionStateSnapshot?> loadProjectionState(
     String projectionType,
   ) async {
-    throw ProjectionStoreException('Load failed');
+    throw const ProjectionStoreException('Load failed');
   }
 
   @override
   Future<void> clearProjectionState(String projectionType) async {
-    throw ProjectionStoreException('Clear failed');
+    throw const ProjectionStoreException('Clear failed');
   }
 
   @override
   Future<void> clearAllProjectionStates() async {
-    throw ProjectionStoreException('Clear all failed');
+    throw const ProjectionStoreException('Clear all failed');
   }
 
   @override
   Future<List<ProjectionStateMetadata>> getAllProjectionMetadata() async {
-    throw ProjectionStoreException('Get metadata failed');
+    throw const ProjectionStoreException('Get metadata failed');
   }
 
   @override
   Future<bool> hasProjectionState(String projectionType) async {
-    throw ProjectionStoreException('Has projection failed');
+    throw const ProjectionStoreException('Has projection failed');
   }
 
   @override
