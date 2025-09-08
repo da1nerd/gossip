@@ -1,4 +1,4 @@
-package com.example.gossip_chat_demo
+package com.neutrinographics.gossip_chat_demo
 
 import io.flutter.embedding.android.FlutterActivity
 

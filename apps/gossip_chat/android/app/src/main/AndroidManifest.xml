@@ -22,7 +22,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 
     <application
-        android:label="gossip_chat_demo"
+        android:label="Gossip"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
