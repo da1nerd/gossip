@@ -90,6 +90,14 @@
     java.lang.Object readResolve();
 }
 
+# Google Play Core rules - ignore missing classes
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
+
+# Flutter Play Store specific rules
+-dontwarn io.flutter.embedding.android.FlutterPlayStoreSplitApplication
+-dontwarn io.flutter.embedding.engine.deferredcomponents.PlayStoreDeferredComponentManager**
+
 # Remove logging in release builds
 -assumenosideeffects class android.util.Log {
     public static *** d(...);
