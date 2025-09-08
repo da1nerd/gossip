@@ -564,13 +564,29 @@ class GossipChatService extends ChangeNotifier {
   bool get hasConnectedPeers => _transport.hasConnectedPeers;
 
   /// Get connection statistics for debugging.
-  Map<String, dynamic> getConnectionStats() => _transport.getStats();
+  Future<Map<String, dynamic>> getConnectionStats() async {
+    final stats = _transport.getStats();
+
+    // Add event count to stats
+    try {
+      if (_isInitialized) {
+        stats['totalEvents'] = await _eventStore.getEventCount();
+      } else {
+        stats['totalEvents'] = 0;
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to get event count for stats: $e');
+      stats['totalEvents'] = 0;
+    }
+
+    return stats;
+  }
 
   /// Get detailed connection status for debugging.
   String getConnectionStatus() => _transport.getConnectionStatus();
 
   /// Get connection statistics for debugging (compatibility with SimpleGossipChatService)
-  Map<String, dynamic> get connectionStats => getConnectionStats();
+  Future<Map<String, dynamic>> get connectionStats => getConnectionStats();
 
   /// Clear the current error.
   void clearError() {

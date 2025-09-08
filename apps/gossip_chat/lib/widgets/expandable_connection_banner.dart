@@ -16,18 +16,76 @@ class ExpandableConnectionBanner extends StatefulWidget {
 class _ExpandableConnectionBannerState
     extends State<ExpandableConnectionBanner> {
   bool _isExpanded = false;
+  Map<String, dynamic>? _stats;
+  bool _isLoadingStats = false;
+  GossipChatService? _previousService;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentService = Provider.of<GossipChatService>(
+      context,
+      listen: false,
+    );
+
+    // If service changed, refresh stats
+    if (_previousService != currentService) {
+      _previousService = currentService;
+      if (_isExpanded) {
+        _loadStats();
+      }
+    }
+  }
+
+  Future<void> _loadStats() async {
+    if (_isLoadingStats) return;
+
+    setState(() {
+      _isLoadingStats = true;
+    });
+
+    try {
+      final chatService = Provider.of<GossipChatService>(
+        context,
+        listen: false,
+      );
+      final stats = await chatService.getConnectionStats();
+      if (mounted) {
+        setState(() {
+          _stats = stats;
+          _isLoadingStats = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _stats = {};
+          _isLoadingStats = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<GossipChatService>(
       builder: (context, chatService, child) {
-        final stats = chatService.getConnectionStats();
+        final stats = _stats ?? {};
 
         return GestureDetector(
           onTap: () {
             setState(() {
               _isExpanded = !_isExpanded;
             });
+            if (_isExpanded) {
+              _loadStats();
+            }
           },
           child: Container(
             padding: const EdgeInsets.all(12),
@@ -45,8 +103,9 @@ class _ExpandableConnectionBannerState
                             ? '${chatService.connectedPeerCount} device${chatService.connectedPeerCount != 1 ? 's' : ''} connected'
                             : 'Looking for nearby devices...',
                         style: TextStyle(
-                            color: Colors.blue.shade700,
-                            fontWeight: FontWeight.bold),
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     Icon(
@@ -60,38 +119,63 @@ class _ExpandableConnectionBannerState
                   const Divider(height: 1),
                   const SizedBox(height: 12),
                   _buildInfoRow(
-                      'Service Status', _getConnectionStatusText(stats)),
+                    'Service Status',
+                    _getConnectionStatusText(stats),
+                  ),
                   _buildInfoRow(
-                      'Device Name', chatService.userName ?? 'Unknown'),
-                  _buildInfoRow('Sync Strategy',
-                      stats['connectionStrategy']?.toString() ?? 'N/A'),
+                    'Device Name',
+                    chatService.userName ?? 'Unknown',
+                  ),
                   _buildInfoRow(
-                      'Total Messages', chatService.messages.length.toString()),
+                    'Sync Strategy',
+                    stats['connectionStrategy']?.toString() ?? 'N/A',
+                  ),
                   _buildInfoRow(
-                      'Service ID', stats['serviceId']?.toString() ?? 'N/A'),
-                  _buildInfoRow('Pending Connections',
-                      stats['pendingConnections']?.toString() ?? '0'),
-                  _buildInfoRow('Connection Attempts',
-                      stats['connectionAttempts']?.toString() ?? '0'),
+                    'Total Messages',
+                    chatService.messages.length.toString(),
+                  ),
+                  _buildInfoRow(
+                    'Total Events',
+                    _isLoadingStats
+                        ? 'Loading...'
+                        : (stats['totalEvents']?.toString() ?? '0'),
+                  ),
+                  _buildInfoRow(
+                    'Service ID',
+                    stats['serviceId']?.toString() ?? 'N/A',
+                  ),
+                  _buildInfoRow(
+                    'Pending Connections',
+                    stats['pendingConnections']?.toString() ?? '0',
+                  ),
+                  _buildInfoRow(
+                    'Connection Attempts',
+                    stats['connectionAttempts']?.toString() ?? '0',
+                  ),
                   const SizedBox(height: 8),
                   if (!chatService.hasConnectedPeers) ...[
                     Text(
                       '• Advertising your device to nearby phones',
-                      style:
-                          TextStyle(color: Colors.blue.shade600, fontSize: 11),
+                      style: TextStyle(
+                        color: Colors.blue.shade600,
+                        fontSize: 11,
+                      ),
                     ),
                     Text(
                       '• Scanning for other devices with this app',
-                      style:
-                          TextStyle(color: Colors.blue.shade600, fontSize: 11),
+                      style: TextStyle(
+                        color: Colors.blue.shade600,
+                        fontSize: 11,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Make sure: Bluetooth ON, Location ON, other devices within 20m with app open',
                       style: TextStyle(
-                          color: Colors.blue.shade600,
-                          fontSize: 10,
-                          fontStyle: FontStyle.italic),
+                        color: Colors.blue.shade600,
+                        fontSize: 10,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ],
                 ],
