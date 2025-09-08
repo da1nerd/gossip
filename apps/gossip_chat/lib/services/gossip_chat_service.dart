@@ -133,7 +133,7 @@ class GossipChatService extends ChangeNotifier {
       projectionStore: _projectionStore,
       storeConfig: const ProjectionStoreConfig(
         autoSaveEnabled: true,
-        autoSaveInterval: 100, // Save every 100 events
+        autoSaveInterval: 1, // Save every 100 events
         saveAfterBatch: true,
         loadOnRebuild: true,
       ),

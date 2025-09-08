@@ -59,7 +59,8 @@ class ChatProjection extends Projection with ChangeNotifier {
       final eventData = event.payload['data'] as Map<String, dynamic>;
 
       debugPrint(
-          '📋 ChatProjection: Applying typed event ${event.id} of type $eventType');
+        '📋 ChatProjection: Applying typed event ${event.id} of type $eventType',
+      );
 
       final registry = TypedEventRegistry();
       final typedEvent = registry.createFromJson(eventType, eventData);
@@ -80,7 +81,8 @@ class ChatProjection extends Projection with ChangeNotifier {
         await _applyUserLeftTyped(typedEvent);
       } else {
         debugPrint(
-            '⚠️ ChatProjection: Unhandled typed event: ${typedEvent.type}');
+          '⚠️ ChatProjection: Unhandled typed event: ${typedEvent.type}',
+        );
       }
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProjection: Error applying typed event: $e');
@@ -93,7 +95,8 @@ class ChatProjection extends Projection with ChangeNotifier {
     final eventType = event.payload['type'] as String?;
 
     debugPrint(
-        '📋 ChatProjection: Applying legacy event ${event.id} of type $eventType');
+      '📋 ChatProjection: Applying legacy event ${event.id} of type $eventType',
+    );
 
     switch (eventType) {
       case 'chat_message':
@@ -115,7 +118,9 @@ class ChatProjection extends Projection with ChangeNotifier {
 
   /// Applies a typed chat message event
   Future<void> _applyChatMessageTyped(
-      ChatMessageEvent typedEvent, String eventId) async {
+    ChatMessageEvent typedEvent,
+    String eventId,
+  ) async {
     try {
       // Create ChatMessage from typed event
       final message = ChatMessage(
@@ -133,11 +138,13 @@ class ChatProjection extends Projection with ChangeNotifier {
         _sortMessages();
 
         debugPrint(
-            '💬 ChatProjection: Added typed message ${message.id} from ${message.senderName}');
+          '💬 ChatProjection: Added typed message ${message.id} from ${message.senderName}',
+        );
         notifyListeners();
       } else {
         debugPrint(
-            '⏭️ ChatProjection: Typed message ${message.id} already exists, skipping');
+          '⏭️ ChatProjection: Typed message ${message.id} already exists, skipping',
+        );
       }
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProjection: Error processing typed chat message: $e');
@@ -156,11 +163,13 @@ class ChatProjection extends Projection with ChangeNotifier {
         _sortMessages();
 
         debugPrint(
-            '💬 ChatProjection: Added legacy message ${message.id} from ${message.senderName}');
+          '💬 ChatProjection: Added legacy message ${message.id} from ${message.senderName}',
+        );
         notifyListeners();
       } else {
         debugPrint(
-            '⏭️ ChatProjection: Legacy message ${message.id} already exists, skipping');
+          '⏭️ ChatProjection: Legacy message ${message.id} already exists, skipping',
+        );
       }
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProjection: Error processing legacy chat message: $e');
@@ -183,11 +192,12 @@ class ChatProjection extends Projection with ChangeNotifier {
       final statusChange = existingUser == null
           ? 'new user'
           : existingUser.isOnline != typedEvent.isOnline
-              ? (typedEvent.isOnline ? 'came online' : 'went offline')
-              : 'updated';
+          ? (typedEvent.isOnline ? 'came online' : 'went offline')
+          : 'updated';
 
       debugPrint(
-          '👤 ChatProjection: User ${typedEvent.userName} $statusChange (typed, online: ${typedEvent.isOnline})');
+        '👤 ChatProjection: User ${typedEvent.userName} $statusChange (typed, online: ${typedEvent.isOnline})',
+      );
       notifyListeners();
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProjection: Error processing typed user presence: $e');
@@ -215,11 +225,12 @@ class ChatProjection extends Projection with ChangeNotifier {
       final statusChange = existingUser == null
           ? 'new user'
           : existingUser.isOnline != isOnline
-              ? (isOnline ? 'came online' : 'went offline')
-              : 'updated';
+          ? (isOnline ? 'came online' : 'went offline')
+          : 'updated';
 
       debugPrint(
-          '👤 ChatProjection: User $userName $statusChange (legacy, online: $isOnline)');
+        '👤 ChatProjection: User $userName $statusChange (legacy, online: $isOnline)',
+      );
       notifyListeners();
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProjection: Error processing legacy user presence: $e');
@@ -238,7 +249,8 @@ class ChatProjection extends Projection with ChangeNotifier {
       );
 
       debugPrint(
-          '👋 ChatProjection: User ${typedEvent.userName} joined (typed)');
+        '👋 ChatProjection: User ${typedEvent.userName} joined (typed)',
+      );
       notifyListeners();
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProjection: Error processing typed user joined: $e');
@@ -284,7 +296,8 @@ class ChatProjection extends Projection with ChangeNotifier {
         notifyListeners();
       } else {
         debugPrint(
-            '⚠️ ChatProjection: User ${typedEvent.userId} left but was not found in users map');
+          '⚠️ ChatProjection: User ${typedEvent.userId} left but was not found in users map',
+        );
       }
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProjection: Error processing typed user left: $e');
@@ -308,11 +321,13 @@ class ChatProjection extends Projection with ChangeNotifier {
         );
 
         debugPrint(
-            '👋 ChatProjection: User ${existingUser.name} left (legacy)');
+          '👋 ChatProjection: User ${existingUser.name} left (legacy)',
+        );
         notifyListeners();
       } else {
         debugPrint(
-            '⚠️ ChatProjection: User $userId left but was not found in users map (legacy)');
+          '⚠️ ChatProjection: User $userId left but was not found in users map (legacy)',
+        );
       }
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProjection: Error processing legacy user left: $e');
@@ -339,21 +354,25 @@ class ChatProjection extends Projection with ChangeNotifier {
       'userCount': _users.length,
       'onlineUserCount': onlineUserCount,
       'messages': _messages
-          .map((m) => {
-                'id': m.id,
-                'senderId': m.senderId,
-                'senderName': m.senderName,
-                'content': m.content,
-                'timestamp': m.timestamp.toIso8601String(),
-                'replyToId': m.replyToId,
-              })
+          .map(
+            (m) => {
+              'id': m.id,
+              'senderId': m.senderId,
+              'senderName': m.senderName,
+              'content': m.content,
+              'timestamp': m.timestamp.toIso8601String(),
+              'replyToId': m.replyToId,
+            },
+          )
           .toList(),
-      'users': _users.map((id, user) => MapEntry(id, {
-            'id': user.id,
-            'name': user.name,
-            'isOnline': user.isOnline,
-            'lastSeen': user.lastSeen?.toIso8601String(),
-          })),
+      'users': _users.map(
+        (id, user) => MapEntry(id, {
+          'id': user.id,
+          'name': user.name,
+          'isOnline': user.isOnline,
+          'lastSeen': user.lastSeen?.toIso8601String(),
+        }),
+      ),
     };
   }
 
@@ -402,7 +421,7 @@ class ChatProjection extends Projection with ChangeNotifier {
       final messagesData = state['messages'] as List?;
       if (messagesData != null) {
         for (final messageData in messagesData) {
-          final messageMap = messageData as Map<String, dynamic>;
+          final messageMap = Map<String, dynamic>.from(messageData as Map);
           final message = ChatMessage(
             id: messageMap['id'] as String,
             senderId: messageMap['senderId'] as String,
@@ -417,11 +436,13 @@ class ChatProjection extends Projection with ChangeNotifier {
       }
 
       // Restore users
-      final usersData = state['users'] as Map<String, dynamic>?;
+      final usersData = state['users'] != null
+          ? Map<String, dynamic>.from(state['users'] as Map)
+          : null;
       if (usersData != null) {
         _users.clear();
         for (final entry in usersData.entries) {
-          final userData = entry.value as Map<String, dynamic>;
+          final userData = Map<String, dynamic>.from(entry.value as Map);
           final user = ChatPeer(
             id: userData['id'] as String,
             name: userData['name'] as String,
