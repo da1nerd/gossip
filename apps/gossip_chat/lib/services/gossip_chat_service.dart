@@ -37,9 +37,6 @@ class GossipChatService extends ChangeNotifier {
   late final EventProcessor _eventProcessor;
   final ChatProjection _chatProjection = ChatProjection();
 
-  // Legacy state - keeping for backward compatibility during transition
-  final Map<TransportPeerAddress, String> _peerIdToNodeIdMap = {};
-
   StreamSubscription<Event>? _eventCreatedSubscription;
   StreamSubscription<ReceivedEvent>? _eventReceivedSubscription;
   StreamSubscription<GossipPeer>? _peerAddedSubscription;
@@ -276,9 +273,6 @@ class GossipChatService extends ChangeNotifier {
       // Close projection store
       await _projectionStore.close();
 
-      // Clear peer mappings
-      _peerIdToNodeIdMap.clear();
-
       _isStarted = false;
       _isInitialized = false;
       notifyListeners();
@@ -339,16 +333,6 @@ class GossipChatService extends ChangeNotifier {
       '📥 Remote event received: ${event.id} from peer: ${fromPeer.id}',
     );
 
-    // Establish mapping between transport ID and stable node ID.
-    // The transport creates temporary GossipPeers with transport IDs,
-    // but we map to the stable node ID from the gossip protocol.
-    final nodeId = event.nodeId;
-    if (nodeId != _nodeId &&
-        !_peerIdToNodeIdMap.containsKey(fromPeer.address)) {
-      _peerIdToNodeIdMap[fromPeer.address] = nodeId;
-      debugPrint('🔗 Mapped transport ${fromPeer.address} to node $nodeId');
-    }
-
     // Process through Event Sourcing pipeline
     _eventProcessor.processEvent(event);
   }
@@ -363,25 +347,24 @@ class GossipChatService extends ChangeNotifier {
   void _handlePeerRemoved(GossipPeer peer) {
     debugPrint('👋 Peer removed: ${peer.id}');
 
-    final nodeId = _peerIdToNodeIdMap[peer.address];
-    if (nodeId != null) {
-      final user = _chatProjection.getUser(nodeId);
-      if (user != null) {
-        // Create a synthetic user_presence event to mark them offline
-        final presenceEvent = Event(
-          id: 'presence_offline_${nodeId}_${DateTime.now().millisecondsSinceEpoch}',
-          nodeId: _nodeId!,
-          timestamp: DateTime.now().millisecondsSinceEpoch,
-          creationTimestamp: DateTime.now().millisecondsSinceEpoch,
-          payload: {
-            'type': 'user_presence',
-            'userId': nodeId,
-            'userName': user.name,
-            'isOnline': false,
-          },
-        );
-        _eventProcessor.processEvent(presenceEvent);
-      }
+    // Look up user by the peer's stable node ID (which is now peer.id)
+    final nodeId = peer.id.value;
+    final user = _chatProjection.getUser(nodeId);
+    if (user != null) {
+      // Create a synthetic user_presence event to mark them offline
+      final presenceEvent = Event(
+        id: 'presence_offline_${nodeId}_${DateTime.now().millisecondsSinceEpoch}',
+        nodeId: _nodeId!,
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        creationTimestamp: DateTime.now().millisecondsSinceEpoch,
+        payload: {
+          'type': 'user_presence',
+          'userId': nodeId,
+          'userName': user.name,
+          'isOnline': false,
+        },
+      );
+      _eventProcessor.processEvent(presenceEvent);
     }
 
     notifyListeners();
@@ -407,7 +390,7 @@ class GossipChatService extends ChangeNotifier {
       debugPrint(
         '📢 Announced ${isLeaving ? 'departure' : 'presence'} for $_nodeName (typed event)',
       );
-      debugPrint('🌐 Connected transport peers: $connectedPeerCount');
+      debugPrint('🌐 Connected gossip peers: $connectedPeerCount');
       debugPrint(
         '👥 Known chat peers: ${peers.length} (${onlinePeers.length} online)',
       );
@@ -479,18 +462,12 @@ class GossipChatService extends ChangeNotifier {
     return peer.id != _nodeId;
   }).toList();
 
-  /// Force peer status to be based on the transport layer
-  /// This can help correct inconsistencies if presence events are missed
+  /// Peer status is now managed by presence events and projections
+  /// This method can be simplified or removed in the future
   List<ChatPeer> _setCorrectPeerStatus(List<ChatPeer> peers) {
-    final connectedPeerIds = _transport.connectedPeerIds;
-
-    return peers.map((peer) {
-      if (connectedPeerIds.contains(peer.id)) {
-        return peer.copyWith(isOnline: true);
-      } else {
-        return peer.copyWith(isOnline: false);
-      }
-    }).toList();
+    // Status is now handled by presence events in the projection
+    // No need to override with transport-level information
+    return peers;
   }
 
   /// Get the current peer.
@@ -513,15 +490,22 @@ class GossipChatService extends ChangeNotifier {
   /// Current error message, if any.
   String? get error => _error;
 
-  /// Number of connected peers.
-  int get connectedPeerCount => _transport.peerCount;
+  /// Number of connected gossip peers.
+  int get connectedPeerCount => _gossipNode.peers.length;
 
-  /// Whether we have any connected peers.
-  bool get hasConnectedPeers => _transport.hasConnectedPeers;
+  /// Whether we have any connected gossip peers.
+  bool get hasConnectedPeers => _gossipNode.peers.isNotEmpty;
 
   /// Get connection statistics for debugging.
   Future<Map<String, dynamic>> getConnectionStats() async {
-    final stats = _transport.getStats();
+    final stats = <String, dynamic>{
+      'connectedGossipPeers': _gossipNode.peers.length,
+      'gossipPeerIds': _gossipNode.peers.map((p) => p.id.value).toList(),
+    };
+
+    // Add transport stats for debugging (but don't expose transport peer count)
+    final transportStats = _transport.getStats();
+    stats['transportStats'] = transportStats;
 
     // Add event count to stats
     try {

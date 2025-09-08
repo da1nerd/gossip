@@ -661,6 +661,7 @@ class NearbyConnectionsTransport implements GossipTransport {
       'connectionAttempts': _connectionAttempts.length,
       'pendingDigestRequests': _pendingDigestRequests.length,
       'pendingEventRequests': _pendingEventRequests.length,
+      'peerCount': _connectedTransportPeers.length,
       'transportIds': _connectedTransportPeers.keys.toList(),
       'pendingIds': _pendingConnections.toList(),
       'userName': userName,
@@ -668,16 +669,6 @@ class NearbyConnectionsTransport implements GossipTransport {
       'connectionStrategy': _connectionStrategy.toString(),
     };
   }
-
-  /// Get the number of connected transport peers
-  int get peerCount => _connectedTransportPeers.length;
-
-  /// Check if we have any connected transport peers
-  bool get hasConnectedPeers => _connectedTransportPeers.isNotEmpty;
-
-  /// Get list of connected transport IDs
-  List<String> get connectedPeerIds =>
-      _connectedTransportPeers.keys.map((addr) => addr.value).toList();
 
   /// Get detailed connection status for debugging
   String getConnectionStatus() {
