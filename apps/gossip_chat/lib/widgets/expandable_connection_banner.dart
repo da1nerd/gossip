@@ -124,7 +124,7 @@ class _ExpandableConnectionBannerState
                   ),
                   _buildInfoRow(
                     'Device Name',
-                    chatService.userName ?? 'Unknown',
+                    chatService.nodeName ?? 'Unknown',
                   ),
                   _buildInfoRow(
                     'Sync Strategy',

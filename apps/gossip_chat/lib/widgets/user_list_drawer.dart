@@ -89,7 +89,7 @@ class UserListDrawer extends StatelessWidget {
                       ),
                       child: Center(
                         child: Text(
-                          _getInitials(chatService.userName ?? ''),
+                          _getInitials(chatService.nodeName ?? ''),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -104,7 +104,7 @@ class UserListDrawer extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            chatService.userName ?? 'Unknown',
+                            chatService.nodeName ?? 'Unknown',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,

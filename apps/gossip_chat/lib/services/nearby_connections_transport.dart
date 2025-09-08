@@ -18,7 +18,6 @@ import 'package:nearby_connections/nearby_connections.dart';
 class NearbyConnectionsTransport implements GossipTransport {
   final String serviceId;
   final String userName;
-  final String nodeId;
 
   // Connection management
   final Map<String, GossipPeer> _connectedPeers = {};
@@ -50,7 +49,6 @@ class NearbyConnectionsTransport implements GossipTransport {
   NearbyConnectionsTransport({
     required this.serviceId,
     required this.userName,
-    required this.nodeId,
     Strategy connectionStrategy = Strategy.P2P_CLUSTER,
   }) : _connectionStrategy = connectionStrategy;
 
@@ -418,7 +416,7 @@ class NearbyConnectionsTransport implements GossipTransport {
   }
 
   String _generateRequestId() {
-    return '${nodeId}_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}';
+    return '${serviceId}_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(10000)}';
   }
 
   void _cancelPendingRequestsForPeer(String peerId) {
@@ -640,7 +638,6 @@ class NearbyConnectionsTransport implements GossipTransport {
   String getConnectionStatus() {
     final buffer = StringBuffer();
     buffer.writeln('=== Nearby Connections Transport Status ===');
-    buffer.writeln('Node ID: $nodeId');
     buffer.writeln('User Name: $userName');
     buffer.writeln('Service ID: $serviceId');
     buffer.writeln('Initialized: $_initialized');

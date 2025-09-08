@@ -26,8 +26,8 @@ class GossipChatService extends ChangeNotifier {
   static const String _userIdKey = 'user_id';
   static const String _serviceId = 'gossip_chat_demo';
 
-  String? _userId;
-  String? _userName;
+  String? _nodeId;
+  String? _nodeName;
   late final NearbyConnectionsTransport _transport;
   late final GossipNode _gossipNode;
   late final HiveEventStore _eventStore;
@@ -38,7 +38,7 @@ class GossipChatService extends ChangeNotifier {
   final ChatProjection _chatProjection = ChatProjection();
 
   // Legacy state - keeping for backward compatibility during transition
-  final Map<String, String> _peerIdToUserIdMap = {};
+  final Map<String, String> _peerIdToNodeIdMap = {};
 
   StreamSubscription<Event>? _eventCreatedSubscription;
   StreamSubscription<ReceivedEvent>? _eventReceivedSubscription;
@@ -70,7 +70,7 @@ class GossipChatService extends ChangeNotifier {
   }
 
   Future<void> _initializeComponents() async {
-    if (_userId == null || _userName == null) {
+    if (_nodeId == null || _nodeName == null) {
       throw StateError(
         'User ID and name must be set before initializing components',
       );
@@ -79,8 +79,7 @@ class GossipChatService extends ChangeNotifier {
     // Create transport
     _transport = NearbyConnectionsTransport(
       serviceId: _serviceId,
-      userName: _userName!,
-      nodeId: _userId!,
+      userName: _nodeName!,
     );
 
     // Create event store
@@ -107,7 +106,7 @@ class GossipChatService extends ChangeNotifier {
 
     // Create gossip node with chat-optimized configuration
     final config = GossipConfig(
-      nodeId: _userId!,
+      nodeId: _nodeId!,
       gossipInterval: const Duration(seconds: 2),
       fanout: 3,
       gossipTimeout: const Duration(seconds: 8),
@@ -132,7 +131,7 @@ class GossipChatService extends ChangeNotifier {
     if (_isInitialized) {
       throw StateError('Cannot change user ID after service is initialized');
     }
-    _userId = userId;
+    _nodeId = userId;
     notifyListeners();
   }
 
@@ -142,11 +141,11 @@ class GossipChatService extends ChangeNotifier {
       throw StateError('Cannot change user name after service is initialized');
     }
 
-    _userName = userName.trim();
+    _nodeName = userName.trim();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_userNameKey, _userName!);
+    await prefs.setString(_userNameKey, _nodeName!);
 
-    debugPrint('✅ Username set to: $_userName');
+    debugPrint('✅ Username set to: $_nodeName');
     notifyListeners();
   }
 
@@ -167,7 +166,7 @@ class GossipChatService extends ChangeNotifier {
 
       // Load or generate user info first
       await _loadUserInfo();
-      debugPrint('✅ User info loaded: $_userName ($_userId)');
+      debugPrint('📱 Node info loaded: $_nodeName ($_nodeId)');
 
       _error = null;
 
@@ -278,7 +277,7 @@ class GossipChatService extends ChangeNotifier {
       await _projectionStore.close();
 
       // Clear peer mappings
-      _peerIdToUserIdMap.clear();
+      _peerIdToNodeIdMap.clear();
 
       _isStarted = false;
       _isInitialized = false;
@@ -340,13 +339,12 @@ class GossipChatService extends ChangeNotifier {
       '📥 Remote event received: ${event.id} from peer: ${fromPeer.id}',
     );
 
-    // Establish mapping between transport peer ID and user ID.
+    // Establish mapping between transport peer ID and node ID.
     // This allows us to correlate ChatPeer with GossipPeer.
-    // TODO: will this still work with the new event processor?
-    final userId = event.nodeId;
-    if (userId != _userId && !_peerIdToUserIdMap.containsKey(fromPeer.id)) {
-      _peerIdToUserIdMap[fromPeer.id] = userId;
-      debugPrint('🔗 Mapped peer ${fromPeer.id} to user $userId');
+    final nodeId = event.nodeId;
+    if (nodeId != _nodeId && !_peerIdToNodeIdMap.containsKey(fromPeer.id)) {
+      _peerIdToNodeIdMap[fromPeer.id] = nodeId;
+      debugPrint('🔗 Mapped peer ${fromPeer.id} to node $nodeId');
     }
 
     // Process through Event Sourcing pipeline
@@ -363,19 +361,19 @@ class GossipChatService extends ChangeNotifier {
   void _handlePeerRemoved(GossipPeer peer) {
     debugPrint('👋 Peer removed: ${peer.id}');
 
-    final userId = _peerIdToUserIdMap[peer.id];
-    if (userId != null) {
-      final user = _chatProjection.getUser(userId);
+    final nodeId = _peerIdToNodeIdMap[peer.id];
+    if (nodeId != null) {
+      final user = _chatProjection.getUser(nodeId);
       if (user != null) {
         // Create a synthetic user_presence event to mark them offline
         final presenceEvent = Event(
-          id: 'presence_offline_${userId}_${DateTime.now().millisecondsSinceEpoch}',
-          nodeId: _userId!,
+          id: 'presence_offline_${nodeId}_${DateTime.now().millisecondsSinceEpoch}',
+          nodeId: _nodeId!,
           timestamp: DateTime.now().millisecondsSinceEpoch,
           creationTimestamp: DateTime.now().millisecondsSinceEpoch,
           payload: {
             'type': 'user_presence',
-            'userId': userId,
+            'userId': nodeId,
             'userName': user.name,
             'isOnline': false,
           },
@@ -391,8 +389,8 @@ class GossipChatService extends ChangeNotifier {
     try {
       // Create typed event for presence
       final presenceEvent = UserPresenceEvent(
-        userId: _userId!,
-        userName: _userName!,
+        userId: _nodeId!,
+        userName: _nodeName!,
         isOnline: !isLeaving,
       );
 
@@ -405,7 +403,7 @@ class GossipChatService extends ChangeNotifier {
 
       await _gossipNode.createTypedEvent(presenceEvent);
       debugPrint(
-        '📢 Announced ${isLeaving ? 'departure' : 'presence'} for $_userName (typed event)',
+        '📢 Announced ${isLeaving ? 'departure' : 'presence'} for $_nodeName (typed event)',
       );
       debugPrint('🌐 Connected transport peers: $connectedPeerCount');
       debugPrint(
@@ -429,8 +427,8 @@ class GossipChatService extends ChangeNotifier {
     try {
       // Create typed event for the message
       final messageEvent = ChatMessageEvent(
-        senderId: _userId!,
-        senderName: _userName!,
+        senderId: _nodeId!,
+        senderName: _nodeName!,
         content: content.trim(),
       );
 
@@ -446,8 +444,8 @@ class GossipChatService extends ChangeNotifier {
       // Create ChatMessage for return value
       final message = ChatMessage(
         id: gossipEvent.id,
-        senderId: _userId!,
-        senderName: _userName!,
+        senderId: _nodeId!,
+        senderName: _nodeName!,
         content: content.trim(),
         timestamp: DateTime.now(),
         replyToId: replyToId,
@@ -465,31 +463,44 @@ class GossipChatService extends ChangeNotifier {
   List<ChatMessage> get messages => _chatProjection.messages;
 
   /// Get all known peers.
-  List<ChatPeer> get peers => _chatProjection.users.values.where((peer) {
-    // Skip the current user
-    return peer.id != _userId;
-  }).toList();
+  List<ChatPeer> get peers {
+    final peers = _chatProjection.users.values.where((peer) {
+      // Skip the current user
+      return peer.id != _nodeId;
+    }).toList();
+    return _setCorrectPeerStatus(peers);
+  }
 
   /// Get online peers only.
   List<ChatPeer> get onlinePeers => _chatProjection.onlineUsers.where((peer) {
     // Skip the current user
-    return peer.id != _userId;
+    return peer.id != _nodeId;
   }).toList();
+
+  /// Force peer status to be based on the transport layer
+  /// This can help correct inconsistencies if presence events are missed
+  List<ChatPeer> _setCorrectPeerStatus(List<ChatPeer> peers) {
+    final connectedPeerIds = _transport.connectedPeerIds;
+
+    return peers.map((peer) {
+      if (connectedPeerIds.contains(peer.id)) {
+        return peer.copyWith(isOnline: true);
+      } else {
+        return peer.copyWith(isOnline: false);
+      }
+    }).toList();
+  }
 
   /// Get the current peer.
   ChatPeer get currentPeer {
-    final peer = _chatProjection.getUser(_userId!);
-    if (peer != null) {
-      return peer;
-    }
-    return ChatPeer(id: _userId!, name: _userName!);
+    return ChatPeer(id: _nodeId!, name: _nodeName!);
   }
 
   /// Get the current user ID.
-  String? get userId => _userId;
+  String? get nodeId => _nodeId;
 
   /// Get the current user name.
-  String? get userName => _userName;
+  String? get nodeName => _nodeName;
 
   /// Whether the service is initialized.
   bool get isInitialized => _isInitialized;
@@ -581,17 +592,17 @@ class GossipChatService extends ChangeNotifier {
   Future<void> _loadUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
 
-    _userName = prefs.getString(_userNameKey);
-    _userId = prefs.getString(_userIdKey);
+    _nodeName = prefs.getString(_userNameKey);
+    _nodeId = prefs.getString(_userIdKey);
 
-    // Generate new user ID if none exists
-    if (_userId == null) {
-      _userId = const Uuid().v4();
-      await prefs.setString(_userIdKey, _userId!);
-      debugPrint('🆔 Generated new user ID: $_userId');
+    // Generate new node ID if none exists
+    if (_nodeId == null) {
+      _nodeId = const Uuid().v4();
+      await prefs.setString(_userIdKey, _nodeId!);
+      debugPrint('🆔 Generated new node ID: $_nodeId');
     }
 
-    debugPrint('👤 Loaded user: $_userName ($_userId)');
+    debugPrint('📱 Loaded node: $_nodeName ($_nodeId)');
   }
 
   /// Save current projection states to persistent storage
