@@ -257,7 +257,7 @@ class ORMap<K, V extends CRDT> implements CRDT<Map<K, V>> {
           // Create CRDT value using factory if available
           V? crdt;
           if (_crdtFactory != null) {
-            crdt = _crdtFactory!(crdtId, crdtType);
+            crdt = _crdtFactory(crdtId, crdtType);
           } else {
             // Cannot create CRDT without factory - this is a limitation
             throw CRDTException(
@@ -363,7 +363,7 @@ class ORMap<K, V extends CRDT> implements CRDT<Map<K, V>> {
         // Create new CRDT and merge state
         final crdtType = otherCrdtState['type'] as String;
         final crdtId = otherCrdtState['id'] as String;
-        final newCrdt = _crdtFactory!(crdtId, crdtType);
+        final newCrdt = _crdtFactory(crdtId, crdtType);
         newCrdt.mergeState(otherCrdtState);
         _values[key] = newCrdt;
       }

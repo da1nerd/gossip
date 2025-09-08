@@ -557,7 +557,7 @@ void main() {
         // Simulate receiving the event from a peer
         final receivedEvent = ReceivedEvent(
           event: event,
-          fromPeer: GossipPeer(
+          fromPeer: const GossipPeer(
             id: GossipPeerID('sender-node'),
             address: TransportPeerAddress('mock://sender-node'),
           ),
@@ -886,13 +886,13 @@ void main() {
 
       // Connect nodes
       nodes[0].addPeer(
-        GossipPeer(
+        const GossipPeer(
           id: GossipPeerID('node2'),
           address: TransportPeerAddress('mock://node2'),
         ),
       );
       nodes[1].addPeer(
-        GossipPeer(
+        const GossipPeer(
           id: GossipPeerID('node1'),
           address: TransportPeerAddress('mock://node1'),
         ),

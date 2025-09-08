@@ -37,12 +37,9 @@ class GossipNode {
   final VectorClockStore? vectorClockStore;
   final VectorClock _vectorClock = VectorClock();
   final List<GossipPeer> _peers = [];
-  final Map<TransportPeerAddress, GossipPeerID> _transportToNodeIdMap =
-      {}; // transport address -> gossip peer ID
-  final Map<GossipPeerID, GossipPeer> _nodeIdToGossipPeerMap =
-      {}; // gossip peer ID -> GossipPeer
-  final Map<GossipPeerID, TransportPeer> _nodeIdToTransportPeerMap =
-      {}; // gossip peer ID -> TransportPeer
+  final Map<TransportPeerAddress, GossipPeerID> _transportToNodeIdMap = {};
+  final Map<GossipPeerID, GossipPeer> _nodeIdToGossipPeerMap = {};
+  final Map<GossipPeerID, TransportPeer> _nodeIdToTransportPeerMap = {};
   final math.Random _random = math.Random();
 
   Timer? _gossipTimer;
@@ -296,21 +293,12 @@ class GossipNode {
   }
 
   /// Performs peer discovery to find new nodes in the network.
-  /// TODO: this seems useless.
   Future<void> discoverPeers() async {
-    await _discoverPeers();
-  }
-
-  /// Internal peer discovery that handles transport peers properly.
-  Future<void> _discoverPeers() async {
     _checkStarted();
 
     try {
       final discoveredTransportPeers = await transport.discoverPeers();
 
-      // Note: We can't create GossipPeers until we know node IDs from gossip handshake
-      // The transport peers will be converted to GossipPeers in _getOrCreateGossipPeer
-      // when we receive gossip messages from them
 
       // Remove peers whose transport connections were lost
       final activeTransportIds = discoveredTransportPeers
@@ -320,7 +308,7 @@ class GossipNode {
       final peersToRemove = <GossipPeerID>[];
       for (final entry in _transportToNodeIdMap.entries) {
         if (!activeTransportIds.contains(entry.key)) {
-          peersToRemove.add(entry.value); // Remove by gossip peer ID
+          peersToRemove.add(entry.value);
         }
       }
 
@@ -328,7 +316,7 @@ class GossipNode {
         removePeer(gossipPeerID);
       }
     } catch (e) {
-      // Log discovery failure but don't throw - this is best effort
+      // TODO: Log discovery failure but don't throw - this is best effort
     }
   }
 
@@ -505,7 +493,7 @@ class GossipNode {
   void _startPeerDiscoveryTimer() {
     _peerDiscoveryTimer = Timer.periodic(
       config.peerDiscoveryInterval,
-      (_) => _discoverPeers(),
+      (_) => discoverPeers(),
     );
   }
 

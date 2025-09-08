@@ -317,7 +317,7 @@ class EventProcessor {
     }
 
     try {
-      await _projectionStore!.clearAllProjectionStates();
+      await _projectionStore.clearAllProjectionStates();
       _log('🗑️ Cleared all saved projection states');
     } catch (e) {
       _log('❌ Error clearing saved projection states: $e');
