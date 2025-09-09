@@ -180,7 +180,7 @@ class GossipNode {
     // Create the event
     final event = Event(
       id: '${config.nodeId}_${_vectorClock.getTimestampFor(config.nodeId)}',
-      nodeId: config.nodeId,
+      nodeId: GossipPeerID(config.nodeId),
       timestamp: _vectorClock.getTimestampFor(config.nodeId),
       creationTimestamp: DateTime.now().millisecondsSinceEpoch,
       payload: Map<String, dynamic>.from(payload),
@@ -421,7 +421,7 @@ class GossipNode {
       // Check if we have a GossipPeer established for this transport peer
       // before processing any events to avoid updating vector clock unnecessarily
       final senderNodeId = incoming.message.events.isNotEmpty
-          ? GossipPeerID(incoming.message.events.first.nodeId)
+          ? incoming.message.events.first.nodeId
           : null;
 
       final existingGossipPeer = senderNodeId != null
@@ -436,7 +436,7 @@ class GossipNode {
 
           // Update vector clock
           _vectorClock.merge(
-            VectorClock()..setTimestampFor(event.nodeId, event.timestamp),
+            VectorClock()..setTimestampFor(event.nodeId.value, event.timestamp),
           );
 
           final receivedEvent = ReceivedEvent(
@@ -690,7 +690,7 @@ class GossipNode {
     for (final event in events) {
       await eventStore.saveEvent(event);
       _vectorClock.merge(
-        VectorClock()..setTimestampFor(event.nodeId, event.timestamp),
+        VectorClock()..setTimestampFor(event.nodeId.value, event.timestamp),
       );
 
       // Create ReceivedEvent with peer information

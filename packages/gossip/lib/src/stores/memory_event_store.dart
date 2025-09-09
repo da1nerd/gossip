@@ -70,7 +70,10 @@ class MemoryEventStore implements EventStore {
     _eventsById[event.id] = event;
 
     // Add to events by node index
-    final nodeEvents = _eventsByNode.putIfAbsent(event.nodeId, () => <Event>[]);
+    final nodeEvents = _eventsByNode.putIfAbsent(
+      event.nodeId.value,
+      () => <Event>[],
+    );
     nodeEvents.add(event);
 
     // Keep node events sorted by timestamp for efficient range queries
@@ -312,7 +315,7 @@ class MemoryEventStore implements EventStore {
     // Rough estimation: strings + integers + object overhead
     int size = 0;
     size += event.id.length * 2; // UTF-16 chars
-    size += event.nodeId.length * 2;
+    size += event.nodeId.value.length * 2;
     size += 8; // timestamp (int)
     size += 8; // creationTimestamp (int)
     size += _estimateMapSize(event.payload);

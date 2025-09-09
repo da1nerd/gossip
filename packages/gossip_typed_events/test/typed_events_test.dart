@@ -700,7 +700,7 @@ void main() {
       // Add a matching event
       final matchingEvent = Event(
         id: 'test1',
-        nodeId: 'node1',
+        nodeId: GossipPeerID('node1'),
         timestamp: 1,
         creationTimestamp: DateTime.now().millisecondsSinceEpoch,
         payload: {
@@ -712,7 +712,7 @@ void main() {
       // Add a non-matching event
       final nonMatchingEvent = Event(
         id: 'test2',
-        nodeId: 'node1',
+        nodeId: GossipPeerID('node1'),
         timestamp: 2,
         creationTimestamp: DateTime.now().millisecondsSinceEpoch,
         payload: {
@@ -749,7 +749,7 @@ void main() {
 
       final badEvent = Event(
         id: 'bad',
-        nodeId: 'node1',
+        nodeId: GossipPeerID('node1'),
         timestamp: 1,
         creationTimestamp: DateTime.now().millisecondsSinceEpoch,
         payload: {
@@ -781,7 +781,7 @@ void main() {
 
       final event = Event(
         id: 'test',
-        nodeId: 'node1',
+        nodeId: GossipPeerID('node1'),
         timestamp: 1,
         creationTimestamp: DateTime.now().millisecondsSinceEpoch,
         payload: {
@@ -816,7 +816,7 @@ void main() {
 
       final userEvent = Event(
         id: 'user1',
-        nodeId: 'node1',
+        nodeId: GossipPeerID('node1'),
         timestamp: 1,
         creationTimestamp: DateTime.now().millisecondsSinceEpoch,
         payload: {
@@ -827,7 +827,7 @@ void main() {
 
       final orderEvent = Event(
         id: 'order1',
-        nodeId: 'node1',
+        nodeId: GossipPeerID('node1'),
         timestamp: 2,
         creationTimestamp: DateTime.now().millisecondsSinceEpoch,
         payload: {

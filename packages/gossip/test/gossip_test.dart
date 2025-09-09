@@ -115,14 +115,14 @@ void main() {
     test('should create event with required fields', () {
       final event = Event(
         id: 'test-1',
-        nodeId: 'node-1',
+        nodeId: GossipPeerID('node-1'),
         timestamp: 1,
         creationTimestamp: 1000,
         payload: {'data': 'test'},
       );
 
       expect(event.id, equals('test-1'));
-      expect(event.nodeId, equals('node-1'));
+      expect(event.nodeId, equals(GossipPeerID('node-1')));
       expect(event.timestamp, equals(1));
       expect(event.creationTimestamp, equals(1000));
       expect(event.payload, equals({'data': 'test'}));
@@ -131,7 +131,7 @@ void main() {
     test('should serialize to and from JSON', () {
       final originalEvent = Event(
         id: 'test-1',
-        nodeId: 'node-1',
+        nodeId: GossipPeerID('node-1'),
         timestamp: 1,
         creationTimestamp: 1000,
         payload: {'data': 'test', 'number': 42},
@@ -153,7 +153,7 @@ void main() {
     test('should support equality comparison', () {
       final event1 = Event(
         id: 'test-1',
-        nodeId: 'node-1',
+        nodeId: GossipPeerID('node-1'),
         timestamp: 1,
         creationTimestamp: 1000,
         payload: {'data': 'test'},
@@ -161,7 +161,7 @@ void main() {
 
       final event2 = Event(
         id: 'test-1',
-        nodeId: 'node-1',
+        nodeId: GossipPeerID('node-1'),
         timestamp: 1,
         creationTimestamp: 1000,
         payload: {'data': 'test'},
@@ -169,7 +169,7 @@ void main() {
 
       final event3 = Event(
         id: 'test-2',
-        nodeId: 'node-1',
+        nodeId: GossipPeerID('node-1'),
         timestamp: 1,
         creationTimestamp: 1000,
         payload: {'data': 'test'},
@@ -255,7 +255,7 @@ void main() {
     test('should save and retrieve events', () async {
       final event = Event(
         id: 'test-1',
-        nodeId: 'node-1',
+        nodeId: GossipPeerID('node-1'),
         timestamp: 1,
         creationTimestamp: 1000,
         payload: {'data': 'test'},
@@ -273,7 +273,7 @@ void main() {
     test('should handle duplicate events gracefully', () async {
       final event = Event(
         id: 'test-1',
-        nodeId: 'node-1',
+        nodeId: GossipPeerID('node-1'),
         timestamp: 1,
         creationTimestamp: 1000,
         payload: {'data': 'test'},
@@ -290,21 +290,21 @@ void main() {
       final events = [
         Event(
           id: 'test-1',
-          nodeId: 'node-1',
+          nodeId: GossipPeerID('node-1'),
           timestamp: 1,
           creationTimestamp: 1000,
           payload: {'data': 'test1'},
         ),
         Event(
           id: 'test-2',
-          nodeId: 'node-1',
+          nodeId: GossipPeerID('node-1'),
           timestamp: 2,
           creationTimestamp: 2000,
           payload: {'data': 'test2'},
         ),
         Event(
           id: 'test-3',
-          nodeId: 'node-1',
+          nodeId: GossipPeerID('node-1'),
           timestamp: 3,
           creationTimestamp: 3000,
           payload: {'data': 'test3'},
@@ -324,14 +324,14 @@ void main() {
       final events = [
         Event(
           id: 'test-1',
-          nodeId: 'node-1',
+          nodeId: GossipPeerID('node-1'),
           timestamp: 5,
           creationTimestamp: 1000,
           payload: {'data': 'test1'},
         ),
         Event(
           id: 'test-2',
-          nodeId: 'node-1',
+          nodeId: GossipPeerID('node-1'),
           timestamp: 3,
           creationTimestamp: 2000,
           payload: {'data': 'test2'},
@@ -350,14 +350,14 @@ void main() {
       final events = [
         Event(
           id: 'test-1',
-          nodeId: 'node-1',
+          nodeId: GossipPeerID('node-1'),
           timestamp: 1,
           creationTimestamp: 1000,
           payload: {'data': 'test1'},
         ),
         Event(
           id: 'test-2',
-          nodeId: 'node-2',
+          nodeId: GossipPeerID('node-2'),
           timestamp: 1,
           creationTimestamp: 2000,
           payload: {'data': 'test2'},
@@ -418,7 +418,9 @@ void main() {
 
     tearDown(() async {
       // Clean up any remaining transports
-      for (final transport in network.values) {
+      // Create a copy to avoid concurrent modification
+      final transports = List<MockTransport>.from(network.values);
+      for (final transport in transports) {
         await transport.shutdown();
       }
     });
@@ -456,8 +458,8 @@ void main() {
 
       expect(event1.timestamp, equals(1));
       expect(event2.timestamp, equals(2));
-      expect(event1.nodeId, equals('test-node'));
-      expect(event2.nodeId, equals('test-node'));
+      expect(event1.nodeId, equals(GossipPeerID('test-node')));
+      expect(event2.nodeId, equals(GossipPeerID('test-node')));
 
       await node.stop();
     });

@@ -354,7 +354,7 @@ class GossipChatService extends ChangeNotifier {
       // Create a synthetic user_presence event to mark them offline
       final presenceEvent = Event(
         id: 'presence_offline_${nodeId}_${DateTime.now().millisecondsSinceEpoch}',
-        nodeId: _nodeId!,
+        nodeId: GossipPeerID(_nodeId!),
         timestamp: DateTime.now().millisecondsSinceEpoch,
         creationTimestamp: DateTime.now().millisecondsSinceEpoch,
         payload: {

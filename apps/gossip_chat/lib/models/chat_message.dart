@@ -23,7 +23,7 @@ class ChatMessage {
     return ChatMessage(
       id: event.id,
       // TODO: don't use the node id here. This is application logic, and should not know about nodes. The sender id should come from the payload.
-      senderId: event.nodeId,
+      senderId: event.nodeId.value,
       senderName: payload['senderName'] as String,
       content: payload['content'] as String,
       timestamp: DateTime.fromMillisecondsSinceEpoch(

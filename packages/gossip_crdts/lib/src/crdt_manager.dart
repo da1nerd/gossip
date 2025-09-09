@@ -376,7 +376,7 @@ class CRDTManager {
       _syncController.add(
         CRDTSyncEvent(
           // TODO: use receivedEvent.fromPeer.id instead of the node id on the event.
-          peerId: receivedEvent.event.nodeId,
+          peerId: receivedEvent.event.nodeId.value,
           type: CRDTSyncType.received,
           crdtCount: states.length,
           timestamp: DateTime.now(),
@@ -397,7 +397,7 @@ class CRDTManager {
       _syncController.add(
         CRDTSyncEvent(
           // TODO: use receivedEvent.fromPeer.id instead of the node id on the event.
-          peerId: receivedEvent.event.nodeId,
+          peerId: receivedEvent.event.nodeId.value,
           type: CRDTSyncType.forcedReceived,
           crdtCount: states.length,
           timestamp: DateTime.now(),

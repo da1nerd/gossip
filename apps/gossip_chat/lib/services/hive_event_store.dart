@@ -82,7 +82,7 @@ class HiveEventStore implements EventStore {
 
     try {
       await _eventsBox!.put(event.id, event.toJson());
-      await _updateNodeTimestamp(event.nodeId, event.timestamp);
+      await _updateNodeTimestamp(event.nodeId.value, event.timestamp);
       debugPrint('💾 Saved event ${event.id} to Hive');
     } catch (e) {
       throw EventStoreException('Failed to save event ${event.id}: $e');
@@ -101,9 +101,9 @@ class HiveEventStore implements EventStore {
 
       for (final event in events) {
         eventMap[event.id] = event.toJson();
-        final currentMax = nodeTimestamps[event.nodeId] ?? 0;
+        final currentMax = nodeTimestamps[event.nodeId.value] ?? 0;
         if (event.timestamp > currentMax) {
-          nodeTimestamps[event.nodeId] = event.timestamp;
+          nodeTimestamps[event.nodeId.value] = event.timestamp;
         }
       }
 
@@ -136,7 +136,8 @@ class HiveEventStore implements EventStore {
         final eventData = await _eventsBox!.get(key);
         if (eventData != null) {
           final event = Event.fromJson(Map<String, dynamic>.from(eventData));
-          if (event.nodeId == nodeId && event.timestamp > afterTimestamp) {
+          if (event.nodeId.value == nodeId &&
+              event.timestamp > afterTimestamp) {
             matchingEvents.add(event);
           }
         }
@@ -205,7 +206,7 @@ class HiveEventStore implements EventStore {
           if (event.timestamp >= startTimestamp &&
               event.timestamp <= endTimestamp) {
             // Check node filter if specified
-            if (nodeId == null || event.nodeId == nodeId) {
+            if (nodeId == null || event.nodeId.value == nodeId) {
               matchingEvents.add(event);
             }
           }
@@ -275,7 +276,7 @@ class HiveEventStore implements EventStore {
         final eventData = await _eventsBox!.get(key);
         if (eventData != null) {
           final event = Event.fromJson(Map<String, dynamic>.from(eventData));
-          if (event.nodeId == nodeId) {
+          if (event.nodeId.value == nodeId) {
             count++;
           }
         }
@@ -362,7 +363,7 @@ class HiveEventStore implements EventStore {
         final eventData = await _eventsBox!.get(key);
         if (eventData != null) {
           final event = Event.fromJson(Map<String, dynamic>.from(eventData));
-          if (event.nodeId == nodeId) {
+          if (event.nodeId.value == nodeId) {
             keysToRemove.add(key.toString());
           }
         }
@@ -479,9 +480,9 @@ class HiveEventStore implements EventStore {
       final eventData = await _eventsBox!.get(key);
       if (eventData != null) {
         final event = Event.fromJson(Map<String, dynamic>.from(eventData));
-        final currentMax = nodeTimestamps[event.nodeId] ?? 0;
+        final currentMax = nodeTimestamps[event.nodeId.value] ?? 0;
         if (event.timestamp > currentMax) {
-          nodeTimestamps[event.nodeId] = event.timestamp;
+          nodeTimestamps[event.nodeId.value] = event.timestamp;
         }
       }
     }
