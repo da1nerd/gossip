@@ -244,7 +244,7 @@ class GossipDigestResponse {
 
   /// Requests for events that this node is missing.
   /// Map of nodeId -> timestamp (send events after this timestamp).
-  final Map<String, int> eventRequests;
+  final Map<GossipPeerID, int> eventRequests;
 
   /// Timestamp when this response was created.
   final DateTime createdAt;
@@ -267,7 +267,9 @@ class GossipDigestResponse {
     return GossipDigestResponse(
       senderId: GossipPeerID(json['senderId'] as String),
       events: events,
-      eventRequests: Map<String, int>.from(json['eventRequests'] as Map),
+      eventRequests: (json['eventRequests'] as Map).map(
+        (key, value) => MapEntry(GossipPeerID(key as String), value as int),
+      ),
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int),
     );
   }
@@ -277,7 +279,9 @@ class GossipDigestResponse {
     return {
       'senderId': senderId.value,
       'events': events.map((e) => e.toJson()).toList(),
-      'eventRequests': eventRequests,
+      'eventRequests': eventRequests.map(
+        (key, value) => MapEntry(key.value, value),
+      ),
       'createdAt': createdAt.millisecondsSinceEpoch,
     };
   }

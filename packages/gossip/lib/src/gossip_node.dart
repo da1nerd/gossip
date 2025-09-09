@@ -377,11 +377,11 @@ class GossipNode {
       }
 
       // Find events we're missing
-      final eventRequests = <String, int>{};
+      final eventRequests = <GossipPeerID, int>{};
       for (final entry in digest.vectorClock.entries) {
         final ourTimestamp = _vectorClock.getTimestampFor(entry.key);
         if (entry.value > ourTimestamp) {
-          eventRequests[entry.key] = ourTimestamp;
+          eventRequests[GossipPeerID(entry.key)] = ourTimestamp;
         }
       }
 
@@ -707,14 +707,14 @@ class GossipNode {
 
   /// Sends requested events and returns the count of events sent.
   Future<int> _sendRequestedEvents(
-    Map<String, int> eventRequests,
+    Map<GossipPeerID, int> eventRequests,
     TransportPeer transportPeer,
   ) async {
     final eventsToSend = <Event>[];
 
     for (final request in eventRequests.entries) {
       final requestedAfterTimestamp = request.value;
-      final nodeId = request.key;
+      final nodeId = request.key.value;
 
       if (requestedAfterTimestamp == 0) {
         // Peer is requesting all events (likely after detecting a reset)
