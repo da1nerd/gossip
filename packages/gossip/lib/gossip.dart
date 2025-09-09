@@ -45,6 +45,7 @@ export 'src/event_store.dart';
 export 'src/gossip_node.dart';
 export 'src/gossip_config.dart';
 export 'src/gossip_node_id.dart';
+export 'src/gossip_peer.dart';
 export 'src/transport.dart';
 export 'src/exceptions.dart';
 

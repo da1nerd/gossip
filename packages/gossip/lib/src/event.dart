@@ -6,6 +6,7 @@
 library;
 
 import 'gossip_node_id.dart';
+import 'gossip_peer.dart';
 import 'transport.dart';
 
 /// Represents a generic event in the distributed system.
