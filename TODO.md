@@ -22,7 +22,7 @@
 - [ ] Update OpenDoor to use this library
 
 ## Nice to have
-- [ ] Remove the nodeId from the Event class.
+- ~[ ] Remove the nodeId from the Event class.~
 - [ ] Migrate all node IDs to GossipPeerID
 - [ ] Persist the node id with vector clocks to ensure causality is not accidentally broken by failing to store the node id with the clock vector.
 - [ ] Support peers with different transport protocols.

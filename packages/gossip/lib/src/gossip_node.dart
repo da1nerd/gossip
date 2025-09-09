@@ -678,7 +678,6 @@ class GossipNode {
     for (final event in events) {
       await eventStore.saveEvent(event);
       _vectorClock.merge(
-        // TODO: use the response.senderId instead of event.nodeId
         VectorClock()..setTimestampFor(event.nodeId, event.timestamp),
       );
 
