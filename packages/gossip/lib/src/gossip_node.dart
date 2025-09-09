@@ -15,6 +15,7 @@ import 'exceptions.dart';
 import 'gossip_config.dart';
 import 'gossip_digest.dart';
 import 'gossip_digest_response.dart';
+import 'gossip_event_message.dart';
 import 'gossip_node_id.dart';
 import 'gossip_peer.dart';
 
