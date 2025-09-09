@@ -299,6 +299,14 @@ class GossipNode {
     try {
       final discoveredTransportPeers = await transport.discoverPeers();
 
+      // Proactively initiate gossip with new transport peers
+      for (final transportPeer in discoveredTransportPeers) {
+        // Skip if we already have a gossip relationship with this transport peer
+        if (!_transportToNodeIdMap.containsKey(transportPeer.transportId)) {
+          // Send initial digest to establish gossip relationship
+          await _initiateGossipWithTransportPeer(transportPeer);
+        }
+      }
 
       // Remove peers whose transport connections were lost
       final activeTransportIds = discoveredTransportPeers
@@ -586,80 +594,19 @@ class GossipNode {
         throw StateError('Transport peer not found for gossip peer ${peer.id}');
       }
 
-      // Create and send digest
-      final digest = GossipDigest(
-        senderId: config.nodeId,
-        vectorClock: _vectorClock.summary,
-        createdAt: DateTime.now(),
-      );
+      final response = await _exchangeDigestsWithTransportPeer(transportPeer);
 
-      final response = await transport.sendDigest(
-        transportPeer,
-        digest,
-        timeout: config.gossipTimeout,
-      );
-
-      // Process received events
-      final receivedAt = DateTime.now();
-      for (final event in response.events) {
-        await eventStore.saveEvent(event);
-        _vectorClock.merge(
-          // TODO: use the response.senderId instead of event.nodeId
-          VectorClock()..setTimestampFor(event.nodeId, event.timestamp),
-        );
-
-        // Create ReceivedEvent with peer information
-        final receivedEvent = ReceivedEvent(
-          event: event,
-          fromPeer: peer,
-          receivedAt: receivedAt,
-        );
-        _eventReceivedController.add(receivedEvent);
-      }
-      eventsExchanged += response.events.length;
+      // Process received events with existing peer
+      eventsExchanged += await _processReceivedEvents(response.events, peer);
 
       // Send requested events
-      final eventsToSend = <Event>[];
-      for (final request in response.eventRequests.entries) {
-        final requestedAfterTimestamp = request.value;
-        final nodeId = request.key;
+      eventsExchanged += await _sendRequestedEvents(
+        response.eventRequests,
+        transportPeer,
+      );
 
-        if (requestedAfterTimestamp == 0) {
-          // Peer is requesting all events (likely after detecting a reset)
-          final events = await eventStore.getEventsSince(
-            nodeId,
-            0,
-            limit: config.maxEventsPerMessage,
-          );
-          eventsToSend.addAll(events);
-        } else {
-          // Normal request for events after a specific timestamp
-          final events = await eventStore.getEventsSince(
-            nodeId,
-            requestedAfterTimestamp,
-            limit: config.maxEventsPerMessage,
-          );
-          eventsToSend.addAll(events);
-        }
-      }
-
-      if (eventsToSend.isNotEmpty) {
-        final eventMessage = GossipEventMessage(
-          senderId: config.nodeId,
-          events: eventsToSend,
-          createdAt: DateTime.now(),
-        );
-
-        await transport.sendEvents(transportPeer, eventMessage);
-        eventsExchanged += eventsToSend.length;
-      }
-
-      // Persist vector clock after successful exchange
-      await _saveVectorClockState();
-
-      // Update peer state
-      _lastContactTimes[peer.id] = DateTime.now();
-      _updatePeerReliability(peer.id, true);
+      // Update peer state tracking
+      await _updateSuccessfulDigestExchange(peer.id);
 
       success = true;
     } catch (e) {
@@ -677,6 +624,127 @@ class GossipNode {
 
     _gossipExchangeController.add(result);
     return result;
+  }
+
+  /// Initiates gossip with a newly discovered transport peer.
+  Future<void> _initiateGossipWithTransportPeer(
+    TransportPeer transportPeer,
+  ) async {
+    try {
+      final response = await _exchangeDigestsWithTransportPeer(transportPeer);
+
+      // Create or get the gossip peer using the sender ID from response
+      final senderNodeId = GossipPeerID(response.senderId);
+      final gossipPeer = _getOrCreateGossipPeer(transportPeer, senderNodeId);
+
+      // Process received events with newly created peer
+      await _processReceivedEvents(response.events, gossipPeer);
+
+      // Send requested events
+      await _sendRequestedEvents(response.eventRequests, transportPeer);
+
+      // Update peer state tracking
+      await _updateSuccessfulDigestExchange(senderNodeId);
+    } catch (e) {
+      // Log error but don't propagate - peer discovery should be resilient
+      // The peer might not be ready or might have connection issues
+    }
+  }
+
+  /// Sends a digest and returns the response.
+  Future<GossipDigestResponse> _exchangeDigestsWithTransportPeer(
+    TransportPeer transportPeer,
+  ) async {
+    final digest = GossipDigest(
+      senderId: config.nodeId,
+      vectorClock: _vectorClock.summary,
+      createdAt: DateTime.now(),
+    );
+
+    return await transport.sendDigest(
+      transportPeer,
+      digest,
+      timeout: config.gossipTimeout,
+    );
+  }
+
+  /// Processes received events and returns the count of events processed.
+  Future<int> _processReceivedEvents(
+    List<Event> events,
+    GossipPeer peer,
+  ) async {
+    final receivedAt = DateTime.now();
+
+    for (final event in events) {
+      await eventStore.saveEvent(event);
+      _vectorClock.merge(
+        // TODO: use the response.senderId instead of event.nodeId
+        VectorClock()..setTimestampFor(event.nodeId, event.timestamp),
+      );
+
+      // Create ReceivedEvent with peer information
+      final receivedEvent = ReceivedEvent(
+        event: event,
+        fromPeer: peer,
+        receivedAt: receivedAt,
+      );
+      _eventReceivedController.add(receivedEvent);
+    }
+
+    return events.length;
+  }
+
+  /// Sends requested events and returns the count of events sent.
+  Future<int> _sendRequestedEvents(
+    Map<String, int> eventRequests,
+    TransportPeer transportPeer,
+  ) async {
+    final eventsToSend = <Event>[];
+
+    for (final request in eventRequests.entries) {
+      final requestedAfterTimestamp = request.value;
+      final nodeId = request.key;
+
+      if (requestedAfterTimestamp == 0) {
+        // Peer is requesting all events (likely after detecting a reset)
+        final events = await eventStore.getEventsSince(
+          nodeId,
+          0,
+          limit: config.maxEventsPerMessage,
+        );
+        eventsToSend.addAll(events);
+      } else {
+        // Normal request for events after a specific timestamp
+        final events = await eventStore.getEventsSince(
+          nodeId,
+          requestedAfterTimestamp,
+          limit: config.maxEventsPerMessage,
+        );
+        eventsToSend.addAll(events);
+      }
+    }
+
+    if (eventsToSend.isNotEmpty) {
+      final eventMessage = GossipEventMessage(
+        senderId: config.nodeId,
+        events: eventsToSend,
+        createdAt: DateTime.now(),
+      );
+
+      await transport.sendEvents(transportPeer, eventMessage);
+    }
+
+    return eventsToSend.length;
+  }
+
+  /// Updates state after a successful exchange.
+  Future<void> _updateSuccessfulDigestExchange(GossipPeerID peerId) async {
+    // Persist vector clock after successful exchange
+    await _saveVectorClockState();
+
+    // Update peer state
+    _lastContactTimes[peerId] = DateTime.now();
+    _updatePeerReliability(peerId, true);
   }
 
   /// Updates the reliability score for a peer based on exchange success.
