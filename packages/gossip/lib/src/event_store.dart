@@ -7,7 +7,7 @@ library;
 
 import 'event.dart';
 import 'exceptions.dart';
-import 'transport.dart';
+import 'gossip_node_id.dart';
 
 /// Abstract interface for an event store.
 ///

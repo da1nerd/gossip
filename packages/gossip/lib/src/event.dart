@@ -5,6 +5,7 @@
 /// tracking and a flexible payload for application data.
 library;
 
+import 'gossip_node_id.dart';
 import 'transport.dart';
 
 /// Represents a generic event in the distributed system.

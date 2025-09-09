@@ -11,7 +11,7 @@ import 'dart:async';
 import '../event.dart';
 import '../event_store.dart';
 import '../exceptions.dart';
-import '../transport.dart';
+import '../gossip_node_id.dart';
 
 /// An in-memory implementation of the EventStore for demonstration and testing.
 ///

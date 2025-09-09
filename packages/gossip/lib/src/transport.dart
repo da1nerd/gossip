@@ -10,28 +10,7 @@ import 'dart:async';
 
 import 'event.dart';
 import 'exceptions.dart';
-
-/// Type-safe identifier for gossip peers (stable node IDs).
-class GossipNodeID {
-  /// The underlying string identifier.
-  final String value;
-
-  /// Creates a gossip peer ID.
-  const GossipNodeID(this.value);
-
-  @override
-  String toString() => value;
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    if (other is! GossipNodeID) return false;
-    return value == other.value;
-  }
-
-  @override
-  int get hashCode => value.hashCode;
-}
+import 'gossip_node_id.dart';
 
 /// Type-safe address for transport peers (transport-specific addresses).
 class TransportPeerAddress {
