@@ -11,10 +11,12 @@
 - [x] Implement a mechanism for handling network errors and retries.
 - [x] Refine the gossip library interface; keep it simple and efficient.
 - [x] Make sure typed events are optional for all gossip libraries. (all libraries for that matter)
-- [ ] Fix some events missing after peer restart.
+- [x] Fix some events missing after peer restart.
 - [ ] Fix issue with peers randomly disconnecting without notification.
 - [ ] Fix peer list not being updated correctly on a peer that was resarted.
-- [ ] Do not display self in peer list.
+- [x] Do not display self in peer list.
+- [ ] Migrate all node IDs to GossipPeerID
+- [ ] Move general classes out of the transport file.
 - [ ] Propagate events to all peers in the network. It seems to only send events to directly connected peers.
 - [ ] Support syncing certain events to only certain peers.
 - [ ] Ensure there is proper consistency with the names of nodes/peers. We use both interchangeably, but this will be confusing. The same is true for "node id".
