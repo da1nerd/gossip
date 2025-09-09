@@ -83,6 +83,21 @@ class GossipConfig {
   /// Determines how often the node will attempt to discover new peers.
   final Duration peerDiscoveryInterval;
 
+  /// Whether to enable vector clock garbage collection.
+  ///
+  /// When enabled, the node will periodically remove vector clock entries
+  /// for nodes that haven't been seen for longer than nodeExpirationAge.
+  /// This prevents unbounded growth of vector clocks in systems with high
+  /// node churn.
+  final bool enableVectorClockGC;
+
+  /// Maximum time to retain vector clock entries for inactive nodes.
+  ///
+  /// Nodes not seen for longer than this duration will have their
+  /// vector clock entries removed during garbage collection.
+  /// Only relevant when enableVectorClockGC is true.
+  final Duration nodeExpirationAge;
+
   /// Creates a new gossip configuration with the specified parameters.
   ///
   /// All required parameters must be provided. Optional parameters have
@@ -101,6 +116,8 @@ class GossipConfig {
     this.enableDuplicateDetection = true,
     this.duplicateCacheSize = 10000,
     this.peerDiscoveryInterval = const Duration(minutes: 1),
+    this.enableVectorClockGC = false,
+    this.nodeExpirationAge = const Duration(days: 7),
   }) {
     _validate();
   }
@@ -123,6 +140,8 @@ class GossipConfig {
       maxMessageSizeBytes: 2 * 1024 * 1024, // 2MB
       enableAntiEntropy: true,
       antiEntropyInterval: const Duration(minutes: 2),
+      enableVectorClockGC: true, // Enable for high throughput scenarios
+      nodeExpirationAge: const Duration(days: 1), // Shorter expiration
     );
   }
 
@@ -144,6 +163,7 @@ class GossipConfig {
       maxMessageSizeBytes: 512 * 1024, // 512KB
       enableAntiEntropy: false,
       duplicateCacheSize: 1000,
+      enableVectorClockGC: false, // Keep disabled for low resource scenarios
     );
   }
 
@@ -162,6 +182,8 @@ class GossipConfig {
     bool? enableDuplicateDetection,
     int? duplicateCacheSize,
     Duration? peerDiscoveryInterval,
+    bool? enableVectorClockGC,
+    Duration? nodeExpirationAge,
   }) {
     return GossipConfig(
       nodeId: nodeId ?? this.nodeId,
@@ -180,6 +202,8 @@ class GossipConfig {
       duplicateCacheSize: duplicateCacheSize ?? this.duplicateCacheSize,
       peerDiscoveryInterval:
           peerDiscoveryInterval ?? this.peerDiscoveryInterval,
+      enableVectorClockGC: enableVectorClockGC ?? this.enableVectorClockGC,
+      nodeExpirationAge: nodeExpirationAge ?? this.nodeExpirationAge,
     );
   }
 
@@ -249,6 +273,12 @@ class GossipConfig {
         'Fanout too high (>50), this may cause excessive network traffic',
       );
     }
+
+    if (enableVectorClockGC && nodeExpirationAge.inMilliseconds <= 0) {
+      throw const InvalidConfigurationException(
+        'Node expiration age must be positive when vector clock GC is enabled',
+      );
+    }
   }
 
   @override
@@ -266,7 +296,9 @@ class GossipConfig {
         'maxEventAge: $maxEventAge, '
         'enableDuplicateDetection: $enableDuplicateDetection, '
         'duplicateCacheSize: $duplicateCacheSize, '
-        'peerDiscoveryInterval: $peerDiscoveryInterval'
+        'peerDiscoveryInterval: $peerDiscoveryInterval, '
+        'enableVectorClockGC: $enableVectorClockGC, '
+        'nodeExpirationAge: $nodeExpirationAge'
         ')';
   }
 
@@ -287,7 +319,9 @@ class GossipConfig {
         maxEventAge == other.maxEventAge &&
         enableDuplicateDetection == other.enableDuplicateDetection &&
         duplicateCacheSize == other.duplicateCacheSize &&
-        peerDiscoveryInterval == other.peerDiscoveryInterval;
+        peerDiscoveryInterval == other.peerDiscoveryInterval &&
+        enableVectorClockGC == other.enableVectorClockGC &&
+        nodeExpirationAge == other.nodeExpirationAge;
   }
 
   @override
@@ -306,6 +340,8 @@ class GossipConfig {
       enableDuplicateDetection,
       duplicateCacheSize,
       peerDiscoveryInterval,
+      enableVectorClockGC,
+      nodeExpirationAge,
     );
   }
 }

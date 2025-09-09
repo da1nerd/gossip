@@ -292,6 +292,18 @@ class GossipNode {
     return await _gossipWithPeer(peer);
   }
 
+  /// Manually triggers vector clock garbage collection.
+  ///
+  /// This removes vector clock entries for nodes that haven't been seen
+  /// for longer than the configured expiration time. Only runs if vector
+  /// clock GC is enabled in the configuration.
+  ///
+  /// Returns the number of nodes that were removed from the vector clock.
+  Future<int> garbageCollectVectorClock() async {
+    _checkStarted();
+    return await _performVectorClockGC();
+  }
+
   /// Performs peer discovery to find new nodes in the network.
   Future<void> discoverPeers() async {
     _checkStarted();
@@ -758,9 +770,56 @@ class GossipNode {
 
   /// Performs anti-entropy operations to ensure consistency.
   Future<void> _performAntiEntropy() async {
+    // Perform vector clock garbage collection before anti-entropy
+    await _garbageCollectVectorClock();
+
     // Implementation would perform more comprehensive synchronization
     // This is a simplified version that just does regular gossip
     await _performGossipCycle();
+  }
+
+  /// Performs garbage collection on the vector clock to remove entries
+  /// for nodes that haven't been seen for longer than the configured
+  /// expiration time.
+  ///
+  /// This prevents unbounded growth of vector clocks in systems with
+  /// high node churn. Only runs if vector clock GC is enabled in config.
+  Future<void> _garbageCollectVectorClock() async {
+    // Reuse the public method logic but don't check if started
+    // since this is called during internal operations
+    await _performVectorClockGC();
+  }
+
+  /// Internal method that performs the actual vector clock garbage collection.
+  Future<int> _performVectorClockGC() async {
+    if (!config.enableVectorClockGC) return 0;
+
+    final now = DateTime.now();
+    final expiredNodes = <String>[];
+
+    // Find nodes that haven't been seen for too long
+    for (final nodeId in _vectorClock.knownNodes) {
+      // Never remove our own node from the vector clock
+      if (nodeId == config.nodeId) continue;
+
+      final lastContact = _lastContactTimes[GossipPeerID(nodeId)];
+      if (lastContact == null ||
+          now.difference(lastContact) > config.nodeExpirationAge) {
+        expiredNodes.add(nodeId);
+      }
+    }
+
+    // Remove expired nodes from vector clock
+    for (final nodeId in expiredNodes) {
+      _vectorClock.removeNode(nodeId);
+    }
+
+    // Persist the cleaned vector clock if any nodes were removed
+    if (expiredNodes.isNotEmpty) {
+      await _saveVectorClockState();
+    }
+
+    return expiredNodes.length;
   }
 
   /// Checks that the node has been started.
