@@ -39,10 +39,10 @@ class MockTransport implements GossipTransport {
     GossipDigest digest, {
     Duration? timeout,
   }) async {
-    final targetTransport = _network[transportPeer.transportId.value];
+    final targetTransport = _network[transportPeer.address.value];
     if (targetTransport == null) {
       throw TransportException(
-        'Transport peer ${transportPeer.transportId.value} not found',
+        'Transport peer ${transportPeer.address.value} not found',
       );
     }
 
@@ -50,7 +50,7 @@ class MockTransport implements GossipTransport {
 
     final incomingDigest = IncomingDigest(
       fromTransportPeer: TransportPeer(
-        transportId: TransportPeerAddress(nodeId),
+        address: TransportPeerAddress(nodeId),
         displayName: 'Node $nodeId',
         connectedAt: DateTime.now(),
       ),
@@ -71,16 +71,16 @@ class MockTransport implements GossipTransport {
     GossipEventMessage message, {
     Duration? timeout,
   }) async {
-    final targetTransport = _network[transportPeer.transportId.value];
+    final targetTransport = _network[transportPeer.address.value];
     if (targetTransport == null) {
       throw TransportException(
-        'Transport peer ${transportPeer.transportId.value} not found',
+        'Transport peer ${transportPeer.address.value} not found',
       );
     }
 
     final incomingEvents = IncomingEvents(
       fromTransportPeer: TransportPeer(
-        transportId: TransportPeerAddress(nodeId),
+        address: TransportPeerAddress(nodeId),
         displayName: 'Node $nodeId',
         connectedAt: DateTime.now(),
       ),
@@ -96,7 +96,7 @@ class MockTransport implements GossipTransport {
         .where((id) => id != nodeId)
         .map(
           (id) => TransportPeer(
-            transportId: TransportPeerAddress(id),
+            address: TransportPeerAddress(id),
             displayName: 'Node $id',
             connectedAt: DateTime.now(),
           ),
@@ -106,7 +106,7 @@ class MockTransport implements GossipTransport {
 
   @override
   Future<bool> isPeerReachable(TransportPeer transportPeer) async {
-    return _network.containsKey(transportPeer.transportId.value);
+    return _network.containsKey(transportPeer.address.value);
   }
 }
 

@@ -302,7 +302,7 @@ class GossipNode {
       // Proactively initiate gossip with new transport peers
       for (final transportPeer in discoveredTransportPeers) {
         // Skip if we already have a gossip relationship with this transport peer
-        if (!_transportToNodeIdMap.containsKey(transportPeer.transportId)) {
+        if (!_transportToNodeIdMap.containsKey(transportPeer.address)) {
           // Send initial digest to establish gossip relationship
           await _initiateGossipWithTransportPeer(transportPeer);
         }
@@ -310,7 +310,7 @@ class GossipNode {
 
       // Remove peers whose transport connections were lost
       final activeTransportIds = discoveredTransportPeers
-          .map((tp) => tp.transportId)
+          .map((tp) => tp.address)
           .toSet();
 
       final peersToRemove = <GossipPeerID>[];
@@ -475,18 +475,18 @@ class GossipNode {
     // Create new GossipPeer with proper gossip peer ID and transport address
     final gossipPeer = GossipPeer(
       id: gossipPeerID, // Use stable gossip peer ID
-      address: transportPeer.transportId, // Use transport address
+      address: transportPeer.address, // Use transport address
       lastContactTime: transportPeer.connectedAt,
       isActive: transportPeer.isActive,
       metadata: {
         'displayName': transportPeer.displayName,
-        'transportId': transportPeer.transportId.value,
+        'transportId': transportPeer.address.value,
         ...transportPeer.metadata,
       },
     );
 
     // Store the mappings
-    _transportToNodeIdMap[transportPeer.transportId] = gossipPeerID;
+    _transportToNodeIdMap[transportPeer.address] = gossipPeerID;
     _nodeIdToGossipPeerMap[gossipPeerID] = gossipPeer;
     _nodeIdToTransportPeerMap[gossipPeerID] = transportPeer;
 

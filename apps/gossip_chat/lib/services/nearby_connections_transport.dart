@@ -179,7 +179,7 @@ class NearbyConnectionsTransport implements GossipTransport {
       final displayName =
           _transportAddressToDisplayName[transportAddress] ?? 'Unknown';
       final transportPeer = TransportPeer(
-        transportId: transportAddress,
+        address: transportAddress,
         displayName: displayName,
         connectedAt: DateTime.now(),
         isActive: true,
@@ -545,7 +545,7 @@ class NearbyConnectionsTransport implements GossipTransport {
       return false;
     }
 
-    return _connectedTransportPeers.containsKey(transportPeer.transportId);
+    return _connectedTransportPeers.containsKey(transportPeer.address);
   }
 
   @override
@@ -558,9 +558,9 @@ class NearbyConnectionsTransport implements GossipTransport {
       throw StateError('Transport not initialized');
     }
 
-    if (!_connectedTransportPeers.containsKey(transportPeer.transportId)) {
+    if (!_connectedTransportPeers.containsKey(transportPeer.address)) {
       throw TransportException(
-        'Transport peer ${transportPeer.transportId} is not connected',
+        'Transport peer ${transportPeer.address} is not connected',
       );
     }
 
@@ -575,8 +575,8 @@ class NearbyConnectionsTransport implements GossipTransport {
     _pendingDigestRequests[requestId] = completer;
 
     try {
-      await _sendMessage(transportPeer.transportId, message);
-      debugPrint('📤 Sent digest to ${transportPeer.transportId}');
+      await _sendMessage(transportPeer.address, message);
+      debugPrint('📤 Sent digest to ${transportPeer.address}');
 
       // Wait for response with timeout
       final response = await completer.future.timeout(
@@ -584,7 +584,7 @@ class NearbyConnectionsTransport implements GossipTransport {
         onTimeout: () {
           _pendingDigestRequests.remove(requestId);
           throw TransportException(
-            'Digest request to ${transportPeer.transportId} timed out',
+            'Digest request to ${transportPeer.address} timed out',
           );
         },
       );
@@ -606,9 +606,9 @@ class NearbyConnectionsTransport implements GossipTransport {
       throw StateError('Transport not initialized');
     }
 
-    if (!_connectedTransportPeers.containsKey(transportPeer.transportId)) {
+    if (!_connectedTransportPeers.containsKey(transportPeer.address)) {
       throw TransportException(
-        'Transport peer ${transportPeer.transportId} is not connected',
+        'Transport peer ${transportPeer.address} is not connected',
       );
     }
 
@@ -623,8 +623,8 @@ class NearbyConnectionsTransport implements GossipTransport {
     _pendingEventRequests[requestId] = completer;
 
     try {
-      await _sendMessage(transportPeer.transportId, messagePayload);
-      debugPrint('📤 Sent events to ${transportPeer.transportId}');
+      await _sendMessage(transportPeer.address, messagePayload);
+      debugPrint('📤 Sent events to ${transportPeer.address}');
 
       // Wait for acknowledgment with timeout
       await completer.future.timeout(
@@ -632,7 +632,7 @@ class NearbyConnectionsTransport implements GossipTransport {
         onTimeout: () {
           _pendingEventRequests.remove(requestId);
           throw TransportException(
-            'Events request to ${transportPeer.transportId} timed out',
+            'Events request to ${transportPeer.address} timed out',
           );
         },
       );
@@ -729,7 +729,7 @@ class NearbyConnectionsTransport implements GossipTransport {
       buffer.writeln('\nConnected Transport Peers:');
       for (var transportPeer in _connectedTransportPeers.values) {
         buffer.writeln(
-          '  • ${transportPeer.transportId} (${transportPeer.displayName}) - ${transportPeer.isActive ? "active" : "inactive"}',
+          '  • ${transportPeer.address} (${transportPeer.displayName}) - ${transportPeer.isActive ? "active" : "inactive"}',
         );
       }
     }

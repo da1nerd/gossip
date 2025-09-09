@@ -58,9 +58,7 @@ class TransportPeerAddress {
 /// Transport-level peer representation.
 /// This represents a peer at the transport layer before we know their node ID.
 class TransportPeer {
-  /// Transport-specific identifier (e.g., endpoint ID, connection ID).
-  /// TODO: Rename this to address
-  final TransportPeerAddress transportId;
+  final TransportPeerAddress address;
 
   /// Display name discovered during peer discovery.
   final String displayName;
@@ -75,7 +73,7 @@ class TransportPeer {
   final Map<String, dynamic> metadata;
 
   const TransportPeer({
-    required this.transportId,
+    required this.address,
     required this.displayName,
     required this.connectedAt,
     this.isActive = true,
@@ -91,7 +89,7 @@ class TransportPeer {
     Map<String, dynamic>? metadata,
   }) {
     return TransportPeer(
-      transportId: transportId ?? this.transportId,
+      address: transportId ?? this.address,
       displayName: displayName ?? this.displayName,
       connectedAt: connectedAt ?? this.connectedAt,
       isActive: isActive ?? this.isActive,
@@ -101,18 +99,18 @@ class TransportPeer {
 
   @override
   String toString() {
-    return 'TransportPeer(transportId: $transportId, displayName: $displayName, isActive: $isActive)';
+    return 'TransportPeer(transportId: $address, displayName: $displayName, isActive: $isActive)';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! TransportPeer) return false;
-    return transportId == other.transportId;
+    return address == other.address;
   }
 
   @override
-  int get hashCode => transportId.hashCode;
+  int get hashCode => address.hashCode;
 }
 
 /// Represents a peer in the gossip network.

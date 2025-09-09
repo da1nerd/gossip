@@ -57,14 +57,14 @@ class MockTransport implements GossipTransport {
     GossipDigest digest, {
     Duration? timeout,
   }) async {
-    final target = _connections[transportPeer.transportId.value];
+    final target = _connections[transportPeer.address.value];
     if (target == null)
-      throw StateError('No connection to ${transportPeer.transportId.value}');
+      throw StateError('No connection to ${transportPeer.address.value}');
 
     final completer = Completer<GossipDigestResponse>();
     final incoming = IncomingDigest(
       fromTransportPeer: TransportPeer(
-        transportId: TransportPeerAddress(nodeId),
+        address: TransportPeerAddress(nodeId),
         displayName: 'Node $nodeId',
         connectedAt: DateTime.now(),
       ),
@@ -82,13 +82,13 @@ class MockTransport implements GossipTransport {
     GossipEventMessage message, {
     Duration? timeout,
   }) async {
-    final target = _connections[transportPeer.transportId.value];
+    final target = _connections[transportPeer.address.value];
     if (target == null)
-      throw StateError('No connection to ${transportPeer.transportId.value}');
+      throw StateError('No connection to ${transportPeer.address.value}');
 
     final incoming = IncomingEvents(
       fromTransportPeer: TransportPeer(
-        transportId: TransportPeerAddress(nodeId),
+        address: TransportPeerAddress(nodeId),
         displayName: 'Node $nodeId',
         connectedAt: DateTime.now(),
       ),
@@ -109,7 +109,7 @@ class MockTransport implements GossipTransport {
 
   @override
   Future<bool> isPeerReachable(TransportPeer transportPeer) async {
-    return _connections.containsKey(transportPeer.transportId.value);
+    return _connections.containsKey(transportPeer.address.value);
   }
 
   @override
