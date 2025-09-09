@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:gossip/gossip.dart';
@@ -489,8 +488,7 @@ class NearbyConnectionsTransport implements GossipTransport {
   }
 
   String _generateRequestId() {
-    return '${serviceId}_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(10000)}';
-    // TODO: return const Uuid().v4();
+    return const Uuid().v4();
   }
 
   void _cancelPendingRequestsForPeer(String peerId) {
