@@ -59,6 +59,7 @@ class TransportPeerAddress {
 /// This represents a peer at the transport layer before we know their node ID.
 class TransportPeer {
   /// Transport-specific identifier (e.g., endpoint ID, connection ID).
+  /// TODO: Rename this to address
   final TransportPeerAddress transportId;
 
   /// Display name discovered during peer discovery.

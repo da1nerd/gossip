@@ -1,10 +1,38 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:gossip/gossip.dart';
 import 'package:nearby_connections/nearby_connections.dart';
 import 'package:uuid/uuid.dart';
+
+class RequestID {
+  final String value;
+  // final TransportPeerAddress transportAddress
+
+  RequestID() : value = const Uuid().v4();
+
+  static RequestID? fromString(String? value) {
+    if (value == null) return null;
+    return RequestID._internal(value);
+  }
+
+  RequestID._internal(this.value);
+
+  @override
+  String toString() => value;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! RequestID) return false;
+    return value == other.value;
+  }
+
+  @override
+  int get hashCode => value.hashCode;
+}
 
 /// Realization of [GossipTransport] using Nearby Connections API.
 ///
@@ -36,9 +64,9 @@ class NearbyConnectionsTransport implements GossipTransport {
 
   // Connection management - transport level peers
   final Map<TransportPeerAddress, TransportPeer> _connectedTransportPeers = {};
-  final Map<TransportPeerAddress, String> _transportIdToDisplayName = {};
-  final Set<String> _pendingConnections = {};
-  final Map<String, int> _connectionAttempts = {};
+  final Map<TransportPeerAddress, String> _transportAddressToDisplayName = {};
+  final Set<TransportPeerAddress> _pendingConnections = {};
+  final Map<TransportPeerAddress, int> _connectionAttempts = {};
 
   // Message handling
   final StreamController<IncomingDigest> _incomingDigestsController =
@@ -149,7 +177,7 @@ class NearbyConnectionsTransport implements GossipTransport {
     if (status == Status.CONNECTED) {
       final transportAddress = TransportPeerAddress(id);
       final displayName =
-          _transportIdToDisplayName[transportAddress] ?? 'Unknown';
+          _transportAddressToDisplayName[transportAddress] ?? 'Unknown';
       final transportPeer = TransportPeer(
         transportId: transportAddress,
         displayName: displayName,
@@ -172,7 +200,7 @@ class NearbyConnectionsTransport implements GossipTransport {
 
     final transportAddress = TransportPeerAddress(id);
     _connectedTransportPeers.remove(transportAddress);
-    _transportIdToDisplayName.remove(transportAddress);
+    _transportAddressToDisplayName.remove(transportAddress);
     _pendingConnections.remove(id);
     _connectionAttempts.remove(id);
 
@@ -185,31 +213,34 @@ class NearbyConnectionsTransport implements GossipTransport {
   }
 
   void _onEndpointFound(String id, String name, String serviceId) {
-    debugPrint('🎯 FOUND DEVICE! ID: $id, Name: $name, Service: $serviceId');
+    final address = TransportPeerAddress(id);
+    debugPrint(
+      '🎯 FOUND DEVICE! Address: $address, Name: $name, Service: $serviceId',
+    );
 
     // Store display name for later use
-    _transportIdToDisplayName[TransportPeerAddress(id)] = name;
+    _transportAddressToDisplayName[address] = name;
 
     // Check connection limits before attempting connection
     if (_connectedTransportPeers.length + _pendingConnections.length >=
         _maxConcurrentConnections) {
       debugPrint(
-        '⚠️ Connection limit reached, skipping connection to $name ($id)',
+        '⚠️ Connection limit reached, skipping connection to $name ($address)',
       );
       return;
     }
 
     // Skip if we've already tried too many times
     if ((_connectionAttempts[id] ?? 0) >= _maxConnectionAttempts) {
-      debugPrint('⚠️ Max attempts reached for $name ($id), skipping');
+      debugPrint('⚠️ Max attempts reached for $name ($address), skipping');
       return;
     }
 
     // Throttle connection attempts
     Future.delayed(_connectionThrottleDelay, () {
-      if (!_connectedTransportPeers.containsKey(id) &&
-          !_pendingConnections.contains(id)) {
-        _requestConnection(id, name);
+      if (!_connectedTransportPeers.containsKey(address) &&
+          !_pendingConnections.contains(address)) {
+        _requestConnection(address, name);
       }
     });
   }
@@ -219,53 +250,56 @@ class NearbyConnectionsTransport implements GossipTransport {
       debugPrint('📤 Lost device: $id');
       final transportAddress = TransportPeerAddress(id);
       _connectedTransportPeers.remove(transportAddress);
-      _transportIdToDisplayName.remove(transportAddress);
+      _transportAddressToDisplayName.remove(transportAddress);
     }
   }
 
-  void _requestConnection(String id, String name) async {
+  void _requestConnection(TransportPeerAddress address, String name) async {
     // Check if already connected or pending
-    if (_connectedTransportPeers.containsKey(TransportPeerAddress(id)) ||
-        _pendingConnections.contains(id)) {
-      debugPrint('⚠️ Connection to $name ($id) already exists or is pending');
+    if (_connectedTransportPeers.containsKey(address) ||
+        _pendingConnections.contains(address)) {
+      debugPrint(
+        '⚠️ Connection to $name ($address) already exists or is pending',
+      );
       return;
     }
 
     // Check connection attempts
-    final attempts = _connectionAttempts[id] ?? 0;
+    final attempts = _connectionAttempts[address] ?? 0;
     if (attempts >= _maxConnectionAttempts) {
-      debugPrint('❌ Max connection attempts reached for $name ($id)');
+      debugPrint('❌ Max connection attempts reached for $name ($address)');
       return;
     }
 
-    _pendingConnections.add(id);
-    _connectionAttempts[id] = attempts + 1;
+    _pendingConnections.add(address);
+    _connectionAttempts[address] = attempts + 1;
 
     debugPrint(
-      '📞 Requesting connection to $name ($id) (attempt ${attempts + 1}/$_maxConnectionAttempts)',
+      '📞 Requesting connection to $name ($address) (attempt ${attempts + 1}/$_maxConnectionAttempts)',
     );
 
     try {
       await Nearby().requestConnection(
         userName,
-        id,
+        address.value,
         onConnectionInitiated: _onConnectionInitiated,
         onConnectionResult: _onConnectionResult,
         onDisconnected: _onDisconnected,
       );
     } catch (e) {
-      debugPrint('❌ Failed to request connection to $id: $e');
-      _pendingConnections.remove(id);
+      debugPrint('❌ Failed to request connection to $address: $e');
+      _pendingConnections.remove(address);
 
       if (attempts + 1 < _maxConnectionAttempts) {
         Timer(_connectionRetryDelay, () {
-          _requestConnection(id, name);
+          _requestConnection(address, name);
         });
       }
     }
   }
 
   void _onPayloadReceived(String endpointId, Payload payload) {
+    final transportAddress = TransportPeerAddress(endpointId);
     if (payload.type == PayloadType.BYTES) {
       final data = payload.bytes!;
       final message = utf8.decode(data);
@@ -274,26 +308,26 @@ class NearbyConnectionsTransport implements GossipTransport {
         final json = jsonDecode(message) as Map<String, dynamic>;
         final messageType = json['type'] as String;
 
-        debugPrint('📥 Received $messageType from $endpointId');
+        debugPrint('📥 Received $messageType from $transportAddress');
 
         switch (messageType) {
           case 'digest':
-            _handleIncomingDigest(endpointId, json);
+            _handleIncomingDigest(transportAddress, json);
             break;
           case 'digest_response':
-            _handleIncomingDigestResponse(endpointId, json);
+            _handleIncomingDigestResponse(transportAddress, json);
             break;
           case 'events':
-            _handleIncomingEvents(endpointId, json);
+            _handleIncomingEvents(transportAddress, json);
             break;
           case 'events_ack':
-            _handleEventsAcknowledgment(endpointId, json);
+            _handleEventsAcknowledgment(transportAddress, json);
             break;
           default:
             debugPrint('❌ Unknown message type: $messageType');
         }
       } catch (e) {
-        debugPrint('❌ Error parsing message from $endpointId: $e');
+        debugPrint('❌ Error parsing message from $transportAddress: $e');
       }
     }
   }
@@ -309,17 +343,17 @@ class NearbyConnectionsTransport implements GossipTransport {
     }
   }
 
-  void _handleIncomingDigest(String endpointId, Map<String, dynamic> json) {
+  void _handleIncomingDigest(
+    TransportPeerAddress address,
+    Map<String, dynamic> json,
+  ) {
     try {
       final digest = GossipDigest.fromJson(json['digest']);
       final requestId = json['requestId'] as String?;
-      final transportPeer =
-          _connectedTransportPeers[TransportPeerAddress(endpointId)];
+      final transportPeer = _connectedTransportPeers[address];
 
       if (transportPeer == null) {
-        debugPrint(
-          '❌ Received digest from unknown transport peer: $endpointId',
-        );
+        debugPrint('❌ Received digest from unknown transport peer: $address');
         return;
       }
 
@@ -327,17 +361,17 @@ class NearbyConnectionsTransport implements GossipTransport {
         fromTransportPeer: transportPeer,
         digest: digest,
         respond: (response) =>
-            _sendDigestResponse(endpointId, response, requestId),
+            _sendDigestResponse(address, response, requestId),
       );
 
       _incomingDigestsController.add(incomingDigest);
     } catch (e) {
-      debugPrint('❌ Error handling incoming digest from $endpointId: $e');
+      debugPrint('❌ Error handling incoming digest from $address: $e');
     }
   }
 
   void _handleIncomingDigestResponse(
-    String endpointId,
+    TransportPeerAddress transportAddress,
     Map<String, dynamic> json,
   ) {
     try {
@@ -353,25 +387,27 @@ class NearbyConnectionsTransport implements GossipTransport {
         );
       }
     } catch (e) {
-      debugPrint('❌ Error handling digest response from $endpointId: $e');
+      debugPrint('❌ Error handling digest response from $transportAddress: $e');
     }
   }
 
-  void _handleIncomingEvents(String endpointId, Map<String, dynamic> json) {
+  void _handleIncomingEvents(
+    TransportPeerAddress transportAddress,
+    Map<String, dynamic> json,
+  ) {
     try {
       final eventMessage = GossipEventMessage.fromJson(json['message']);
-      final transportPeer =
-          _connectedTransportPeers[TransportPeerAddress(endpointId)];
+      final transportPeer = _connectedTransportPeers[transportAddress];
 
       if (transportPeer == null) {
         debugPrint(
-          '❌ Received events from unknown transport peer: $endpointId',
+          '❌ Received events from unknown transport peer: $transportAddress',
         );
         return;
       }
 
       // Send acknowledgment
-      _sendEventsAcknowledgment(endpointId, json['requestId'] as String?);
+      _sendEventsAcknowledgment(transportAddress, json['requestId'] as String?);
 
       final incomingEvents = IncomingEvents(
         fromTransportPeer: transportPeer,
@@ -380,12 +416,12 @@ class NearbyConnectionsTransport implements GossipTransport {
 
       _incomingEventsController.add(incomingEvents);
     } catch (e) {
-      debugPrint('❌ Error handling incoming events from $endpointId: $e');
+      debugPrint('❌ Error handling incoming events from $transportAddress: $e');
     }
   }
 
   void _handleEventsAcknowledgment(
-    String endpointId,
+    TransportPeerAddress transportAddress,
     Map<String, dynamic> json,
   ) {
     try {
@@ -396,12 +432,14 @@ class NearbyConnectionsTransport implements GossipTransport {
         _pendingEventRequests.remove(requestId);
       }
     } catch (e) {
-      debugPrint('❌ Error handling events acknowledgment from $endpointId: $e');
+      debugPrint(
+        '❌ Error handling events acknowledgment from $transportAddress: $e',
+      );
     }
   }
 
   Future<void> _sendDigestResponse(
-    String endpointId,
+    TransportPeerAddress address,
     GossipDigestResponse response,
     String? requestId,
   ) async {
@@ -412,18 +450,16 @@ class NearbyConnectionsTransport implements GossipTransport {
         'requestId': requestId,
       };
 
-      await _sendMessage(endpointId, message);
-      debugPrint(
-        '📤 Sent digest response to $endpointId for request $requestId',
-      );
+      await _sendMessage(address, message);
+      debugPrint('📤 Sent digest response to $address for request $requestId');
     } catch (e) {
-      debugPrint('❌ Failed to send digest response to $endpointId: $e');
+      debugPrint('❌ Failed to send digest response to $address: $e');
       rethrow;
     }
   }
 
   Future<void> _sendEventsAcknowledgment(
-    String endpointId,
+    TransportPeerAddress transportAddress,
     String? requestId,
   ) async {
     try {
@@ -433,25 +469,28 @@ class NearbyConnectionsTransport implements GossipTransport {
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       };
 
-      await _sendMessage(endpointId, message);
-      debugPrint('📤 Sent events acknowledgment to $endpointId');
+      await _sendMessage(transportAddress, message);
+      debugPrint('📤 Sent events acknowledgment to $transportAddress');
     } catch (e) {
-      debugPrint('❌ Failed to send events acknowledgment to $endpointId: $e');
+      debugPrint(
+        '❌ Failed to send events acknowledgment to $transportAddress: $e',
+      );
     }
   }
 
   Future<void> _sendMessage(
-    String endpointId,
+    TransportPeerAddress transportAddress,
     Map<String, dynamic> message,
   ) async {
     final json = jsonEncode(message);
     final bytes = Uint8List.fromList(utf8.encode(json));
 
-    await Nearby().sendBytesPayload(endpointId, bytes);
+    await Nearby().sendBytesPayload(transportAddress.value, bytes);
   }
 
   String _generateRequestId() {
-    return const Uuid().v4();
+    return '${serviceId}_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(10000)}';
+    // TODO: return const Uuid().v4();
   }
 
   void _cancelPendingRequestsForPeer(String peerId) {
@@ -536,7 +575,7 @@ class NearbyConnectionsTransport implements GossipTransport {
     _pendingDigestRequests[requestId] = completer;
 
     try {
-      await _sendMessage(transportPeer.transportId.value, message);
+      await _sendMessage(transportPeer.transportId, message);
       debugPrint('📤 Sent digest to ${transportPeer.transportId}');
 
       // Wait for response with timeout
@@ -584,7 +623,7 @@ class NearbyConnectionsTransport implements GossipTransport {
     _pendingEventRequests[requestId] = completer;
 
     try {
-      await _sendMessage(transportPeer.transportId.value, messagePayload);
+      await _sendMessage(transportPeer.transportId, messagePayload);
       debugPrint('📤 Sent events to ${transportPeer.transportId}');
 
       // Wait for acknowledgment with timeout
@@ -641,7 +680,7 @@ class NearbyConnectionsTransport implements GossipTransport {
 
       // Clear state
       _connectedTransportPeers.clear();
-      _transportIdToDisplayName.clear();
+      _transportAddressToDisplayName.clear();
       _pendingConnections.clear();
       _connectionAttempts.clear();
       _initialized = false;

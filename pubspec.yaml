@@ -146,6 +146,12 @@ melos:
         flutter build appbundle --release
       description: Build release AAB for the gossip chat app.
 
+    app-install:
+      run: |
+        cd apps/gossip_chat
+        flutter run
+      description: Run the gossip chat app on a connected Android device.
+
     # Development helpers
     get-all:
       run: melos exec -- "dart pub get"
