@@ -14,7 +14,6 @@
 - [x] Fix some events missing after peer restart.
 - [x] Do not display self in peer list.
 - [x] Move general classes out of the transport file.
-- [ ] Fix issue with peers randomly disconnecting without notification.
 - [ ] Propagate events to all peers in the network. It seems to only send events to directly connected peers.
 - [ ] Support syncing certain events to only certain peers.
 - [ ] Ensure there is proper consistency with the names of nodes/peers. We use both interchangeably, but this will be confusing. The same is true for "node id".
@@ -22,6 +21,7 @@
 
 ## Nice to have
 - ~[ ] Remove the nodeId from the Event class.~
+- [ ] Fix issue with peers randomly disconnecting without notification.
 - [ ] Fix peer list not being updated correctly on a peer that was resarted.
 - [ ] Migrate all node IDs to GossipPeerID
 - [ ] Persist the node id with vector clocks to ensure causality is not accidentally broken by failing to store the node id with the clock vector.
