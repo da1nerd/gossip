@@ -50,7 +50,7 @@ abstract class EventStore {
   ///
   /// Throws [EventStoreException] if the query cannot be performed.
   Future<List<Event>> getEventsSince(
-    GossipPeerID nodeId,
+    GossipNodeID nodeId,
     int afterTimestamp, {
     int? limit,
   });
@@ -82,7 +82,7 @@ abstract class EventStore {
   Future<List<Event>> getEventsInRange(
     int startTimestamp,
     int endTimestamp, {
-    GossipPeerID? nodeId,
+    GossipNodeID? nodeId,
     int? limit,
   });
 
@@ -111,21 +111,21 @@ abstract class EventStore {
   /// Returns the number of events for a specific node.
   ///
   /// Throws [EventStoreException] if the count cannot be determined.
-  Future<int> getEventCountForNode(GossipPeerID nodeId);
+  Future<int> getEventCountForNode(GossipNodeID nodeId);
 
   /// Gets the latest timestamp for a specific node.
   ///
   /// Returns 0 if no events exist for the node.
   ///
   /// Throws [EventStoreException] if the query cannot be performed.
-  Future<int> getLatestTimestampForNode(GossipPeerID nodeId);
+  Future<int> getLatestTimestampForNode(GossipNodeID nodeId);
 
   /// Gets the latest timestamps for all nodes that have events in the store.
   ///
   /// Returns a map where keys are node IDs and values are their latest timestamps.
   ///
   /// Throws [EventStoreException] if the query cannot be performed.
-  Future<Map<GossipPeerID, int>> getLatestTimestampsForAllNodes();
+  Future<Map<GossipNodeID, int>> getLatestTimestampsForAllNodes();
 
   /// Removes events older than the specified timestamp.
   ///
@@ -144,7 +144,7 @@ abstract class EventStore {
   /// Returns the number of events that were removed.
   ///
   /// Throws [EventStoreException] if the removal cannot be performed.
-  Future<int> removeEventsForNode(GossipPeerID nodeId);
+  Future<int> removeEventsForNode(GossipNodeID nodeId);
 
   /// Removes all events from the store.
   ///

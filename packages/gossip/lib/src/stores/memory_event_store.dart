@@ -86,7 +86,7 @@ class MemoryEventStore implements EventStore {
 
   @override
   Future<List<Event>> getEventsSince(
-    GossipPeerID nodeId,
+    GossipNodeID nodeId,
     int afterTimestamp, {
     int? limit,
   }) async {
@@ -118,7 +118,7 @@ class MemoryEventStore implements EventStore {
   Future<List<Event>> getEventsInRange(
     int startTimestamp,
     int endTimestamp, {
-    GossipPeerID? nodeId,
+    GossipNodeID? nodeId,
     int? limit,
   }) async {
     _checkNotClosed();
@@ -163,13 +163,13 @@ class MemoryEventStore implements EventStore {
   }
 
   @override
-  Future<int> getEventCountForNode(GossipPeerID nodeId) async {
+  Future<int> getEventCountForNode(GossipNodeID nodeId) async {
     _checkNotClosed();
     return _eventsByNode[nodeId.value]?.length ?? 0;
   }
 
   @override
-  Future<int> getLatestTimestampForNode(GossipPeerID nodeId) async {
+  Future<int> getLatestTimestampForNode(GossipNodeID nodeId) async {
     _checkNotClosed();
 
     final nodeEvents = _eventsByNode[nodeId.value];
@@ -181,15 +181,15 @@ class MemoryEventStore implements EventStore {
   }
 
   @override
-  Future<Map<GossipPeerID, int>> getLatestTimestampsForAllNodes() async {
+  Future<Map<GossipNodeID, int>> getLatestTimestampsForAllNodes() async {
     _checkNotClosed();
 
-    final result = <GossipPeerID, int>{};
+    final result = <GossipNodeID, int>{};
     for (final entry in _eventsByNode.entries) {
       final nodeEvents = entry.value;
       if (nodeEvents.isNotEmpty) {
         // Events are kept sorted by timestamp, so the last one has the highest timestamp
-        result[GossipPeerID(entry.key)] = nodeEvents.last.timestamp;
+        result[GossipNodeID(entry.key)] = nodeEvents.last.timestamp;
       }
     }
 
@@ -226,7 +226,7 @@ class MemoryEventStore implements EventStore {
   }
 
   @override
-  Future<int> removeEventsForNode(GossipPeerID nodeId) async {
+  Future<int> removeEventsForNode(GossipNodeID nodeId) async {
     _checkNotClosed();
 
     final nodeEvents = _eventsByNode.remove(nodeId.value);

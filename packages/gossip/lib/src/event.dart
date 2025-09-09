@@ -23,7 +23,7 @@ class Event {
   final String id;
 
   /// ID of the node that originally created this event.
-  final GossipPeerID nodeId;
+  final GossipNodeID nodeId;
 
   /// Logical timestamp from the vector clock when this event was created.
   ///
@@ -61,7 +61,7 @@ class Event {
     try {
       return Event(
         id: json['id'] as String,
-        nodeId: GossipPeerID(json['nodeId'] as String),
+        nodeId: GossipNodeID(json['nodeId'] as String),
         timestamp: json['timestamp'] as int,
         creationTimestamp: json['creationTimestamp'] as int,
         payload: Map<String, dynamic>.from(json['payload'] as Map),
@@ -90,7 +90,7 @@ class Event {
   /// the core event data.
   Event copyWith({
     String? id,
-    GossipPeerID? nodeId,
+    GossipNodeID? nodeId,
     int? timestamp,
     int? creationTimestamp,
     Map<String, dynamic>? payload,
@@ -169,7 +169,7 @@ class ReceivedEvent {
   String get id => event.id;
 
   /// Convenience getter for the node ID that created the event.
-  GossipPeerID get nodeId => event.nodeId;
+  GossipNodeID get nodeId => event.nodeId;
 
   /// Convenience getter for the event timestamp.
   int get timestamp => event.timestamp;

@@ -554,7 +554,7 @@ void main() {
         final receivedEvent = ReceivedEvent(
           event: event,
           fromPeer: const GossipPeer(
-            id: GossipPeerID('sender-node'),
+            id: GossipNodeID('sender-node'),
             address: TransportPeerAddress('mock://sender-node'),
           ),
           receivedAt: DateTime.now(),
@@ -700,7 +700,7 @@ void main() {
       // Add a matching event
       final matchingEvent = Event(
         id: 'test1',
-        nodeId: GossipPeerID('node1'),
+        nodeId: GossipNodeID('node1'),
         timestamp: 1,
         creationTimestamp: DateTime.now().millisecondsSinceEpoch,
         payload: {
@@ -712,7 +712,7 @@ void main() {
       // Add a non-matching event
       final nonMatchingEvent = Event(
         id: 'test2',
-        nodeId: GossipPeerID('node1'),
+        nodeId: GossipNodeID('node1'),
         timestamp: 2,
         creationTimestamp: DateTime.now().millisecondsSinceEpoch,
         payload: {
@@ -749,7 +749,7 @@ void main() {
 
       final badEvent = Event(
         id: 'bad',
-        nodeId: GossipPeerID('node1'),
+        nodeId: GossipNodeID('node1'),
         timestamp: 1,
         creationTimestamp: DateTime.now().millisecondsSinceEpoch,
         payload: {
@@ -781,7 +781,7 @@ void main() {
 
       final event = Event(
         id: 'test',
-        nodeId: GossipPeerID('node1'),
+        nodeId: GossipNodeID('node1'),
         timestamp: 1,
         creationTimestamp: DateTime.now().millisecondsSinceEpoch,
         payload: {
@@ -816,7 +816,7 @@ void main() {
 
       final userEvent = Event(
         id: 'user1',
-        nodeId: GossipPeerID('node1'),
+        nodeId: GossipNodeID('node1'),
         timestamp: 1,
         creationTimestamp: DateTime.now().millisecondsSinceEpoch,
         payload: {
@@ -827,7 +827,7 @@ void main() {
 
       final orderEvent = Event(
         id: 'order1',
-        nodeId: GossipPeerID('node1'),
+        nodeId: GossipNodeID('node1'),
         timestamp: 2,
         creationTimestamp: DateTime.now().millisecondsSinceEpoch,
         payload: {
@@ -883,13 +883,13 @@ void main() {
       // Connect nodes
       nodes[0].addPeer(
         const GossipPeer(
-          id: GossipPeerID('node2'),
+          id: GossipNodeID('node2'),
           address: TransportPeerAddress('mock://node2'),
         ),
       );
       nodes[1].addPeer(
         const GossipPeer(
-          id: GossipPeerID('node1'),
+          id: GossipNodeID('node1'),
           address: TransportPeerAddress('mock://node1'),
         ),
       );

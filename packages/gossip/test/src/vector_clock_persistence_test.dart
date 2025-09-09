@@ -500,7 +500,7 @@ void main() {
 
         nodeA.addPeer(
           GossipPeer(
-            id: GossipPeerID('node-b'),
+            id: GossipNodeID('node-b'),
             address: TransportPeerAddress('node-b'),
           ),
         );

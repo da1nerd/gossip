@@ -679,13 +679,13 @@ void main() {
       // Add peers
       nodeA.addPeer(
         GossipPeer(
-          id: GossipPeerID('nodeB'),
+          id: GossipNodeID('nodeB'),
           address: TransportPeerAddress('mock://nodeB'),
         ),
       );
       nodeB.addPeer(
         GossipPeer(
-          id: GossipPeerID('nodeA'),
+          id: GossipNodeID('nodeA'),
           address: TransportPeerAddress('mock://nodeA'),
         ),
       );

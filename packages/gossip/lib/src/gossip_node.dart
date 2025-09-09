@@ -37,9 +37,9 @@ class GossipNode {
   final VectorClockStore? vectorClockStore;
   final VectorClock _vectorClock = VectorClock();
   final List<GossipPeer> _peers = [];
-  final Map<TransportPeerAddress, GossipPeerID> _transportToNodeIdMap = {};
-  final Map<GossipPeerID, GossipPeer> _nodeIdToGossipPeerMap = {};
-  final Map<GossipPeerID, TransportPeer> _nodeIdToTransportPeerMap = {};
+  final Map<TransportPeerAddress, GossipNodeID> _transportToNodeIdMap = {};
+  final Map<GossipNodeID, GossipPeer> _nodeIdToGossipPeerMap = {};
+  final Map<GossipNodeID, TransportPeer> _nodeIdToTransportPeerMap = {};
   final math.Random _random = math.Random();
 
   Timer? _gossipTimer;
@@ -63,8 +63,8 @@ class GossipNode {
 
   // Peer selection state for round-robin strategy
   int _lastPeerIndex = 0;
-  final Map<GossipPeerID, DateTime> _lastContactTimes = {};
-  final Map<GossipPeerID, double> _peerReliabilityScores = {};
+  final Map<GossipNodeID, DateTime> _lastContactTimes = {};
+  final Map<GossipNodeID, double> _peerReliabilityScores = {};
 
   /// Creates a new gossip node with the specified configuration.
   ///
@@ -180,7 +180,7 @@ class GossipNode {
     // Create the event
     final event = Event(
       id: '${config.nodeId}_${_vectorClock.getTimestampFor(config.nodeId)}',
-      nodeId: GossipPeerID(config.nodeId),
+      nodeId: GossipNodeID(config.nodeId),
       timestamp: _vectorClock.getTimestampFor(config.nodeId),
       creationTimestamp: DateTime.now().millisecondsSinceEpoch,
       payload: Map<String, dynamic>.from(payload),
@@ -228,7 +228,7 @@ class GossipNode {
   /// Removes a peer from the gossip network.
   ///
   /// Returns true if the peer was found and removed, false otherwise.
-  bool removePeer(GossipPeerID peerId) {
+  bool removePeer(GossipNodeID peerId) {
     final peerIndex = _peers.indexWhere((p) => p.id == peerId);
     if (peerIndex >= 0) {
       final removedPeer = _peers.removeAt(peerIndex);
@@ -325,7 +325,7 @@ class GossipNode {
           .map((tp) => tp.address)
           .toSet();
 
-      final peersToRemove = <GossipPeerID>[];
+      final peersToRemove = <GossipNodeID>[];
       for (final entry in _transportToNodeIdMap.entries) {
         if (!activeTransportIds.contains(entry.key)) {
           peersToRemove.add(entry.value);
@@ -368,7 +368,7 @@ class GossipNode {
         final theirTimestamp = theirClock.getTimestampFor(entry.key);
         if (entry.value > theirTimestamp) {
           final missingEvents = await eventStore.getEventsSince(
-            GossipPeerID(entry.key),
+            GossipNodeID(entry.key),
             theirTimestamp,
             limit: config.maxEventsPerMessage,
           );
@@ -377,17 +377,17 @@ class GossipNode {
       }
 
       // Find events we're missing
-      final eventRequests = <GossipPeerID, int>{};
+      final eventRequests = <GossipNodeID, int>{};
       for (final entry in digest.vectorClock.entries) {
         final ourTimestamp = _vectorClock.getTimestampFor(entry.key);
         if (entry.value > ourTimestamp) {
-          eventRequests[GossipPeerID(entry.key)] = ourTimestamp;
+          eventRequests[GossipNodeID(entry.key)] = ourTimestamp;
         }
       }
 
       // Send response
       final response = GossipDigestResponse(
-        senderId: GossipPeerID(config.nodeId),
+        senderId: GossipNodeID(config.nodeId),
         events: eventsToSend,
         eventRequests: eventRequests,
         createdAt: DateTime.now(),
@@ -477,7 +477,7 @@ class GossipNode {
   /// Gets or creates a GossipPeer from transport peer and gossip peer ID.
   GossipPeer _getOrCreateGossipPeer(
     TransportPeer transportPeer,
-    GossipPeerID gossipPeerID,
+    GossipNodeID gossipPeerID,
   ) {
     // Check if we already have a GossipPeer for this gossip peer ID
     if (_nodeIdToGossipPeerMap.containsKey(gossipPeerID)) {
@@ -668,7 +668,7 @@ class GossipNode {
     TransportPeer transportPeer,
   ) async {
     final digest = GossipDigest(
-      senderId: GossipPeerID(config.nodeId),
+      senderId: GossipNodeID(config.nodeId),
       vectorClock: _vectorClock.summary,
       createdAt: DateTime.now(),
     );
@@ -707,7 +707,7 @@ class GossipNode {
 
   /// Sends requested events and returns the count of events sent.
   Future<int> _sendRequestedEvents(
-    Map<GossipPeerID, int> eventRequests,
+    Map<GossipNodeID, int> eventRequests,
     TransportPeer transportPeer,
   ) async {
     final eventsToSend = <Event>[];
@@ -719,7 +719,7 @@ class GossipNode {
       if (requestedAfterTimestamp == 0) {
         // Peer is requesting all events (likely after detecting a reset)
         final events = await eventStore.getEventsSince(
-          GossipPeerID(nodeId),
+          GossipNodeID(nodeId),
           0,
           limit: config.maxEventsPerMessage,
         );
@@ -727,7 +727,7 @@ class GossipNode {
       } else {
         // Normal request for events after a specific timestamp
         final events = await eventStore.getEventsSince(
-          GossipPeerID(nodeId),
+          GossipNodeID(nodeId),
           requestedAfterTimestamp,
           limit: config.maxEventsPerMessage,
         );
@@ -737,7 +737,7 @@ class GossipNode {
 
     if (eventsToSend.isNotEmpty) {
       final eventMessage = GossipEventMessage(
-        senderId: GossipPeerID(config.nodeId),
+        senderId: GossipNodeID(config.nodeId),
         events: eventsToSend,
         createdAt: DateTime.now(),
       );
@@ -749,7 +749,7 @@ class GossipNode {
   }
 
   /// Updates state after a successful exchange.
-  Future<void> _updateSuccessfulDigestExchange(GossipPeerID peerId) async {
+  Future<void> _updateSuccessfulDigestExchange(GossipNodeID peerId) async {
     // Persist vector clock after successful exchange
     await _saveVectorClockState();
 
@@ -759,7 +759,7 @@ class GossipNode {
   }
 
   /// Updates the reliability score for a peer based on exchange success.
-  void _updatePeerReliability(GossipPeerID peerId, bool success) {
+  void _updatePeerReliability(GossipNodeID peerId, bool success) {
     final currentScore = _peerReliabilityScores[peerId] ?? 100.0;
     if (success) {
       _peerReliabilityScores[peerId] = math.min(100.0, currentScore + 1.0);
@@ -802,7 +802,7 @@ class GossipNode {
       // Never remove our own node from the vector clock
       if (nodeId == config.nodeId) continue;
 
-      final lastContact = _lastContactTimes[GossipPeerID(nodeId)];
+      final lastContact = _lastContactTimes[GossipNodeID(nodeId)];
       if (lastContact == null ||
           now.difference(lastContact) > config.nodeExpirationAge) {
         expiredNodes.add(nodeId);

@@ -115,14 +115,14 @@ void main() {
     test('should create event with required fields', () {
       final event = Event(
         id: 'test-1',
-        nodeId: GossipPeerID('node-1'),
+        nodeId: GossipNodeID('node-1'),
         timestamp: 1,
         creationTimestamp: 1000,
         payload: {'data': 'test'},
       );
 
       expect(event.id, equals('test-1'));
-      expect(event.nodeId, equals(GossipPeerID('node-1')));
+      expect(event.nodeId, equals(GossipNodeID('node-1')));
       expect(event.timestamp, equals(1));
       expect(event.creationTimestamp, equals(1000));
       expect(event.payload, equals({'data': 'test'}));
@@ -131,7 +131,7 @@ void main() {
     test('should serialize to and from JSON', () {
       final originalEvent = Event(
         id: 'test-1',
-        nodeId: GossipPeerID('node-1'),
+        nodeId: GossipNodeID('node-1'),
         timestamp: 1,
         creationTimestamp: 1000,
         payload: {'data': 'test', 'number': 42},
@@ -153,7 +153,7 @@ void main() {
     test('should support equality comparison', () {
       final event1 = Event(
         id: 'test-1',
-        nodeId: GossipPeerID('node-1'),
+        nodeId: GossipNodeID('node-1'),
         timestamp: 1,
         creationTimestamp: 1000,
         payload: {'data': 'test'},
@@ -161,7 +161,7 @@ void main() {
 
       final event2 = Event(
         id: 'test-1',
-        nodeId: GossipPeerID('node-1'),
+        nodeId: GossipNodeID('node-1'),
         timestamp: 1,
         creationTimestamp: 1000,
         payload: {'data': 'test'},
@@ -169,7 +169,7 @@ void main() {
 
       final event3 = Event(
         id: 'test-2',
-        nodeId: GossipPeerID('node-1'),
+        nodeId: GossipNodeID('node-1'),
         timestamp: 1,
         creationTimestamp: 1000,
         payload: {'data': 'test'},
@@ -255,7 +255,7 @@ void main() {
     test('should save and retrieve events', () async {
       final event = Event(
         id: 'test-1',
-        nodeId: GossipPeerID('node-1'),
+        nodeId: GossipNodeID('node-1'),
         timestamp: 1,
         creationTimestamp: 1000,
         payload: {'data': 'test'},
@@ -273,7 +273,7 @@ void main() {
     test('should handle duplicate events gracefully', () async {
       final event = Event(
         id: 'test-1',
-        nodeId: GossipPeerID('node-1'),
+        nodeId: GossipNodeID('node-1'),
         timestamp: 1,
         creationTimestamp: 1000,
         payload: {'data': 'test'},
@@ -290,21 +290,21 @@ void main() {
       final events = [
         Event(
           id: 'test-1',
-          nodeId: GossipPeerID('node-1'),
+          nodeId: GossipNodeID('node-1'),
           timestamp: 1,
           creationTimestamp: 1000,
           payload: {'data': 'test1'},
         ),
         Event(
           id: 'test-2',
-          nodeId: GossipPeerID('node-1'),
+          nodeId: GossipNodeID('node-1'),
           timestamp: 2,
           creationTimestamp: 2000,
           payload: {'data': 'test2'},
         ),
         Event(
           id: 'test-3',
-          nodeId: GossipPeerID('node-1'),
+          nodeId: GossipNodeID('node-1'),
           timestamp: 3,
           creationTimestamp: 3000,
           payload: {'data': 'test3'},
@@ -316,7 +316,7 @@ void main() {
       }
 
       final eventsSince1 = await store.getEventsSince(
-        GossipPeerID('node-1'),
+        GossipNodeID('node-1'),
         1,
       );
       expect(eventsSince1.length, equals(2));
@@ -327,14 +327,14 @@ void main() {
       final events = [
         Event(
           id: 'test-1',
-          nodeId: GossipPeerID('node-1'),
+          nodeId: GossipNodeID('node-1'),
           timestamp: 5,
           creationTimestamp: 1000,
           payload: {'data': 'test1'},
         ),
         Event(
           id: 'test-2',
-          nodeId: GossipPeerID('node-1'),
+          nodeId: GossipNodeID('node-1'),
           timestamp: 3,
           creationTimestamp: 2000,
           payload: {'data': 'test2'},
@@ -346,7 +346,7 @@ void main() {
       }
 
       final latestTimestamp = await store.getLatestTimestampForNode(
-        GossipPeerID('node-1'),
+        GossipNodeID('node-1'),
       );
       expect(latestTimestamp, equals(5));
     });
@@ -355,14 +355,14 @@ void main() {
       final events = [
         Event(
           id: 'test-1',
-          nodeId: GossipPeerID('node-1'),
+          nodeId: GossipNodeID('node-1'),
           timestamp: 1,
           creationTimestamp: 1000,
           payload: {'data': 'test1'},
         ),
         Event(
           id: 'test-2',
-          nodeId: GossipPeerID('node-2'),
+          nodeId: GossipNodeID('node-2'),
           timestamp: 1,
           creationTimestamp: 2000,
           payload: {'data': 'test2'},
@@ -463,8 +463,8 @@ void main() {
 
       expect(event1.timestamp, equals(1));
       expect(event2.timestamp, equals(2));
-      expect(event1.nodeId, equals(GossipPeerID('test-node')));
-      expect(event2.nodeId, equals(GossipPeerID('test-node')));
+      expect(event1.nodeId, equals(GossipNodeID('test-node')));
+      expect(event2.nodeId, equals(GossipNodeID('test-node')));
 
       await node.stop();
     });
@@ -482,19 +482,19 @@ void main() {
       await node.start();
 
       final peer = GossipPeer(
-        id: GossipPeerID('peer-1'),
+        id: GossipNodeID('peer-1'),
         address: TransportPeerAddress('mock://peer-1'),
       );
       node.addPeer(peer);
 
       expect(node.peers, hasLength(1));
-      expect(node.peers.first.id, equals(GossipPeerID('peer-1')));
+      expect(node.peers.first.id, equals(GossipNodeID('peer-1')));
 
-      final removed = node.removePeer(GossipPeerID('peer-1'));
+      final removed = node.removePeer(GossipNodeID('peer-1'));
       expect(removed, isTrue);
       expect(node.peers, isEmpty);
 
-      final removedAgain = node.removePeer(GossipPeerID('peer-1'));
+      final removedAgain = node.removePeer(GossipNodeID('peer-1'));
       expect(removedAgain, isFalse);
 
       await node.stop();
@@ -526,13 +526,13 @@ void main() {
       // are established through gossip digest exchange
       nodeA.addPeer(
         GossipPeer(
-          id: GossipPeerID('nodeB'),
+          id: GossipNodeID('nodeB'),
           address: TransportPeerAddress('nodeB'),
         ),
       );
       nodeB.addPeer(
         GossipPeer(
-          id: GossipPeerID('nodeA'),
+          id: GossipNodeID('nodeA'),
           address: TransportPeerAddress('nodeA'),
         ),
       );

@@ -213,7 +213,7 @@ void main() {
       // receiving events from these nodes by creating a mock scenario
       node1.addPeer(
         GossipPeer(
-          id: GossipPeerID('departed-node1'),
+          id: GossipNodeID('departed-node1'),
           address: TransportPeerAddress('departed-node1'),
           lastContactTime: DateTime.now().subtract(const Duration(days: 1)),
           isActive: false,

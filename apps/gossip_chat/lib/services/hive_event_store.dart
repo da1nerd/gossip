@@ -123,7 +123,7 @@ class HiveEventStore implements EventStore {
 
   @override
   Future<List<Event>> getEventsSince(
-    GossipPeerID nodeId,
+    GossipNodeID nodeId,
     int afterTimestamp, {
     int? limit,
   }) async {
@@ -189,7 +189,7 @@ class HiveEventStore implements EventStore {
   Future<List<Event>> getEventsInRange(
     int startTimestamp,
     int endTimestamp, {
-    GossipPeerID? nodeId,
+    GossipNodeID? nodeId,
     int? limit,
   }) async {
     _checkInitialized();
@@ -266,7 +266,7 @@ class HiveEventStore implements EventStore {
   }
 
   @override
-  Future<int> getEventCountForNode(GossipPeerID nodeId) async {
+  Future<int> getEventCountForNode(GossipNodeID nodeId) async {
     _checkInitialized();
 
     try {
@@ -291,7 +291,7 @@ class HiveEventStore implements EventStore {
   }
 
   @override
-  Future<int> getLatestTimestampForNode(GossipPeerID nodeId) async {
+  Future<int> getLatestTimestampForNode(GossipNodeID nodeId) async {
     _checkInitialized();
 
     try {
@@ -305,14 +305,14 @@ class HiveEventStore implements EventStore {
   }
 
   @override
-  Future<Map<GossipPeerID, int>> getLatestTimestampsForAllNodes() async {
+  Future<Map<GossipNodeID, int>> getLatestTimestampsForAllNodes() async {
     _checkInitialized();
 
     try {
       final nodeTimestamps = _getNodeTimestamps();
-      final result = <GossipPeerID, int>{};
+      final result = <GossipNodeID, int>{};
       for (final entry in nodeTimestamps.entries) {
-        result[GossipPeerID(entry.key)] = entry.value;
+        result[GossipNodeID(entry.key)] = entry.value;
       }
       return result;
     } catch (e) {
@@ -358,7 +358,7 @@ class HiveEventStore implements EventStore {
   }
 
   @override
-  Future<int> removeEventsForNode(GossipPeerID nodeId) async {
+  Future<int> removeEventsForNode(GossipNodeID nodeId) async {
     _checkInitialized();
 
     try {

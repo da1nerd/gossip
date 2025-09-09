@@ -45,7 +45,7 @@ void main() {
       final events = [
         Event(
           id: 'event1',
-          nodeId: GossipPeerID('user1'),
+          nodeId: GossipNodeID('user1'),
           timestamp: 1,
           creationTimestamp: DateTime.now().millisecondsSinceEpoch,
           payload: {
@@ -58,7 +58,7 @@ void main() {
         ),
         Event(
           id: 'event2',
-          nodeId: GossipPeerID('user2'),
+          nodeId: GossipNodeID('user2'),
           timestamp: 2,
           creationTimestamp: DateTime.now().millisecondsSinceEpoch,
           payload: {
@@ -84,7 +84,7 @@ void main() {
       final events = [
         Event(
           id: 'event1',
-          nodeId: GossipPeerID('user1'),
+          nodeId: GossipNodeID('user1'),
           timestamp: 1,
           creationTimestamp: DateTime.now().millisecondsSinceEpoch,
           payload: {
@@ -97,7 +97,7 @@ void main() {
         ),
         Event(
           id: 'event2',
-          nodeId: GossipPeerID('user2'),
+          nodeId: GossipNodeID('user2'),
           timestamp: 2,
           creationTimestamp: DateTime.now().millisecondsSinceEpoch,
           payload: {
@@ -108,7 +108,7 @@ void main() {
         ),
         Event(
           id: 'event3',
-          nodeId: GossipPeerID('user1'),
+          nodeId: GossipNodeID('user1'),
           timestamp: 3,
           creationTimestamp: DateTime.now().millisecondsSinceEpoch,
           payload: {
@@ -121,7 +121,7 @@ void main() {
         ),
         Event(
           id: 'event4',
-          nodeId: GossipPeerID('user2'),
+          nodeId: GossipNodeID('user2'),
           timestamp: 4,
           creationTimestamp: DateTime.now().millisecondsSinceEpoch,
           payload: {
@@ -185,7 +185,7 @@ void main() {
       final events = [
         Event(
           id: 'event1',
-          nodeId: GossipPeerID('user1'),
+          nodeId: GossipNodeID('user1'),
           timestamp: 1,
           creationTimestamp: DateTime.now().millisecondsSinceEpoch,
           payload: {
@@ -218,7 +218,7 @@ void main() {
       final events = [
         Event(
           id: 'event1',
-          nodeId: GossipPeerID('user1'),
+          nodeId: GossipNodeID('user1'),
           timestamp: 1,
           creationTimestamp: DateTime.now().millisecondsSinceEpoch,
           payload: {
