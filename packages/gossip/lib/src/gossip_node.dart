@@ -357,7 +357,7 @@ class GossipNode {
     try {
       final digest = incoming.digest;
       final theirClock = VectorClock.fromMap(digest.vectorClock);
-      final senderNodeId = GossipPeerID(digest.senderId);
+      final senderNodeId = digest.senderId;
 
       // Create or update GossipPeer now that we know their node ID from digest
       _getOrCreateGossipPeer(incoming.fromTransportPeer, senderNodeId);
@@ -387,7 +387,7 @@ class GossipNode {
 
       // Send response
       final response = GossipDigestResponse(
-        senderId: config.nodeId,
+        senderId: GossipPeerID(config.nodeId),
         events: eventsToSend,
         eventRequests: eventRequests,
         createdAt: DateTime.now(),
@@ -646,7 +646,7 @@ class GossipNode {
       final response = await _exchangeDigestsWithTransportPeer(transportPeer);
 
       // Create or get the gossip peer using the sender ID from response
-      final senderNodeId = GossipPeerID(response.senderId);
+      final senderNodeId = response.senderId;
       final gossipPeer = _getOrCreateGossipPeer(transportPeer, senderNodeId);
 
       // Process received events with newly created peer
@@ -668,7 +668,7 @@ class GossipNode {
     TransportPeer transportPeer,
   ) async {
     final digest = GossipDigest(
-      senderId: config.nodeId,
+      senderId: GossipPeerID(config.nodeId),
       vectorClock: _vectorClock.summary,
       createdAt: DateTime.now(),
     );
@@ -737,7 +737,7 @@ class GossipNode {
 
     if (eventsToSend.isNotEmpty) {
       final eventMessage = GossipEventMessage(
-        senderId: config.nodeId,
+        senderId: GossipPeerID(config.nodeId),
         events: eventsToSend,
         createdAt: DateTime.now(),
       );

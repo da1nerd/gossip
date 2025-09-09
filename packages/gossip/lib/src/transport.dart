@@ -185,7 +185,7 @@ class GossipPeer {
 /// the sender's current knowledge of the distributed system state.
 class GossipDigest {
   /// The ID of the node sending this digest.
-  final String senderId;
+  final GossipPeerID senderId;
 
   /// Vector clock summary representing the sender's knowledge.
   final Map<String, int> vectorClock;
@@ -206,7 +206,7 @@ class GossipDigest {
   /// Creates a digest from a JSON representation.
   factory GossipDigest.fromJson(Map<String, dynamic> json) {
     return GossipDigest(
-      senderId: json['senderId'] as String,
+      senderId: GossipPeerID(json['senderId'] as String),
       vectorClock: Map<String, int>.from(json['vectorClock'] as Map),
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int),
       metadata: Map<String, dynamic>.from(json['metadata'] as Map? ?? {}),
@@ -216,7 +216,7 @@ class GossipDigest {
   /// Converts this digest to a JSON representation.
   Map<String, dynamic> toJson() {
     return {
-      'senderId': senderId,
+      'senderId': senderId.value,
       'vectorClock': vectorClock,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'metadata': metadata,
@@ -237,7 +237,7 @@ class GossipDigest {
 /// events they need.
 class GossipDigestResponse {
   /// The ID of the node sending this response.
-  final String senderId;
+  final GossipPeerID senderId;
 
   /// Events that the digest sender is missing.
   final List<Event> events;
@@ -265,7 +265,7 @@ class GossipDigestResponse {
         .toList();
 
     return GossipDigestResponse(
-      senderId: json['senderId'] as String,
+      senderId: GossipPeerID(json['senderId'] as String),
       events: events,
       eventRequests: Map<String, int>.from(json['eventRequests'] as Map),
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int),
@@ -275,7 +275,7 @@ class GossipDigestResponse {
   /// Converts this response to a JSON representation.
   Map<String, dynamic> toJson() {
     return {
-      'senderId': senderId,
+      'senderId': senderId.value,
       'events': events.map((e) => e.toJson()).toList(),
       'eventRequests': eventRequests,
       'createdAt': createdAt.millisecondsSinceEpoch,
@@ -295,7 +295,7 @@ class GossipDigestResponse {
 /// responds with the events that were requested.
 class GossipEventMessage {
   /// The ID of the node sending this message.
-  final String senderId;
+  final GossipPeerID senderId;
 
   /// The events being sent.
   final List<Event> events;
@@ -318,7 +318,7 @@ class GossipEventMessage {
         .toList();
 
     return GossipEventMessage(
-      senderId: json['senderId'] as String,
+      senderId: GossipPeerID(json['senderId'] as String),
       events: events,
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int),
     );
@@ -327,7 +327,7 @@ class GossipEventMessage {
   /// Converts this message to a JSON representation.
   Map<String, dynamic> toJson() {
     return {
-      'senderId': senderId,
+      'senderId': senderId.value,
       'events': events.map((e) => e.toJson()).toList(),
       'createdAt': createdAt.millisecondsSinceEpoch,
     };
