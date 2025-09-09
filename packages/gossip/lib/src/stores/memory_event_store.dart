@@ -11,6 +11,7 @@ import 'dart:async';
 import '../event.dart';
 import '../event_store.dart';
 import '../exceptions.dart';
+import '../transport.dart';
 
 /// An in-memory implementation of the EventStore for demonstration and testing.
 ///
@@ -85,13 +86,13 @@ class MemoryEventStore implements EventStore {
 
   @override
   Future<List<Event>> getEventsSince(
-    String nodeId,
+    GossipPeerID nodeId,
     int afterTimestamp, {
     int? limit,
   }) async {
     _checkNotClosed();
 
-    final nodeEvents = _eventsByNode[nodeId];
+    final nodeEvents = _eventsByNode[nodeId.value];
     if (nodeEvents == null) {
       return [];
     }
@@ -117,7 +118,7 @@ class MemoryEventStore implements EventStore {
   Future<List<Event>> getEventsInRange(
     int startTimestamp,
     int endTimestamp, {
-    String? nodeId,
+    GossipPeerID? nodeId,
     int? limit,
   }) async {
     _checkNotClosed();
@@ -125,7 +126,7 @@ class MemoryEventStore implements EventStore {
     List<Event> sourceEvents;
 
     if (nodeId != null) {
-      sourceEvents = _eventsByNode[nodeId] ?? [];
+      sourceEvents = _eventsByNode[nodeId.value] ?? [];
     } else {
       sourceEvents = _events;
     }
@@ -162,33 +163,33 @@ class MemoryEventStore implements EventStore {
   }
 
   @override
-  Future<int> getEventCountForNode(String nodeId) async {
+  Future<int> getEventCountForNode(GossipPeerID nodeId) async {
     _checkNotClosed();
-    return _eventsByNode[nodeId]?.length ?? 0;
+    return _eventsByNode[nodeId.value]?.length ?? 0;
   }
 
   @override
-  Future<int> getLatestTimestampForNode(String nodeId) async {
+  Future<int> getLatestTimestampForNode(GossipPeerID nodeId) async {
     _checkNotClosed();
 
-    final nodeEvents = _eventsByNode[nodeId];
+    final nodeEvents = _eventsByNode[nodeId.value];
     if (nodeEvents == null || nodeEvents.isEmpty) {
       return 0;
     }
-
-    // Events are kept sorted by timestamp, so the last one has the highest timestamp
+    // Events are sorted by timestamp, so the last one has the latest timestamp
     return nodeEvents.last.timestamp;
   }
 
   @override
-  Future<Map<String, int>> getLatestTimestampsForAllNodes() async {
+  Future<Map<GossipPeerID, int>> getLatestTimestampsForAllNodes() async {
     _checkNotClosed();
 
-    final result = <String, int>{};
-
+    final result = <GossipPeerID, int>{};
     for (final entry in _eventsByNode.entries) {
-      if (entry.value.isNotEmpty) {
-        result[entry.key] = entry.value.last.timestamp;
+      final nodeEvents = entry.value;
+      if (nodeEvents.isNotEmpty) {
+        // Events are kept sorted by timestamp, so the last one has the highest timestamp
+        result[GossipPeerID(entry.key)] = nodeEvents.last.timestamp;
       }
     }
 
@@ -225,10 +226,10 @@ class MemoryEventStore implements EventStore {
   }
 
   @override
-  Future<int> removeEventsForNode(String nodeId) async {
+  Future<int> removeEventsForNode(GossipPeerID nodeId) async {
     _checkNotClosed();
 
-    final nodeEvents = _eventsByNode.remove(nodeId);
+    final nodeEvents = _eventsByNode.remove(nodeId.value);
     if (nodeEvents == null) {
       return 0;
     }

@@ -315,7 +315,10 @@ void main() {
         await store.saveEvent(event);
       }
 
-      final eventsSince1 = await store.getEventsSince('node-1', 1);
+      final eventsSince1 = await store.getEventsSince(
+        GossipPeerID('node-1'),
+        1,
+      );
       expect(eventsSince1.length, equals(2));
       expect(eventsSince1.map((e) => e.id), containsAll(['test-2', 'test-3']));
     });
@@ -342,7 +345,9 @@ void main() {
         await store.saveEvent(event);
       }
 
-      final latestTimestamp = await store.getLatestTimestampForNode('node-1');
+      final latestTimestamp = await store.getLatestTimestampForNode(
+        GossipPeerID('node-1'),
+      );
       expect(latestTimestamp, equals(5));
     });
 

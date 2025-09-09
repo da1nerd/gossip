@@ -368,7 +368,7 @@ class GossipNode {
         final theirTimestamp = theirClock.getTimestampFor(entry.key);
         if (entry.value > theirTimestamp) {
           final missingEvents = await eventStore.getEventsSince(
-            entry.key,
+            GossipPeerID(entry.key),
             theirTimestamp,
             limit: config.maxEventsPerMessage,
           );
@@ -719,7 +719,7 @@ class GossipNode {
       if (requestedAfterTimestamp == 0) {
         // Peer is requesting all events (likely after detecting a reset)
         final events = await eventStore.getEventsSince(
-          nodeId,
+          GossipPeerID(nodeId),
           0,
           limit: config.maxEventsPerMessage,
         );
@@ -727,7 +727,7 @@ class GossipNode {
       } else {
         // Normal request for events after a specific timestamp
         final events = await eventStore.getEventsSince(
-          nodeId,
+          GossipPeerID(nodeId),
           requestedAfterTimestamp,
           limit: config.maxEventsPerMessage,
         );

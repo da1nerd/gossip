@@ -123,7 +123,7 @@ class HiveEventStore implements EventStore {
 
   @override
   Future<List<Event>> getEventsSince(
-    String nodeId,
+    GossipPeerID nodeId,
     int afterTimestamp, {
     int? limit,
   }) async {
@@ -136,7 +136,7 @@ class HiveEventStore implements EventStore {
         final eventData = await _eventsBox!.get(key);
         if (eventData != null) {
           final event = Event.fromJson(Map<String, dynamic>.from(eventData));
-          if (event.nodeId.value == nodeId &&
+          if (event.nodeId.value == nodeId.value &&
               event.timestamp > afterTimestamp) {
             matchingEvents.add(event);
           }
@@ -189,7 +189,7 @@ class HiveEventStore implements EventStore {
   Future<List<Event>> getEventsInRange(
     int startTimestamp,
     int endTimestamp, {
-    String? nodeId,
+    GossipPeerID? nodeId,
     int? limit,
   }) async {
     _checkInitialized();
@@ -206,7 +206,7 @@ class HiveEventStore implements EventStore {
           if (event.timestamp >= startTimestamp &&
               event.timestamp <= endTimestamp) {
             // Check node filter if specified
-            if (nodeId == null || event.nodeId.value == nodeId) {
+            if (nodeId == null || event.nodeId.value == nodeId.value) {
               matchingEvents.add(event);
             }
           }
@@ -266,7 +266,7 @@ class HiveEventStore implements EventStore {
   }
 
   @override
-  Future<int> getEventCountForNode(String nodeId) async {
+  Future<int> getEventCountForNode(GossipPeerID nodeId) async {
     _checkInitialized();
 
     try {
@@ -276,7 +276,7 @@ class HiveEventStore implements EventStore {
         final eventData = await _eventsBox!.get(key);
         if (eventData != null) {
           final event = Event.fromJson(Map<String, dynamic>.from(eventData));
-          if (event.nodeId.value == nodeId) {
+          if (event.nodeId.value == nodeId.value) {
             count++;
           }
         }
@@ -291,12 +291,12 @@ class HiveEventStore implements EventStore {
   }
 
   @override
-  Future<int> getLatestTimestampForNode(String nodeId) async {
+  Future<int> getLatestTimestampForNode(GossipPeerID nodeId) async {
     _checkInitialized();
 
     try {
       final nodeTimestamps = _getNodeTimestamps();
-      return nodeTimestamps[nodeId] ?? 0;
+      return nodeTimestamps[nodeId.value] ?? 0;
     } catch (e) {
       throw EventStoreException(
         'Failed to get latest timestamp for node $nodeId: $e',
@@ -305,11 +305,16 @@ class HiveEventStore implements EventStore {
   }
 
   @override
-  Future<Map<String, int>> getLatestTimestampsForAllNodes() async {
+  Future<Map<GossipPeerID, int>> getLatestTimestampsForAllNodes() async {
     _checkInitialized();
 
     try {
-      return Map<String, int>.from(_getNodeTimestamps());
+      final nodeTimestamps = _getNodeTimestamps();
+      final result = <GossipPeerID, int>{};
+      for (final entry in nodeTimestamps.entries) {
+        result[GossipPeerID(entry.key)] = entry.value;
+      }
+      return result;
     } catch (e) {
       throw EventStoreException(
         'Failed to get latest timestamps for all nodes: $e',
@@ -353,7 +358,7 @@ class HiveEventStore implements EventStore {
   }
 
   @override
-  Future<int> removeEventsForNode(String nodeId) async {
+  Future<int> removeEventsForNode(GossipPeerID nodeId) async {
     _checkInitialized();
 
     try {
@@ -363,7 +368,7 @@ class HiveEventStore implements EventStore {
         final eventData = await _eventsBox!.get(key);
         if (eventData != null) {
           final event = Event.fromJson(Map<String, dynamic>.from(eventData));
-          if (event.nodeId.value == nodeId) {
+          if (event.nodeId.value == nodeId.value) {
             keysToRemove.add(key.toString());
           }
         }
