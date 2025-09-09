@@ -13,6 +13,8 @@ import 'event.dart';
 import 'event_store.dart';
 import 'exceptions.dart';
 import 'gossip_config.dart';
+import 'gossip_digest.dart';
+import 'gossip_digest_response.dart';
 import 'gossip_node_id.dart';
 import 'gossip_peer.dart';
 
