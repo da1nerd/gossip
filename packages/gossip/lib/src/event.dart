@@ -23,6 +23,8 @@ class Event {
   final String id;
 
   /// ID of the node that originally created this event.
+  /// TODO: try to get rid of this because node IDs can change over time.
+  ///  We'll have to redesign the Event Store first to not rely on this.
   final String nodeId;
 
   /// Logical timestamp from the vector clock when this event was created.

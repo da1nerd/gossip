@@ -395,6 +395,8 @@ class GossipNode {
   Future<void> _handleIncomingEvents(IncomingEvents incoming) async {
     try {
       final receivedAt = DateTime.now();
+      // TODO: look up the gossip node from transport peer address.
+      //  So we don't have to use the nodeId in the event
 
       // Check if we have a GossipPeer established for this transport peer
       // before processing any events to avoid updating vector clock unnecessarily
@@ -602,6 +604,7 @@ class GossipNode {
       for (final event in response.events) {
         await eventStore.saveEvent(event);
         _vectorClock.merge(
+          // TODO: use the response.senderId instead of event.nodeId
           VectorClock()..setTimestampFor(event.nodeId, event.timestamp),
         );
 
