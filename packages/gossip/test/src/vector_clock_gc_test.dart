@@ -99,11 +99,6 @@ class MockGCTransport implements GossipTransport {
   }
 
   @override
-  Future<bool> isPeerReachable(TransportPeer transportPeer) async {
-    return _network.containsKey(transportPeer.address.value);
-  }
-
-  @override
   Future<List<TransportPeer>> discoverPeers() async {
     return _network.values
         .where((transport) => transport.nodeId != nodeId)

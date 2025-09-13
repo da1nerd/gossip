@@ -108,11 +108,6 @@ class MockTransport implements GossipTransport {
   Future<List<TransportPeer>> discoverPeers() async => [];
 
   @override
-  Future<bool> isPeerReachable(TransportPeer transportPeer) async {
-    return _connections.containsKey(transportPeer.address.value);
-  }
-
-  @override
   Future<void> shutdown() async {
     _initialized = false;
     await _digestController.close();

@@ -171,12 +171,6 @@ abstract class GossipTransport {
   /// Returns a list of discovered transport peers. May return an empty list if
   /// no peers are currently available.
   Future<List<TransportPeer>> discoverPeers();
-
-  /// Checks if a transport peer is currently reachable.
-  ///
-  /// This can be used for peer health checking and maintenance.
-  /// The implementation should be lightweight and fast.
-  Future<bool> isPeerReachable(TransportPeer transportPeer);
 }
 
 /// Represents an incoming gossip digest from another node.

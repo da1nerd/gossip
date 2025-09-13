@@ -95,10 +95,6 @@ class MockTransport implements GossipTransport {
         ),
       )
       .toList();
-
-  @override
-  Future<bool> isPeerReachable(TransportPeer transportPeer) async =>
-      _network.containsKey(transportPeer.address.value);
 }
 
 /// Test event implementations

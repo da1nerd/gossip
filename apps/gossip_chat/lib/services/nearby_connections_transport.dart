@@ -538,15 +538,6 @@ class NearbyConnectionsTransport implements GossipTransport {
   }
 
   @override
-  Future<bool> isPeerReachable(TransportPeer transportPeer) async {
-    if (!_initialized) {
-      return false;
-    }
-
-    return _connectedTransportPeers.containsKey(transportPeer.address);
-  }
-
-  @override
   Future<GossipDigestResponse> sendDigest(
     TransportPeer transportPeer,
     GossipDigest digest, {
