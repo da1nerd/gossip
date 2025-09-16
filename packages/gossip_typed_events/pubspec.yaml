@@ -1,6 +1,6 @@
 name: gossip_typed_events
 description: Type-safe event extensions for the Dart gossip protocol library with compile-time validation and serialization
-version: 1.0.3
+version: 1.0.4
 homepage: https://github.com/da1nerd/gossip-mono
 repository: https://github.com/da1nerd/gossip-mono
 issue_tracker: https://github.com/da1nerd/gossip-mono/issues
@@ -12,6 +12,7 @@ environment:
 resolution: workspace
 
 dependencies:
+  async: ^2.13.0
   gossip: ^1.0.12
   meta: ^1.12.0
 

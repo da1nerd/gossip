@@ -7,6 +7,7 @@ library;
 
 import 'dart:async';
 
+import 'package:async/async.dart';
 import 'package:gossip/gossip.dart';
 
 import 'typed_event.dart';
@@ -161,7 +162,13 @@ extension TypedGossipNode on GossipNode {
       );
     }
 
-    return onEventReceived
+    final createdStream = onEventCreated
+        .where((event) => _isEventType(event, typeString))
+        .map((event) => _deserializeFromRegistry<T>(event, registry))
+        .where((event) => event != null)
+        .cast<T>();
+
+    final receivedStream = onEventReceived
         .where((receivedEvent) => _isEventType(receivedEvent.event, typeString))
         .map(
           (receivedEvent) =>
@@ -169,6 +176,8 @@ extension TypedGossipNode on GossipNode {
         )
         .where((event) => event != null)
         .cast<T>();
+
+    return StreamGroup.mergeBroadcast([createdStream, receivedStream]);
   }
 
   /// Stream of all typed events with their metadata.
