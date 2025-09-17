@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2025-09-17
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`gossip` - `v2.0.0`](#gossip---v200)
+
+---
+
+#### `gossip` - `v2.0.0`
+
+ - Bump "gossip" to `2.0.0`.
+
+
 ## 2025-09-10
 
 ### Changes
