@@ -15,6 +15,25 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`gossip_event_sourcing` - `v1.0.4`](#gossip_event_sourcing---v104)
+
+---
+
+#### `gossip_event_sourcing` - `v1.0.4`
+
+
+## 2025-09-17
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`gossip_crdts` - `v1.0.4`](#gossip_crdts---v104)
 
 ---
