@@ -28,6 +28,16 @@ class MockGCTransport implements GossipTransport {
   }
 
   @override
+  Future<void> start() async {
+    // Mock transport doesn't need to do anything special for start
+  }
+
+  @override
+  Future<void> stop() async {
+    // Mock transport doesn't need to do anything special for stop
+  }
+
+  @override
   Stream<IncomingDigest> get incomingDigests => _digestController.stream;
 
   @override

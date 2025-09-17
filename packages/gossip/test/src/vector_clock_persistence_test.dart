@@ -47,6 +47,16 @@ class MockTransport implements GossipTransport {
   @override
   Future<void> initialize() async => _initialized = true;
 
+  @override
+  Future<void> start() async {
+    // Mock transport doesn't need to do anything special for start
+  }
+
+  @override
+  Future<void> stop() async {
+    // Mock transport doesn't need to do anything special for stop
+  }
+
   void addConnection(MockTransport other) {
     _connections[other.nodeId] = other;
   }
@@ -105,7 +115,17 @@ class MockTransport implements GossipTransport {
   Stream<IncomingEvents> get incomingEvents => _eventsController.stream;
 
   @override
-  Future<List<TransportPeer>> discoverPeers() async => [];
+  Future<List<TransportPeer>> discoverPeers() async {
+    return _connections.values
+        .map(
+          (transport) => TransportPeer(
+            address: TransportPeerAddress(transport.nodeId),
+            displayName: 'Node ${transport.nodeId}',
+            connectedAt: DateTime.now(),
+          ),
+        )
+        .toList();
+  }
 
   @override
   Future<void> shutdown() async {
@@ -493,12 +513,9 @@ void main() {
         await nodeA.start();
         await nodeB.start();
 
-        nodeA.addPeer(
-          GossipPeer(
-            id: GossipNodeID('node-b'),
-            address: TransportPeerAddress('node-b'),
-          ),
-        );
+        // Use peer discovery instead of manual peer addition
+        await nodeA.discoverPeers();
+        await nodeB.discoverPeers();
 
         // Create event on node A
         await nodeA.createEvent({'source': 'A', 'data': 'test'});

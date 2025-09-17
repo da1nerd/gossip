@@ -134,7 +134,7 @@ packages:
       path: "../../packages/gossip"
       relative: true
     source: path
-    version: "1.0.11"
+    version: "1.0.12"
   gossip_crdts:
     dependency: "direct overridden"
     description:

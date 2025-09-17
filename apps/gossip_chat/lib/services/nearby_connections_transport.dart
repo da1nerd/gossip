@@ -79,6 +79,7 @@ class NearbyConnectionsTransport implements GossipTransport {
   final Map<String, Completer<void>> _pendingEventRequests = {};
 
   bool _initialized = false;
+  bool _isActive = false;
 
   // Connection settings
   static const int _maxConnectionAttempts = 3;
@@ -102,6 +103,24 @@ class NearbyConnectionsTransport implements GossipTransport {
     try {
       debugPrint('🚀 Initializing NearbyConnectionsTransport for $userName');
 
+      _initialized = true;
+      debugPrint('✅ NearbyConnectionsTransport initialized successfully');
+    } catch (e) {
+      debugPrint('❌ Failed to initialize NearbyConnectionsTransport: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> start() async {
+    if (!_initialized) {
+      throw const TransportException('Transport not initialized');
+    }
+    if (_isActive) return;
+
+    try {
+      debugPrint('🚀 Starting active communication for $userName');
+
       // Start advertising this device
       await _startAdvertising();
       debugPrint('📡 Started advertising successfully');
@@ -110,11 +129,32 @@ class NearbyConnectionsTransport implements GossipTransport {
       await _startDiscovery();
       debugPrint('🔍 Started discovery successfully');
 
-      _initialized = true;
-      debugPrint('✅ NearbyConnectionsTransport initialized successfully');
+      _isActive = true;
+      debugPrint('✅ NearbyConnectionsTransport started successfully');
     } catch (e) {
-      debugPrint('❌ Failed to initialize NearbyConnectionsTransport: $e');
+      debugPrint('❌ Failed to start NearbyConnectionsTransport: $e');
       rethrow;
+    }
+  }
+
+  @override
+  Future<void> stop() async {
+    if (!_isActive) return;
+
+    try {
+      debugPrint('⏸️ Stopping active communication for $userName');
+
+      // Stop Nearby Connections services but keep connections
+      await Nearby().stopAdvertising();
+      debugPrint('⏹️ Stopped advertising');
+
+      await Nearby().stopDiscovery();
+      debugPrint('⏹️ Stopped discovery');
+
+      _isActive = false;
+      debugPrint('✅ NearbyConnectionsTransport stopped successfully');
+    } catch (e) {
+      debugPrint('❌ Error stopping transport: $e');
     }
   }
 
@@ -638,6 +678,11 @@ class NearbyConnectionsTransport implements GossipTransport {
     try {
       debugPrint('🛑 Shutting down NearbyConnectionsTransport...');
 
+      // Stop active communication first
+      if (_isActive) {
+        await stop();
+      }
+
       // Cancel all pending requests
       for (final completer in _pendingDigestRequests.values) {
         completer.completeError(
@@ -653,13 +698,7 @@ class NearbyConnectionsTransport implements GossipTransport {
       }
       _pendingEventRequests.clear();
 
-      // Stop Nearby Connections services
-      await Nearby().stopAdvertising();
-      debugPrint('⏹️ Stopped advertising');
-
-      await Nearby().stopDiscovery();
-      debugPrint('⏹️ Stopped discovery');
-
+      // Stop all endpoints and close connections
       await Nearby().stopAllEndpoints();
       debugPrint('⏹️ Stopped all endpoints');
 
@@ -673,6 +712,7 @@ class NearbyConnectionsTransport implements GossipTransport {
       _pendingConnections.clear();
       _connectionAttempts.clear();
       _initialized = false;
+      _isActive = false;
 
       debugPrint('✅ NearbyConnectionsTransport shut down successfully');
     } catch (e) {

@@ -114,6 +114,26 @@ abstract class GossipTransport {
   /// should not be used.
   Future<void> shutdown();
 
+  /// Starts active communication capabilities.
+  ///
+  /// This enables the transport to actively participate in network
+  /// communication such as listening for connections, peer discovery,
+  /// and message handling. Called when the gossip node wants to begin
+  /// syncing with other nodes.
+  ///
+  /// Throws [TransportException] if starting fails.
+  Future<void> start();
+
+  /// Stops active communication but keeps the transport initialized.
+  ///
+  /// This disables active network participation but keeps the transport
+  /// in a state where it can be restarted. Resources remain allocated
+  /// and the transport can be started again. Called when the gossip node
+  /// wants to temporarily stop syncing.
+  ///
+  /// Throws [TransportException] if stopping fails.
+  Future<void> stop();
+
   /// Sends a gossip digest to a transport peer and waits for a response.
   ///
   /// This initiates the first step of the gossip protocol by sending

@@ -28,6 +28,19 @@ class MockTransport implements GossipTransport {
   }
 
   @override
+  Stream<IncomingDigest> get incomingDigests => _digestController.stream;
+
+  @override
+  Future<void> start() async {
+    // Mock transport doesn't need to do anything special for start
+  }
+
+  @override
+  Future<void> stop() async {
+    // Mock transport doesn't need to do anything special for stop
+  }
+
+  @override
   Future<GossipDigestResponse> sendDigest(
     TransportPeer transportPeer,
     GossipDigest digest, {
@@ -77,9 +90,6 @@ class MockTransport implements GossipTransport {
 
     targetTransport._eventsController.add(incomingEvents);
   }
-
-  @override
-  Stream<IncomingDigest> get incomingDigests => _digestController.stream;
 
   @override
   Stream<IncomingEvents> get incomingEvents => _eventsController.stream;

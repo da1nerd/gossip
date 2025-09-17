@@ -51,8 +51,8 @@ class GossipNode {
   Timer? _antiEntropyTimer;
   Timer? _peerDiscoveryTimer;
 
-  bool _isStarted = false;
-  bool _isStopped = false;
+  bool _isInitialized = false;
+  bool _isGossiping = false;
 
   // Stream controllers for event notifications
   final StreamController<Event> _eventCreatedController =
@@ -84,21 +84,20 @@ class GossipNode {
     this.vectorClockStore,
   });
 
-  /// Initializes and starts the gossip node.
+  /// Initializes the gossip node without starting gossip activities.
   ///
   /// This method:
   /// - Initializes the transport layer
   /// - Sets up incoming message handlers
-  /// - Starts periodic gossip and maintenance timers
-  /// - Begins peer discovery
+  /// - Loads persisted vector clock state
   ///
-  /// Must be called before the node can participate in gossip exchanges.
+  /// After initialization, the node can create events but will not sync
+  /// with other nodes until startGossiping() is called.
+  ///
+  /// Must be called before any other operations.
   /// Throws [NodeNotInitializedException] if initialization fails.
-  Future<void> start() async {
-    if (_isStarted) return;
-    if (_isStopped) {
-      throw const NodeNotInitializedException('Cannot restart a stopped node');
-    }
+  Future<void> initialize() async {
+    if (_isInitialized) return;
 
     try {
       // Initialize transport
@@ -110,44 +109,31 @@ class GossipNode {
       // Set up message handlers
       _setupIncomingMessageHandlers();
 
-      // Start periodic gossip
-      _startGossipTimer();
-
-      // Start anti-entropy if enabled
-      if (config.enableAntiEntropy) {
-        _startAntiEntropyTimer();
-      }
-
-      // Start peer discovery
-      _startPeerDiscoveryTimer();
-
-      _isStarted = true;
+      _isInitialized = true;
     } catch (e, stackTrace) {
       throw NodeNotInitializedException(
-        'Failed to start gossip node: $e',
+        'Failed to initialize gossip node: $e',
         cause: e,
         stackTrace: stackTrace,
       );
     }
   }
 
-  /// Stops the gossip node and cleans up resources.
+  /// Shuts down the gossip node and cleans up all resources.
   ///
   /// This method:
-  /// - Stops all periodic timers
+  /// - Stops gossiping if currently active
   /// - Shuts down the transport layer
   /// - Closes stream controllers
-  /// - Marks the node as stopped
-  Future<void> stop() async {
-    if (_isStopped) return;
+  /// - Closes the event store
+  /// - Marks the node as shut down
+  Future<void> shutdown() async {
+    if (!_isInitialized) return;
 
-    _isStopped = true;
-    _isStarted = false;
-
-    // Stop timers
-    _gossipTimer?.cancel();
-    _antiEntropyTimer?.cancel();
-    _peerDiscoveryTimer?.cancel();
+    // Stop gossiping if currently active
+    if (_isGossiping) {
+      await stopGossiping();
+    }
 
     // Shutdown transport
     await transport.shutdown();
@@ -161,6 +147,95 @@ class GossipNode {
 
     // Close event store
     await eventStore.close();
+
+    _isInitialized = false;
+  }
+
+  /// Starts gossip activities and network synchronization.
+  ///
+  /// This method:
+  /// - Starts active transport communication
+  /// - Starts periodic gossip and maintenance timers
+  /// - Begins peer discovery
+  ///
+  /// The node must be initialized before calling this method.
+  /// Can be called multiple times to resume gossiping after stopping.
+  /// Throws [NodeNotInitializedException] if not initialized.
+  Future<void> startGossiping() async {
+    _checkInitialized();
+    if (_isGossiping) return;
+
+    try {
+      // Start active transport communication
+      await transport.start();
+
+      // Start periodic gossip
+      _startGossipTimer();
+
+      // Start anti-entropy if enabled
+      if (config.enableAntiEntropy) {
+        _startAntiEntropyTimer();
+      }
+
+      // Start peer discovery
+      _startPeerDiscoveryTimer();
+
+      _isGossiping = true;
+    } catch (e, stackTrace) {
+      throw NodeNotInitializedException(
+        'Failed to start gossiping: $e',
+        cause: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  /// Stops gossip activities but keeps the node initialized.
+  ///
+  /// This method:
+  /// - Stops all periodic timers
+  /// - Stops active transport communication
+  /// - Preserves node state and connections
+  ///
+  /// The node remains initialized and can create events.
+  /// Gossiping can be resumed by calling startGossiping().
+  Future<void> stopGossiping() async {
+    if (!_isGossiping) return;
+
+    // Stop timers
+    _gossipTimer?.cancel();
+    _antiEntropyTimer?.cancel();
+    _peerDiscoveryTimer?.cancel();
+
+    // Stop active transport communication
+    await transport.stop();
+
+    _isGossiping = false;
+  }
+
+  /// Initializes and starts the gossip node (backward compatibility).
+  ///
+  /// This method calls initialize() followed by startGossiping() to maintain
+  /// backward compatibility with existing code. New code should use the
+  /// separate initialize() and startGossiping() methods for more control.
+  ///
+  /// Throws [NodeNotInitializedException] if initialization or starting fails.
+  @Deprecated(
+    'Use initialize() and startGossiping() separately for better control',
+  )
+  Future<void> start() async {
+    await initialize();
+    await startGossiping();
+  }
+
+  /// Stops the gossip node and cleans up resources (backward compatibility).
+  ///
+  /// This method is equivalent to shutdown() and is provided for backward
+  /// compatibility with existing code. New code should use shutdown()
+  /// or stopGossiping() depending on the desired behavior.
+  @Deprecated('Use shutdown() or stopGossiping() depending on needs')
+  Future<void> stop() async {
+    await shutdown();
   }
 
   /// Creates a new event with the given payload.
@@ -173,7 +248,7 @@ class GossipNode {
   /// Returns the created event.
   /// Throws [InvalidEventException] if the event cannot be created.
   Future<Event> createEvent(Map<String, dynamic> payload) async {
-    _checkStarted();
+    _checkInitialized();
 
     if (payload.isEmpty) {
       throw const InvalidEventException('Event payload cannot be empty');
@@ -261,6 +336,12 @@ class GossipNode {
   /// Returns the current vector clock state.
   VectorClock get vectorClock => _vectorClock.copy();
 
+  /// Whether the node is initialized and ready for operations.
+  bool get isInitialized => _isInitialized;
+
+  /// Whether the node is actively gossiping with other nodes.
+  bool get isGossiping => _isGossiping;
+
   /// Stream of events created by this node.
   Stream<Event> get onEventCreated => _eventCreatedController.stream;
 
@@ -281,8 +362,9 @@ class GossipNode {
   ///
   /// This can be called in addition to the automatic periodic gossip
   /// to increase synchronization frequency when needed.
+  /// Requires the node to be gossiping actively.
   Future<void> gossip() async {
-    _checkStarted();
+    _checkGossiping();
     await _performGossipCycle();
   }
 
@@ -291,9 +373,10 @@ class GossipNode {
   /// Parameters:
   /// - [peer]: The peer to gossip with
   ///
+  /// Requires the node to be gossiping actively.
   /// Throws [PeerException] if the gossip exchange fails.
   Future<GossipExchangeResult> gossipWith(GossipPeer peer) async {
-    _checkStarted();
+    _checkGossiping();
     return await _gossipWithPeer(peer);
   }
 
@@ -305,13 +388,14 @@ class GossipNode {
   ///
   /// Returns the number of nodes that were removed from the vector clock.
   Future<int> garbageCollectVectorClock() async {
-    _checkStarted();
+    _checkInitialized();
     return await _performVectorClockGC();
   }
 
   /// Performs peer discovery to find new nodes in the network.
+  /// Requires the node to be gossiping actively.
   Future<void> discoverPeers() async {
-    _checkStarted();
+    _checkGossiping();
 
     try {
       final discoveredTransportPeers = await transport.discoverPeers();
@@ -827,13 +911,18 @@ class GossipNode {
     return expiredNodes.length;
   }
 
-  /// Checks that the node has been started.
-  void _checkStarted() {
-    if (!_isStarted) {
-      throw const NodeNotInitializedException('Node has not been started');
+  /// Checks that the node has been initialized.
+  void _checkInitialized() {
+    if (!_isInitialized) {
+      throw const NodeNotInitializedException('Node has not been initialized');
     }
-    if (_isStopped) {
-      throw const NodeNotInitializedException('Node has been stopped');
+  }
+
+  /// Checks that the node is actively gossiping.
+  void _checkGossiping() {
+    _checkInitialized();
+    if (!_isGossiping) {
+      throw const NodeNotInitializedException('Node is not gossiping');
     }
   }
 

@@ -28,6 +28,16 @@ class MockTransport implements GossipTransport {
   }
 
   @override
+  Future<void> start() async {
+    // Mock transport doesn't need to do anything special for start
+  }
+
+  @override
+  Future<void> stop() async {
+    // Mock transport doesn't need to do anything special for stop
+  }
+
+  @override
   Stream<IncomingDigest> get incomingDigests => _digestController.stream;
 
   @override
@@ -516,23 +526,11 @@ void main() {
       await nodeA.createEvent({'from': 'A', 'message': 'Hello from A'});
       await nodeB.createEvent({'from': 'B', 'message': 'Hello from B'});
 
-      // Add peers manually since we need to establish relationships
-      // In the new architecture, peers are discovered via transport but relationships
-      // are established through gossip digest exchange
-      nodeA.addPeer(
-        GossipPeer(
-          id: GossipNodeID('nodeB'),
-          address: TransportPeerAddress('nodeB'),
-        ),
-      );
-      nodeB.addPeer(
-        GossipPeer(
-          id: GossipNodeID('nodeA'),
-          address: TransportPeerAddress('nodeA'),
-        ),
-      );
+      // Trigger peer discovery to find each other
+      await nodeA.discoverPeers();
+      await nodeB.discoverPeers();
 
-      // Wait a bit for any immediate processing
+      // Wait a bit for peer discovery to complete
       await Future.delayed(Duration(milliseconds: 10));
 
       // Manually trigger gossip to establish peer relationships and sync events
