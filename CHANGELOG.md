@@ -15,6 +15,25 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`gossip_crdts` - `v1.0.4`](#gossip_crdts---v104)
+
+---
+
+#### `gossip_crdts` - `v1.0.4`
+
+
+## 2025-09-17
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`gossip` - `v2.0.0`](#gossip---v200)
 
 ---
