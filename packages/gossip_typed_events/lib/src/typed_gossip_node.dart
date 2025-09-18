@@ -36,14 +36,14 @@ import 'typed_event_registry.dart';
 /// final loginEvent = UserLoginEvent(userId: '123');
 /// await node.createTypedEvent(loginEvent);
 ///
-/// // Listen for created typed events
-/// node.onTypedEventCreated<UserLoginEvent>().listen((event) {
-///   print('Created user login event for ${event.userId}');
+/// // Listen for created typed events with full metadata
+/// node.onTypedEventCreated<UserLoginEvent>().listen((created) {
+///   print('Created ${created.typedEvent.userId} with ID ${created.eventId}');
 /// });
 ///
-/// // Listen for received typed events
-/// node.onTypedEventReceived<UserLoginEvent>().listen((event) {
-///   print('Received user login event for ${event.userId}');
+/// // Listen for received typed events with full metadata
+/// node.onTypedEventReceived<UserLoginEvent>().listen((received) {
+///   print('Received ${received.typedEvent.userId} from ${received.fromPeer.id}');
 /// });
 /// ```
 extension TypedGossipNode on GossipNode {
@@ -104,23 +104,24 @@ extension TypedGossipNode on GossipNode {
     }
   }
 
-  /// Stream of typed events of a specific type that were created locally.
+  /// Stream of typed events with metadata of a specific type that were created locally.
   ///
   /// This method uses the global TypedEventRegistry to automatically
-  /// deserialize events without requiring you to pass a factory function.
+  /// deserialize events and includes the original Event metadata.
   ///
   /// The event type must be registered in the registry for this to work.
   ///
-  /// Returns a stream of typed events of type T that were created locally.
+  /// Returns a stream of TypedEventCreated<T> that includes both the typed
+  /// event and the original Event metadata.
   ///
   /// Example:
   /// ```dart
   /// // After registering UserLoginEvent in the registry
-  /// node.onTypedEventCreated<UserLoginEvent>().listen((event) {
-  ///   print('Created user login event for ${event.userId}');
+  /// node.onTypedEventCreated<UserLoginEvent>().listen((created) {
+  ///   print('Created ${created.typedEvent.userId} with ID ${created.eventId}');
   /// });
   /// ```
-  Stream<T> onTypedEventCreated<T extends TypedEvent>() {
+  Stream<TypedEventCreated<T>> onTypedEventCreated<T extends TypedEvent>() {
     final registry = TypedEventRegistry();
     final typeString = registry.getType<T>();
 
@@ -133,28 +134,35 @@ extension TypedGossipNode on GossipNode {
 
     return onEventCreated
         .where((event) => _isEventType(event, typeString))
-        .map((event) => _deserializeFromRegistry<T>(event, registry))
-        .where((event) => event != null)
-        .cast<T>();
+        .map((event) {
+          final typedEvent = _deserializeFromRegistry<T>(event, registry);
+          return typedEvent != null
+              ? TypedEventCreated(typedEvent: typedEvent, originalEvent: event)
+              : null;
+        })
+        .where((wrapper) => wrapper != null)
+        .cast<TypedEventCreated<T>>();
   }
 
-  /// Stream of typed events of a specific type that were received from peers.
+  /// Stream of typed events with metadata of a specific type that were received from peers.
   ///
   /// This method uses the global TypedEventRegistry to automatically
-  /// deserialize events without requiring you to pass a factory function.
+  /// deserialize events and includes the original Event metadata plus
+  /// peer and timing information.
   ///
   /// The event type must be registered in the registry for this to work.
   ///
-  /// Returns a stream of typed events of type T that were received from peers.
+  /// Returns a stream of TypedEventReceived<T> that includes the typed
+  /// event, original Event metadata, peer info, and timing.
   ///
   /// Example:
   /// ```dart
   /// // After registering UserLoginEvent in the registry
-  /// node.onTypedEventReceived<UserLoginEvent>().listen((event) {
-  ///   print('Received user login event for ${event.userId}');
+  /// node.onTypedEventReceived<UserLoginEvent>().listen((received) {
+  ///   print('Received ${received.typedEvent.userId} from ${received.fromPeer.id}');
   /// });
   /// ```
-  Stream<T> onTypedEventReceived<T extends TypedEvent>() {
+  Stream<TypedEventReceived<T>> onTypedEventReceived<T extends TypedEvent>() {
     final registry = TypedEventRegistry();
     final typeString = registry.getType<T>();
 
@@ -167,12 +175,22 @@ extension TypedGossipNode on GossipNode {
 
     return onEventReceived
         .where((receivedEvent) => _isEventType(receivedEvent.event, typeString))
-        .map(
-          (receivedEvent) =>
-              _deserializeFromRegistry<T>(receivedEvent.event, registry),
-        )
-        .where((event) => event != null)
-        .cast<T>();
+        .map((receivedEvent) {
+          final typedEvent = _deserializeFromRegistry<T>(
+            receivedEvent.event,
+            registry,
+          );
+          return typedEvent != null
+              ? TypedEventReceived(
+                  typedEvent: typedEvent,
+                  originalEvent: receivedEvent.event,
+                  fromPeer: receivedEvent.fromPeer,
+                  receivedAt: receivedEvent.receivedAt,
+                )
+              : null;
+        })
+        .where((wrapper) => wrapper != null)
+        .cast<TypedEventReceived<T>>();
   }
 
   /// Stream of all typed events with their metadata.
@@ -260,6 +278,65 @@ extension TypedGossipNode on GossipNode {
 abstract class TypedEventValidatable {
   /// Validates the event and throws an exception if invalid.
   void validate();
+}
+
+/// A typed event that was created locally with its original Event metadata.
+class TypedEventCreated<T extends TypedEvent> {
+  const TypedEventCreated({
+    required this.typedEvent,
+    required this.originalEvent,
+  });
+
+  /// The deserialized typed event.
+  final T typedEvent;
+
+  /// The original gossip Event that contained this typed event.
+  final Event originalEvent;
+
+  /// Convenience getter for the event ID.
+  String get eventId => originalEvent.id;
+
+  /// Convenience getter for when the event was created.
+  DateTime get createdAt => originalEvent.createdAt;
+
+  @override
+  String toString() =>
+      'TypedEventCreated<${T.toString()}>(eventId: $eventId, '
+      'createdAt: $createdAt, typedEvent: $typedEvent)';
+}
+
+/// A typed event that was received from a peer with full metadata.
+class TypedEventReceived<T extends TypedEvent> {
+  const TypedEventReceived({
+    required this.typedEvent,
+    required this.originalEvent,
+    required this.fromPeer,
+    required this.receivedAt,
+  });
+
+  /// The deserialized typed event.
+  final T typedEvent;
+
+  /// The original gossip Event that contained this typed event.
+  final Event originalEvent;
+
+  /// The peer that sent this event.
+  final GossipPeer fromPeer;
+
+  /// When this event was received locally.
+  final DateTime receivedAt;
+
+  /// Convenience getter for the event ID.
+  String get eventId => originalEvent.id;
+
+  /// Convenience getter for when the event was originally created.
+  DateTime get createdAt => originalEvent.createdAt;
+
+  @override
+  String toString() =>
+      'TypedEventReceived<${T.toString()}>(eventId: $eventId, '
+      'fromPeer: ${fromPeer.id}, receivedAt: $receivedAt, '
+      'typedEvent: $typedEvent)';
 }
 
 /// Information about a typed event without full deserialization.
