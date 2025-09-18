@@ -1,3 +1,7 @@
+## 3.1.0
+
+ - fixed bugs
+
 ## 3.0.0
 
  - Included original event in typed event streams
