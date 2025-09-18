@@ -1,3 +1,7 @@
+## 2.0.0
+
+ - Separated typed evetnt stream into two streams for created and received events
+
 ## 1.0.5
 
 # Changelog

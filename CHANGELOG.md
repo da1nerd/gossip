@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2025-09-18
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`gossip_typed_events` - `v2.0.0`](#gossip_typed_events---v200)
+
+---
+
+#### `gossip_typed_events` - `v2.0.0`
+
+ - Separated typed evetnt stream into two streams for created and received events
+
+
 ## 2025-09-17
 
 ### Changes
