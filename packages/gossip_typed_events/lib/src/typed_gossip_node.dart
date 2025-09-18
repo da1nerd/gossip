@@ -296,13 +296,10 @@ class TypedEventCreated<T extends TypedEvent> {
   /// Convenience getter for the event ID.
   String get eventId => originalEvent.id;
 
-  /// Convenience getter for when the event was created.
-  DateTime get createdAt => originalEvent.createdAt;
-
   @override
   String toString() =>
       'TypedEventCreated<${T.toString()}>(eventId: $eventId, '
-      'createdAt: $createdAt, typedEvent: $typedEvent)';
+      'typedEvent: $typedEvent)';
 }
 
 /// A typed event that was received from a peer with full metadata.
@@ -328,9 +325,6 @@ class TypedEventReceived<T extends TypedEvent> {
 
   /// Convenience getter for the event ID.
   String get eventId => originalEvent.id;
-
-  /// Convenience getter for when the event was originally created.
-  DateTime get createdAt => originalEvent.createdAt;
 
   @override
   String toString() =>
