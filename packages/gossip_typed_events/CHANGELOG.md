@@ -1,3 +1,7 @@
+## 3.0.0
+
+ - Included original event in typed event streams
+
 ## 2.0.0
 
  - Separated typed evetnt stream into two streams for created and received events

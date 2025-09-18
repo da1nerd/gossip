@@ -15,6 +15,27 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`gossip_typed_events` - `v3.0.0`](#gossip_typed_events---v300)
+
+---
+
+#### `gossip_typed_events` - `v3.0.0`
+
+ - Included original event in typed event streams
+
+
+## 2025-09-18
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`gossip_typed_events` - `v2.0.0`](#gossip_typed_events---v200)
 
 ---
