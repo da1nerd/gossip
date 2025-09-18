@@ -529,20 +529,12 @@ void main() {
     });
 
     test('should filter typed events by type', () async {
-      final receivedEvents = <TestUserEvent>[];
-      final subscription = node
-          .onTypedEvent<TestUserEvent>(TestUserEvent.fromJson)
-          .listen(receivedEvents.add);
-
-      // Create a second node to send events (onEventReceived only fires for remote events)
-      final senderNode = GossipNode(
-        config: GossipConfig(nodeId: 'sender-node'),
-        eventStore: MemoryEventStore(),
-        transport: MockTransport('sender-node', network),
+      final receivedEvents = <TypedEventCreated<TestUserEvent>>[];
+      final subscription = node.onTypedEventCreated<TestUserEvent>().listen(
+        receivedEvents.add,
       );
-      await senderNode.start();
 
-      // Manually trigger the event streams by simulating received events
+      // Create typed events
       await node.createTypedEvent(
         TestUserEvent(userId: 'user1', action: 'login'),
       );
@@ -553,79 +545,51 @@ void main() {
         TestUserEvent(userId: 'user2', action: 'logout'),
       );
 
-      // Get the events from local store and manually trigger the streams
-      final events = await node.eventStore.getAllEvents();
-      for (final event in events) {
-        // Simulate receiving the event from a peer
-        final receivedEvent = ReceivedEvent(
-          event: event,
-          fromPeer: const GossipPeer(
-            id: GossipNodeID('sender-node'),
-            address: TransportPeerAddress('mock://sender-node'),
-          ),
-          receivedAt: DateTime.now(),
-        );
+      // Wait for events to be processed
+      await Future<void>.delayed(const Duration(milliseconds: 50));
 
-        // Manually emit to the internal stream (this is a test workaround)
-        // We'll test the filtering logic by checking event structure directly
-      }
-
-      // Test the filtering logic directly since onEventReceived doesn't fire for local events
-      final userEvents = events.where((e) {
-        final payload = e.payload;
-        return payload.containsKey('type') &&
-            payload['type'] == 'test_user_event' &&
-            payload.containsKey('data');
-      }).toList();
-
-      expect(userEvents, hasLength(2));
+      // Should only receive TestUserEvent types
+      expect(receivedEvents, hasLength(2));
 
       // Verify the event data
-      final userData1 = userEvents[0].payload['data'] as Map<String, dynamic>;
-      final userData2 = userEvents[1].payload['data'] as Map<String, dynamic>;
+      expect(receivedEvents[0].typedEvent.userId, equals('user1'));
+      expect(receivedEvents[0].typedEvent.action, equals('login'));
+      expect(receivedEvents[1].typedEvent.userId, equals('user2'));
+      expect(receivedEvents[1].typedEvent.action, equals('logout'));
 
-      expect(userData1['userId'], equals('user1'));
-      expect(userData2['userId'], equals('user2'));
+      // Verify metadata access
+      expect(receivedEvents[0].eventId, isNotEmpty);
+      expect(receivedEvents[0].createdAt, isA<DateTime>());
 
       await subscription.cancel();
-      await senderNode.stop();
     });
 
     test('should use registry for automatic deserialization', () async {
-      final receivedEvents = <TestOrderEvent>[];
-      final subscription = node.onRegisteredTypedEvent<TestOrderEvent>().listen(
+      final receivedEvents = <TypedEventCreated<TestOrderEvent>>[];
+      final subscription = node.onTypedEventCreated<TestOrderEvent>().listen(
         receivedEvents.add,
       );
 
-      // Create event and test registry functionality directly
+      // Create event and test registry functionality
       await node.createTypedEvent(
         TestOrderEvent(orderId: 'order123', amount: 99.99),
       );
 
-      // Test registry functionality directly since onEventReceived doesn't fire for local events
-      final events = await node.eventStore.getAllEvents();
-      final orderEvents = events.where((e) {
-        final payload = e.payload;
-        return payload.containsKey('type') &&
-            payload['type'] == 'test_order_event' &&
-            payload.containsKey('data');
-      }).toList();
+      // Wait for events to be processed
+      await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      expect(orderEvents, hasLength(1));
+      expect(receivedEvents, hasLength(1));
 
-      // Test that the registry can deserialize the event
-      final eventPayload = orderEvents[0].payload;
-      final eventData = eventPayload['data'] as Map<String, dynamic>;
-      final deserializedEvent = registry.createFromJson(
-        'test_order_event',
-        eventData,
-      );
+      // Test that the registry deserialized the event correctly
+      final receivedEvent = receivedEvents[0];
+      expect(receivedEvent.typedEvent, isA<TestOrderEvent>());
+      expect(receivedEvent.typedEvent.orderId, equals('order123'));
+      expect(receivedEvent.typedEvent.amount, equals(99.99));
 
-      expect(deserializedEvent, isA<TestOrderEvent>());
-      expect(
-        (deserializedEvent! as TestOrderEvent).orderId,
-        equals('order123'),
-      );
+      // Verify metadata access
+      expect(receivedEvent.eventId, isNotEmpty);
+      expect(receivedEvent.createdAt, isA<DateTime>());
+      expect(receivedEvent.fullPayload.containsKey('type'), isTrue);
 
       await subscription.cancel();
     });
@@ -634,7 +598,7 @@ void main() {
       registry.unregister('test_order_event');
 
       expect(
-        () => node.onRegisteredTypedEvent<TestOrderEvent>(),
+        () => node.onTypedEventCreated<TestOrderEvent>(),
         throwsA(isA<TypedEventException>()),
       );
     });
@@ -907,10 +871,10 @@ void main() {
     });
 
     test('should propagate typed events between nodes', () async {
-      final receivedEvents = <TestUserEvent>[];
-      final subscription = nodes[1]
-          .onRegisteredTypedEvent<TestUserEvent>()
-          .listen(receivedEvents.add);
+      final receivedEvents = <TypedEventCreated<TestUserEvent>>[];
+      final subscription = nodes[1].onTypedEventCreated<TestUserEvent>().listen(
+        receivedEvents.add,
+      );
 
       // Test event creation and serialization
       final event = TestUserEvent(userId: 'distributed_user', action: 'test');
@@ -935,7 +899,7 @@ void main() {
     });
 
     test('should maintain event metadata across network', () async {
-      final receivedEvents = <TestOrderEvent>[];
+      final receivedEvents = <TypedEventCreated<TestOrderEvent>>[];
 
       registry.register<TestOrderEvent>(
         'test_order_event',
@@ -943,7 +907,7 @@ void main() {
       );
 
       final subscription = nodes[1]
-          .onRegisteredTypedEvent<TestOrderEvent>()
+          .onTypedEventCreated<TestOrderEvent>()
           .listen(receivedEvents.add);
 
       // Create event with metadata and test serialization/deserialization
@@ -953,25 +917,27 @@ void main() {
 
       await nodes[1].createTypedEvent(event);
 
-      // Test that metadata is preserved in serialization
-      final events = await nodes[1].eventStore.getAllEvents();
-      final orderEvents = events.where((e) {
-        final payload = e.payload;
-        return payload.containsKey('type') &&
-            payload['type'] == 'test_order_event';
-      }).toList();
+      // Wait for events to be processed
+      await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      expect(orderEvents, hasLength(1));
+      expect(receivedEvents, hasLength(1));
 
-      final eventData = orderEvents[0].payload['data'] as Map<String, dynamic>;
-      final deserializedEvent = TestOrderEvent.fromJson(eventData);
-
-      expect(deserializedEvent.orderId, equals('meta_order'));
+      // Test that metadata is preserved in the typed event
+      final receivedEvent = receivedEvents[0];
+      expect(receivedEvent.typedEvent.orderId, equals('meta_order'));
+      expect(receivedEvent.typedEvent.amount, equals(199.99));
       expect(
-        deserializedEvent.getMetadata<String>('source'),
+        receivedEvent.typedEvent.getMetadata<String>('source'),
         equals('integration_test'),
       );
-      expect(deserializedEvent.getMetadata<String>('priority'), equals('high'));
+      expect(
+        receivedEvent.typedEvent.getMetadata<String>('priority'),
+        equals('high'),
+      );
+
+      // Also verify access to original event metadata
+      expect(receivedEvent.eventId, isNotEmpty);
+      expect(receivedEvent.createdAt, isA<DateTime>());
 
       await subscription.cancel();
     });
