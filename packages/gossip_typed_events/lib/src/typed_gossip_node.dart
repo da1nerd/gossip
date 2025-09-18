@@ -7,7 +7,6 @@ library;
 
 import 'dart:async';
 
-import 'package:async/async.dart';
 import 'package:gossip/gossip.dart';
 
 import 'typed_event.dart';
@@ -37,10 +36,14 @@ import 'typed_event_registry.dart';
 /// final loginEvent = UserLoginEvent(userId: '123');
 /// await node.createTypedEvent(loginEvent);
 ///
-/// // Listen for typed events
-/// node.onTypedEvent<UserLoginEvent>((json) => UserLoginEvent.fromJson(json))
-///     .listen((event) {
-///   print('User ${event.userId} logged in');
+/// // Listen for created typed events
+/// node.onTypedEventCreated<UserLoginEvent>().listen((event) {
+///   print('Created user login event for ${event.userId}');
+/// });
+///
+/// // Listen for received typed events
+/// node.onTypedEventReceived<UserLoginEvent>().listen((event) {
+///   print('Received user login event for ${event.userId}');
 /// });
 /// ```
 extension TypedGossipNode on GossipNode {
@@ -101,57 +104,23 @@ extension TypedGossipNode on GossipNode {
     }
   }
 
-  /// Stream of typed events of a specific type.
+  /// Stream of typed events of a specific type that were created locally.
   ///
-  /// This method filters incoming events to only include those matching
-  /// the specified type and deserializes them using the provided factory
-  /// function. Events that cannot be deserialized are logged and skipped.
-  ///
-  /// The factory function should typically be the `fromJson` constructor
-  /// of your typed event class.
-  ///
-  /// Parameters:
-  /// - [fromJson]: Factory function to create typed events from JSON
-  ///
-  /// Returns a stream of typed events of type T.
-  ///
-  /// Example:
-  /// ```dart
-  /// node.onTypedEvent<UserLoginEvent>(
-  ///   (json) => UserLoginEvent.fromJson(json)
-  /// ).listen((event) {
-  ///   print('User ${event.userId} logged in at ${event.timestamp}');
-  /// });
-  /// ```
-  Stream<T> onTypedEvent<T extends TypedEvent>(
-    T Function(Map<String, dynamic>) fromJson,
-  ) => onEventReceived
-      .where((receivedEvent) => _isTypedEventOfType<T>(receivedEvent.event))
-      .map(
-        (receivedEvent) =>
-            _deserializeTypedEvent<T>(receivedEvent.event, fromJson),
-      )
-      .where((event) => event != null)
-      .cast<T>();
-
-  /// Stream of typed events of a specific type using the registry.
-  ///
-  /// This is a convenience method that uses the global TypedEventRegistry
-  /// to automatically deserialize events without requiring you to pass
-  /// a factory function.
+  /// This method uses the global TypedEventRegistry to automatically
+  /// deserialize events without requiring you to pass a factory function.
   ///
   /// The event type must be registered in the registry for this to work.
   ///
-  /// Returns a stream of typed events of type T.
+  /// Returns a stream of typed events of type T that were created locally.
   ///
   /// Example:
   /// ```dart
   /// // After registering UserLoginEvent in the registry
-  /// node.onRegisteredTypedEvent<UserLoginEvent>().listen((event) {
-  ///   print('User ${event.userId} logged in');
+  /// node.onTypedEventCreated<UserLoginEvent>().listen((event) {
+  ///   print('Created user login event for ${event.userId}');
   /// });
   /// ```
-  Stream<T> onRegisteredTypedEvent<T extends TypedEvent>() {
+  Stream<T> onTypedEventCreated<T extends TypedEvent>() {
     final registry = TypedEventRegistry();
     final typeString = registry.getType<T>();
 
@@ -162,13 +131,41 @@ extension TypedGossipNode on GossipNode {
       );
     }
 
-    final createdStream = onEventCreated
+    return onEventCreated
         .where((event) => _isEventType(event, typeString))
         .map((event) => _deserializeFromRegistry<T>(event, registry))
         .where((event) => event != null)
         .cast<T>();
+  }
 
-    final receivedStream = onEventReceived
+  /// Stream of typed events of a specific type that were received from peers.
+  ///
+  /// This method uses the global TypedEventRegistry to automatically
+  /// deserialize events without requiring you to pass a factory function.
+  ///
+  /// The event type must be registered in the registry for this to work.
+  ///
+  /// Returns a stream of typed events of type T that were received from peers.
+  ///
+  /// Example:
+  /// ```dart
+  /// // After registering UserLoginEvent in the registry
+  /// node.onTypedEventReceived<UserLoginEvent>().listen((event) {
+  ///   print('Received user login event for ${event.userId}');
+  /// });
+  /// ```
+  Stream<T> onTypedEventReceived<T extends TypedEvent>() {
+    final registry = TypedEventRegistry();
+    final typeString = registry.getType<T>();
+
+    if (typeString == null) {
+      throw TypedEventException(
+        'Type ${T.toString()} is not registered in TypedEventRegistry',
+        eventType: T.toString(),
+      );
+    }
+
+    return onEventReceived
         .where((receivedEvent) => _isEventType(receivedEvent.event, typeString))
         .map(
           (receivedEvent) =>
@@ -176,8 +173,6 @@ extension TypedGossipNode on GossipNode {
         )
         .where((event) => event != null)
         .cast<T>();
-
-    return StreamGroup.mergeBroadcast([createdStream, receivedStream]);
   }
 
   /// Stream of all typed events with their metadata.
@@ -204,18 +199,6 @@ extension TypedGossipNode on GossipNode {
         ),
       );
 
-  /// Checks if an event is a typed event of the specified type.
-  bool _isTypedEventOfType<T extends TypedEvent>(Event event) {
-    if (!_isTypedEvent(event)) return false;
-
-    final registry = TypedEventRegistry();
-    final expectedType = registry.getType<T>();
-    if (expectedType == null) return false;
-
-    final eventType = event.payload['type'] as String?;
-    return eventType == expectedType;
-  }
-
   /// Checks if an event is a typed event with the specified type string.
   bool _isEventType(Event event, String typeString) {
     if (!_isTypedEvent(event)) return false;
@@ -233,23 +216,6 @@ extension TypedGossipNode on GossipNode {
           payload['type'] is String;
     } catch (e) {
       return false;
-    }
-  }
-
-  /// Deserializes a typed event using the provided factory function.
-  T? _deserializeTypedEvent<T extends TypedEvent>(
-    Event event,
-    T Function(Map<String, dynamic>) fromJson,
-  ) {
-    try {
-      final data = event.payload['data'] as Map<String, dynamic>?;
-      if (data == null) return null;
-
-      return fromJson(data);
-    } catch (e, stackTrace) {
-      // Log error but don't throw - just filter out this event
-      _logDeserializationError(event, e, stackTrace);
-      return null;
     }
   }
 
