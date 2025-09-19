@@ -484,12 +484,6 @@ class GossipNode {
 
       await incoming.respond(response);
 
-      // Update our knowledge
-      _vectorClock.merge(theirClock);
-
-      // Persist the updated vector clock
-      await _saveVectorClockState();
-
       // Update peer contact time
       _lastContactTimes[senderNodeId] = DateTime.now();
 
