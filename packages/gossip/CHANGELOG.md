@@ -1,3 +1,7 @@
+## 2.0.1
+
+ - fix(gosoved a premature clock save that could lead to dropped events
+
 ## 2.0.0
 
  - Bump "gossip" to `2.0.0`.
