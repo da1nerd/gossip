@@ -8,6 +8,7 @@ library;
 
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:async/async.dart';
 
 import 'event.dart';
 import 'event_store.dart';
@@ -347,6 +348,17 @@ class GossipNode {
 
   /// Stream of events received from other nodes.
   Stream<ReceivedEvent> get onEventReceived => _eventReceivedController.stream;
+
+  /// A unified stream of all events created or received by this node.
+  /// Streamed events are either of type GossipEventCreated or GossipEventReceived.
+  Stream<GossipEventBase> get onEvent {
+    return StreamGroup.merge([
+      _eventCreatedController.stream.map((event) => GossipEventCreated(event)),
+      _eventReceivedController.stream.map(
+        (event) => GossipEventReceived(event),
+      ),
+    ]);
+  }
 
   /// Stream of peers added to this node.
   Stream<GossipPeer> get onPeerAdded => _peerAddedController.stream;

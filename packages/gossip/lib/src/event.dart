@@ -8,6 +8,28 @@ library;
 import 'gossip_node_id.dart';
 import 'gossip_peer.dart';
 
+/// Base class for unified event handling in gossip streams.
+abstract class GossipEventBase {
+  Event get event;
+}
+
+class GossipEventCreated extends GossipEventBase {
+  @override
+  final Event event;
+
+  GossipEventCreated(this.event);
+}
+
+class GossipEventReceived extends GossipEventBase {
+  /// The received event.
+  final ReceivedEvent receivedEvent;
+
+  GossipEventReceived(this.receivedEvent);
+
+  @override
+  Event get event => receivedEvent.event;
+}
+
 /// Represents a generic event in the distributed system.
 ///
 /// Each event has a unique ID, the ID of the node that created it,
