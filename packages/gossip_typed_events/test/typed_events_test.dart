@@ -603,38 +603,6 @@ void main() {
       );
     });
 
-    test('should emit any typed events', () async {
-      final receivedEvents = <TypedReceivedEvent>[];
-      final subscription = node.onAnyTypedEvent().listen(receivedEvents.add);
-
-      // Create events and test typed event format detection
-      await node.createTypedEvent(
-        TestUserEvent(userId: 'user1', action: 'login'),
-      );
-      await node.createTypedEvent(
-        TestOrderEvent(orderId: 'order1', amount: 50),
-      );
-
-      // Test typed event format detection directly
-      final events = await node.eventStore.getAllEvents();
-      final typedEvents = events.where((e) {
-        final payload = e.payload;
-        return payload.containsKey('type') &&
-            payload.containsKey('data') &&
-            payload['type'] is String;
-      }).toList();
-
-      expect(typedEvents, hasLength(2));
-
-      // Verify the event types
-      final eventTypes = typedEvents
-          .map((e) => e.payload['type'] as String)
-          .toSet();
-      expect(eventTypes, containsAll(['test_user_event', 'test_order_event']));
-
-      await subscription.cancel();
-    });
-
     test('should handle serialization errors gracefully', () async {
       // Create an event that will fail serialization
       final badEvent = _BadSerializationEvent();

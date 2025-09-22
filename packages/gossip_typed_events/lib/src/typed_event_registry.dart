@@ -8,6 +8,8 @@
 /// registration across the entire application.
 library;
 
+import 'package:gossip/gossip.dart';
+
 import 'typed_event.dart';
 
 /// Registry for typed event factories.
@@ -285,6 +287,95 @@ class TypedEventRegistry {
   /// This returns a snapshot of the current registry state.
   /// Useful for debugging or creating backups.
   Map<String, Type> getTypeMappings() => Map.unmodifiable(_typeNames);
+
+  /// Attempts to deserialize a gossip Event into a typed event.
+  ///
+  /// This method checks if the event has the typed event format and
+  /// attempts to deserialize it using the registered factory.
+  ///
+  /// Parameters:
+  /// - [event]: The gossip Event to deserialize
+  ///
+  /// Returns the typed event if successful, null otherwise.
+  ///
+  /// Example:
+  /// ```dart
+  /// node.onEventReceived.listen((receivedEvent) {
+  ///   final registry = TypedEventRegistry();
+  ///   final typedEvent = registry.tryDeserializeEvent(receivedEvent.event);
+  ///
+  ///   if (typedEvent is LoginEvent) {
+  ///     print('User ${typedEvent.userId} logged in');
+  ///   }
+  /// });
+  /// ```
+  TypedEvent? tryDeserializeEvent(Event event) {
+    if (!_isTypedEvent(event)) {
+      return null;
+    }
+
+    try {
+      final eventType = event.payload['type'] as String;
+      final data = event.payload['data'] as Map<String, dynamic>;
+      return createFromJson(eventType, data);
+    } catch (e) {
+      print('Error deserializing event: $e');
+      return null;
+    }
+  }
+
+  /// Attempts to deserialize a gossip Event into a specific typed event type.
+  ///
+  /// This method is similar to [tryDeserializeEvent] but provides type safety
+  /// by only returning events that match the specified type T.
+  ///
+  /// Parameters:
+  /// - [event]: The gossip Event to deserialize
+  ///
+  /// Returns the typed event as T if successful and matches type, null otherwise.
+  ///
+  /// Example:
+  /// ```dart
+  /// final loginEvent = registry.tryDeserializeEventAs<LoginEvent>(event);
+  /// if (loginEvent != null) {
+  ///   print('User ${loginEvent.userId} logged in');
+  /// }
+  /// ```
+  T? tryDeserializeEventAs<T extends TypedEvent>(Event event) {
+    final typedEvent = tryDeserializeEvent(event);
+    return typedEvent is T ? typedEvent : null;
+  }
+
+  /// Checks if a gossip Event has the typed event format.
+  ///
+  /// This method validates that an event contains the required structure
+  /// for typed events (type, data, and optionally version fields).
+  ///
+  /// Parameters:
+  /// - [event]: The gossip Event to check
+  ///
+  /// Returns true if the event has typed event format, false otherwise.
+  ///
+  /// Example:
+  /// ```dart
+  /// if (registry.isTypedEvent(event)) {
+  ///   // Handle as typed event
+  /// }
+  /// ```
+  bool isTypedEvent(Event event) => _isTypedEvent(event);
+
+  /// Internal helper to check typed event format.
+  bool _isTypedEvent(Event event) {
+    try {
+      final payload = event.payload;
+      return payload.containsKey('type') &&
+          payload.containsKey('data') &&
+          payload['type'] is String &&
+          payload['data'] is Map<String, dynamic>;
+    } catch (e) {
+      return false;
+    }
+  }
 
   @override
   String toString() =>

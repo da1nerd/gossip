@@ -125,6 +125,10 @@ extension TypedGossipNode on GossipNode {
   ///   print('Created ${created.typedEvent.userId} with ID ${created.eventId}');
   /// });
   /// ```
+  @Deprecated('''
+    This can lead to race conditions between streams.
+    Listen to onEventCreated directly and use EventRegistry.tryDeserializeEvent to manually deserialize events
+    ''')
   Stream<TypedEventCreated<T>> onTypedEventCreated<T extends TypedEvent>() {
     final registry = TypedEventRegistry();
     final typeString = registry.getType<T>();
@@ -170,6 +174,10 @@ extension TypedGossipNode on GossipNode {
   ///   print('Received ${received.typedEvent.userId} from ${received.fromPeer.id}');
   /// });
   /// ```
+  @Deprecated('''
+    This can lead to race conditions between streams.
+    Listen to onEventReceived directly and use EventRegistry.tryDeserializeEvent to manually deserialize events
+    ''')
   Stream<TypedEventReceived<T>> onTypedEventReceived<T extends TypedEvent>() {
     final registry = TypedEventRegistry();
     final typeString = registry.getType<T>();
