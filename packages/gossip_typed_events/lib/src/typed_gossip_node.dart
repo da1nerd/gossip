@@ -114,6 +114,10 @@ extension TypedGossipNode on GossipNode {
   /// Returns a stream of TypedEventCreated<T> that includes both the typed
   /// event and the original Event metadata.
   ///
+  /// Caution: Events are only guarenteed to be in the correct order within a single stream.
+  /// Since this returns a filtered stream of events that match the specified type,
+  /// you could encounter race conditions with other streams.
+  ///
   /// Example:
   /// ```dart
   /// // After registering UserLoginEvent in the registry
@@ -155,6 +159,10 @@ extension TypedGossipNode on GossipNode {
   /// Returns a stream of TypedEventReceived<T> that includes the typed
   /// event, original Event metadata, peer info, and timing.
   ///
+  /// Caution: Events are only guarenteed to be in the correct order within a single stream.
+  /// Since this returns a filtered stream of events that match the specified type,
+  /// you could encounter race conditions with other streams.
+  ///
   /// Example:
   /// ```dart
   /// // After registering UserLoginEvent in the registry
@@ -192,30 +200,6 @@ extension TypedGossipNode on GossipNode {
         .where((wrapper) => wrapper != null)
         .cast<TypedEventReceived<T>>();
   }
-
-  /// Stream of all typed events with their metadata.
-  ///
-  /// This stream emits all incoming events that have the typed event format,
-  /// along with metadata about when and from whom they were received.
-  ///
-  /// Returns a stream of TypedReceivedEvent objects.
-  ///
-  /// Example:
-  /// ```dart
-  /// node.onAnyTypedEvent().listen((typedReceived) {
-  ///   print('Received ${typedReceived.event.type} from ${typedReceived.fromPeer.id}');
-  /// });
-  /// ```
-  Stream<TypedReceivedEvent> onAnyTypedEvent() => onEventReceived
-      .where((receivedEvent) => _isTypedEvent(receivedEvent.event))
-      .map(
-        (receivedEvent) => TypedReceivedEvent(
-          event: _extractTypedEventInfo(receivedEvent.event),
-          fromPeer: receivedEvent.fromPeer,
-          receivedAt: receivedEvent.receivedAt,
-          underlyingEvent: receivedEvent.event,
-        ),
-      );
 
   /// Checks if an event is a typed event with the specified type string.
   bool _isEventType(Event event, String typeString) {
