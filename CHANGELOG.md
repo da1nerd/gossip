@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2025-09-23
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`gossip_typed_events` - `v3.2.0`](#gossip_typed_events---v320)
+
+---
+
+#### `gossip_typed_events` - `v3.2.0`
+
+ - **FEAT**(gossip_typed_events): Added utility  methods to EventFactory to deserialize events to typed events.
+
+
 ## 2025-09-19
 
 ### Changes

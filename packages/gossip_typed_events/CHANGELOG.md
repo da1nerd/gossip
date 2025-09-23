@@ -1,3 +1,7 @@
+## 3.2.0
+
+ - **FEAT**(gossip_typed_events): Added utility  methods to EventFactory to deserialize events to typed events.
+
 ## 3.1.0
 
  - fixed bugs
