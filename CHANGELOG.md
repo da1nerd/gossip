@@ -15,6 +15,27 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`gossip` - `v2.1.0`](#gossip---v210)
+
+---
+
+#### `gossip` - `v2.1.0`
+
+ - Added a unifed onEvent stream
+
+
+## 2025-09-23
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`gossip_typed_events` - `v3.2.0`](#gossip_typed_events---v320)
 
 ---

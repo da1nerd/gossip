@@ -1,3 +1,7 @@
+## 2.1.0
+
+ - Added a unifed onEvent stream
+
 ## 2.0.1
 
  - fix(gosoved a premature clock save that could lead to dropped events
