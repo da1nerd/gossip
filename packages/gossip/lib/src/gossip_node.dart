@@ -527,6 +527,9 @@ class GossipNode {
       // through digest exchange. Don't process events from unknown peers.
       if (existingGossipPeer != null && senderNodeId != null) {
         for (final event in incoming.message.events) {
+          // Check if this is a new event to avoid duplicate notifications
+          final isNewEvent = !(await eventStore.hasEvent(event.id));
+
           await eventStore.saveEvent(event);
 
           // Update vector clock
@@ -534,12 +537,15 @@ class GossipNode {
             VectorClock()..setTimestampFor(event.nodeId.value, event.timestamp),
           );
 
-          final receivedEvent = ReceivedEvent(
-            event: event,
-            fromPeer: existingGossipPeer,
-            receivedAt: receivedAt,
-          );
-          _eventReceivedController.add(receivedEvent);
+          // Only notify application layer if this is a new event
+          if (isNewEvent) {
+            final receivedEvent = ReceivedEvent(
+              event: event,
+              fromPeer: existingGossipPeer,
+              receivedAt: receivedAt,
+            );
+            _eventReceivedController.add(receivedEvent);
+          }
         }
 
         // Update peer contact time
@@ -783,18 +789,23 @@ class GossipNode {
     final receivedAt = DateTime.now();
 
     for (final event in events) {
+      // Check if this is a new event to avoid duplicate notifications
+      final isNewEvent = !(await eventStore.hasEvent(event.id));
+
       await eventStore.saveEvent(event);
       _vectorClock.merge(
         VectorClock()..setTimestampFor(event.nodeId.value, event.timestamp),
       );
 
-      // Create ReceivedEvent with peer information
-      final receivedEvent = ReceivedEvent(
-        event: event,
-        fromPeer: peer,
-        receivedAt: receivedAt,
-      );
-      _eventReceivedController.add(receivedEvent);
+      // Only notify application layer if this is a new event
+      if (isNewEvent) {
+        final receivedEvent = ReceivedEvent(
+          event: event,
+          fromPeer: peer,
+          receivedAt: receivedAt,
+        );
+        _eventReceivedController.add(receivedEvent);
+      }
     }
 
     return events.length;
