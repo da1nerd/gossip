@@ -1,3 +1,7 @@
+## 2.1.2
+
+ - Deduplicate event notifications
+
 ## 2.1.1
 
  - **FIX**(gossip): added missing async package dependency.
