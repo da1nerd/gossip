@@ -9,6 +9,7 @@ library;
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:async/async.dart';
+import 'package:uuid/uuid.dart';
 
 import 'event.dart';
 import 'event_store.dart';
@@ -266,14 +267,16 @@ class GossipNode {
       throw const InvalidEventException('Event payload cannot be empty');
     }
 
-    // Increment our vector clock
-    final nextTs = _vectorClock.getTimestampFor(config.nodeId) + 1;
+    // Increment our vector clock to get a unique logical timestamp
+    _vectorClock.increment(config.nodeId);
+    final ts = _vectorClock.getTimestampFor(config.nodeId);
 
-    // Create the event
+    // Create a decoupled event ID
+    final id = const Uuid().v4();
     final event = Event(
-      id: '${config.nodeId}_$nextTs',
+      id: id,
       nodeId: GossipNodeID(config.nodeId),
-      timestamp: nextTs,
+      timestamp: ts,
       creationTimestamp: DateTime.now().millisecondsSinceEpoch,
       payload: Map<String, dynamic>.from(payload),
     );
@@ -282,8 +285,7 @@ class GossipNode {
       // Save to store
       await eventStore.saveEvent(event);
 
-      // Advance and persist vector clock
-      _vectorClock.setTimestampFor(config.nodeId, nextTs);
+      // Persist vector clock state
       await _saveVectorClockState();
 
       // Notify listeners
@@ -545,11 +547,6 @@ class GossipNode {
 
         if (existingGossipPeer != null) {
           for (final event in incoming.message.events) {
-            // Ensure the event's nodeId matches the claimed sender
-            if (event.nodeId != claimedSenderId) {
-              continue;
-            }
-
             // Check if this is a new event to avoid duplicate notifications
             final isNewEvent = !(await eventStore.hasEvent(event.id));
 
