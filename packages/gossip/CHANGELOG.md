@@ -1,3 +1,7 @@
+## 2.1.3
+
+ - lots of little stability improvements
+
 ## 2.1.2
 
  - Deduplicate event notifications
