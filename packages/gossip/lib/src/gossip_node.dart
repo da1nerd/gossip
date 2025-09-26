@@ -512,9 +512,10 @@ class GossipNode {
       }
 
       // Send response
+      final capped = _capForMessage(eventsToSend);
       final response = GossipDigestResponse(
         senderId: GossipNodeID(config.nodeId),
-        events: eventsToSend,
+        events: capped,
         eventRequests: eventRequests,
         createdAt: DateTime.now(),
       );
@@ -529,6 +530,20 @@ class GossipNode {
     } catch (e) {
       // TODO: Log error but don't propagate - gossip should be resilient
     }
+  }
+
+  /// Cap events for a message to fit within the maximum message size.
+  List<Event> _capForMessage(List<Event> events) {
+    final capped = <Event>[];
+    var bytes = 0;
+    for (final e in events) {
+      if (capped.length >= config.maxEventsPerMessage) break;
+      final sz = e.toJson().toString().length; // rough size OK
+      if (bytes + sz > config.maxMessageSizeBytes) break;
+      capped.add(e);
+      bytes += sz;
+    }
+    return capped;
   }
 
   /// Handles incoming events from another node with sender validation.
@@ -889,38 +904,16 @@ class GossipNode {
       return 0;
     }
 
-    // Chunk events to respect maxEventsPerMessage and maxMessageSizeBytes
-    int sent = 0;
-    int idx = 0;
-    while (idx < eventsToSend.length) {
-      final chunk = <Event>[];
-      int byteBudget = config.maxMessageSizeBytes;
-
-      while (idx < eventsToSend.length &&
-          chunk.length < config.maxEventsPerMessage) {
-        final e = eventsToSend[idx];
-        // Approximate size using JSON string length
-        final approxSize = e.toJson().toString().length;
-        // If single event exceeds budget, still send it alone
-        if (chunk.isNotEmpty && approxSize > byteBudget) {
-          break;
-        }
-        chunk.add(e);
-        byteBudget -= approxSize;
-        idx++;
-      }
-
-      final eventMessage = GossipEventMessage(
-        senderId: GossipNodeID(config.nodeId),
-        events: chunk,
-        createdAt: DateTime.now(),
-      );
-
+    final capped = _capForMessage(eventsToSend);
+    final eventMessage = GossipEventMessage(
+      senderId: GossipNodeID(config.nodeId),
+      events: capped,
+      createdAt: DateTime.now(),
+    );
+    if (capped.length > 0) {
       await transport.sendEvents(transportPeer, eventMessage);
-      sent += chunk.length;
     }
-
-    return sent;
+    return capped.length;
   }
 
   /// Updates state after a successful exchange.
