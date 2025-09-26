@@ -41,6 +41,7 @@ class GossipNode {
   final EventStore eventStore;
   final GossipTransport transport;
   final VectorClockStore? vectorClockStore;
+
   final VectorClock _vectorClock = VectorClock();
   final List<GossipPeer> _peers = [];
   final Map<TransportPeerAddress, GossipNodeID> _transportToNodeIdMap = {};
@@ -54,6 +55,12 @@ class GossipNode {
 
   bool _isInitialized = false;
   bool _isGossiping = false;
+  // Reentrancy guard to avoid overlapping gossip cycles
+  bool _gossipCycleInProgress = false;
+
+  // Subscriptions for incoming transport streams
+  StreamSubscription<IncomingDigest>? _digestSub;
+  StreamSubscription<IncomingEvents>? _eventsSub;
 
   // Stream controllers for event notifications
   final StreamController<Event> _eventCreatedController =
@@ -135,6 +142,10 @@ class GossipNode {
     if (_isGossiping) {
       await stopGossiping();
     }
+
+    // Cancel transport stream subscriptions
+    await _digestSub?.cancel();
+    await _eventsSub?.cancel();
 
     // Shutdown transport
     await transport.shutdown();
@@ -256,13 +267,13 @@ class GossipNode {
     }
 
     // Increment our vector clock
-    _vectorClock.increment(config.nodeId);
+    final nextTs = _vectorClock.getTimestampFor(config.nodeId) + 1;
 
     // Create the event
     final event = Event(
-      id: '${config.nodeId}_${_vectorClock.getTimestampFor(config.nodeId)}',
+      id: '${config.nodeId}_$nextTs',
       nodeId: GossipNodeID(config.nodeId),
-      timestamp: _vectorClock.getTimestampFor(config.nodeId),
+      timestamp: nextTs,
       creationTimestamp: DateTime.now().millisecondsSinceEpoch,
       payload: Map<String, dynamic>.from(payload),
     );
@@ -271,7 +282,8 @@ class GossipNode {
       // Save to store
       await eventStore.saveEvent(event);
 
-      // Persist vector clock state
+      // Advance and persist vector clock
+      _vectorClock.setTimestampFor(config.nodeId, nextTs);
       await _saveVectorClockState();
 
       // Notify listeners
@@ -294,6 +306,7 @@ class GossipNode {
   ///
   /// The peer will be included in future gossip exchanges and peer
   /// selection algorithms.
+  @Deprecated('Will be removed in a future release')
   void addPeer(GossipPeer peer) {
     if (peer.id == config.nodeId) {
       throw ArgumentError('Cannot add self as peer');
@@ -406,6 +419,8 @@ class GossipNode {
 
   /// Performs peer discovery to find new nodes in the network.
   /// Requires the node to be gossiping actively.
+  /// A peer is removed only when all known transport addresses for that peer
+  /// are no longer discovered.
   Future<void> discoverPeers() async {
     _checkGossiping();
 
@@ -421,15 +436,20 @@ class GossipNode {
         }
       }
 
-      // Remove peers whose transport connections were lost
+      // Remove peers only if none of their known addresses are active
       final activeTransportIds = discoveredTransportPeers
           .map((tp) => tp.address)
           .toSet();
 
+      final activeNodeIds = activeTransportIds
+          .map((addr) => _transportToNodeIdMap[addr])
+          .whereType<GossipNodeID>()
+          .toSet();
+
       final peersToRemove = <GossipNodeID>[];
-      for (final entry in _transportToNodeIdMap.entries) {
-        if (!activeTransportIds.contains(entry.key)) {
-          peersToRemove.add(entry.value);
+      for (final nodeId in _nodeIdToGossipPeerMap.keys) {
+        if (!activeNodeIds.contains(nodeId)) {
+          peersToRemove.add(nodeId);
         }
       }
 
@@ -444,10 +464,10 @@ class GossipNode {
   /// Sets up handlers for incoming gossip messages.
   void _setupIncomingMessageHandlers() {
     // Handle incoming digests
-    transport.incomingDigests.listen(_handleIncomingDigest);
+    _digestSub = transport.incomingDigests.listen(_handleIncomingDigest);
 
     // Handle incoming events
-    transport.incomingEvents.listen(_handleIncomingEvents);
+    _eventsSub = transport.incomingEvents.listen(_handleIncomingEvents);
   }
 
   /// Handles an incoming gossip digest from a peer.
@@ -477,9 +497,12 @@ class GossipNode {
         }
       }
 
-      // Find events we're missing
+      // Find events we're missing (ignore our own node ID)
       final eventRequests = <GossipNodeID, int>{};
       for (final entry in digest.vectorClock.entries) {
+        if (entry.key == config.nodeId) {
+          continue;
+        }
         final ourTimestamp = _vectorClock.getTimestampFor(entry.key);
         if (entry.value > ourTimestamp) {
           eventRequests[GossipNodeID(entry.key)] = ourTimestamp;
@@ -502,66 +525,69 @@ class GossipNode {
       // Note: eventsToSend are events we're sending to them, not events we received
       // So we don't need to process them as received events here
     } catch (e) {
-      // Log error but don't propagate - gossip should be resilient
+      // TODO: Log error but don't propagate - gossip should be resilient
     }
   }
 
-  /// Handles incoming events from another node.
+  /// Handles incoming events from another node with sender validation.
   Future<void> _handleIncomingEvents(IncomingEvents incoming) async {
     try {
       final receivedAt = DateTime.now();
-      // TODO: look up the gossip node from transport peer address.
-      //  So we don't have to use the nodeId in the event
 
-      // Check if we have a GossipPeer established for this transport peer
-      // before processing any events to avoid updating vector clock unnecessarily
-      final senderNodeId = incoming.message.events.isNotEmpty
-          ? incoming.message.events.first.nodeId
-          : null;
+      // Validate that the claimed sender matches the established mapping
+      final mappedSenderId =
+          _transportToNodeIdMap[incoming.fromTransportPeer.address];
+      final claimedSenderId = incoming.message.senderId;
 
-      final existingGossipPeer = senderNodeId != null
-          ? _nodeIdToGossipPeerMap[senderNodeId]
-          : null;
+      // Only process events if we have an established mapping and it matches
+      if (mappedSenderId != null && mappedSenderId == claimedSenderId) {
+        final existingGossipPeer = _nodeIdToGossipPeerMap[claimedSenderId];
 
-      // Only process events if we have established a GossipPeer relationship
-      // through digest exchange. Don't process events from unknown peers.
-      if (existingGossipPeer != null && senderNodeId != null) {
-        for (final event in incoming.message.events) {
-          // Check if this is a new event to avoid duplicate notifications
-          final isNewEvent = !(await eventStore.hasEvent(event.id));
+        if (existingGossipPeer != null) {
+          for (final event in incoming.message.events) {
+            // Ensure the event's nodeId matches the claimed sender
+            if (event.nodeId != claimedSenderId) {
+              continue;
+            }
 
-          await eventStore.saveEvent(event);
+            // Check if this is a new event to avoid duplicate notifications
+            final isNewEvent = !(await eventStore.hasEvent(event.id));
 
-          // Update vector clock
-          _vectorClock.merge(
-            VectorClock()..setTimestampFor(event.nodeId.value, event.timestamp),
-          );
+            await eventStore.saveEvent(event);
 
-          // Only notify application layer if this is a new event
-          if (isNewEvent) {
-            final receivedEvent = ReceivedEvent(
-              event: event,
-              fromPeer: existingGossipPeer,
-              receivedAt: receivedAt,
+            // Update vector clock
+            _vectorClock.merge(
+              VectorClock()
+                ..setTimestampFor(event.nodeId.value, event.timestamp),
             );
-            _eventReceivedController.add(receivedEvent);
+
+            // Only notify application layer if this is a new event
+            if (isNewEvent) {
+              final receivedEvent = ReceivedEvent(
+                event: event,
+                fromPeer: existingGossipPeer,
+                receivedAt: receivedAt,
+              );
+              _eventReceivedController.add(receivedEvent);
+            }
           }
+
+          // Update peer contact time
+          _lastContactTimes[claimedSenderId] = DateTime.now();
+
+          // Persist the updated vector clock after processing events
+          await _saveVectorClockState();
         }
-
-        // Update peer contact time
-        _lastContactTimes[senderNodeId] = DateTime.now();
-
-        // Persist the updated vector clock after processing events
-        await _saveVectorClockState();
       }
-      // If we don't have a GossipPeer yet, ignore the events completely
-      // The peer relationship will be established when we do digest exchange
+      // If we don't have a GossipPeer yet, or mapping mismatched, ignore the events
     } catch (e) {
-      // Log error but continue - we want to be resilient
+      // TODO: Log error but continue - we want to be resilient
     }
   }
 
   /// Starts the periodic gossip timer.
+  /// Uses a reentrancy guard to avoid overlapping cycles when a tick fires
+  /// while a previous cycle is still running.
   void _startGossipTimer() {
     _gossipTimer = Timer.periodic(config.gossipInterval, (_) {
       _performGossipCycle();
@@ -623,13 +649,19 @@ class GossipNode {
   /// Performs a single gossip cycle with selected peers.
   Future<void> _performGossipCycle() async {
     if (_peers.isEmpty) return;
+    if (_gossipCycleInProgress) return;
 
-    // Select a subset of peers for gossip (fanout)
-    final selectedPeers = _selectPeersForGossip();
+    _gossipCycleInProgress = true;
+    try {
+      // Select a subset of peers for gossip (fanout)
+      final selectedPeers = _selectPeersForGossip();
 
-    // Perform gossip with selected peers concurrently
-    final futures = selectedPeers.map((peer) => _gossipWithPeer(peer));
-    await Future.wait(futures, eagerError: false);
+      // Perform gossip with selected peers concurrently
+      final futures = selectedPeers.map((peer) => _gossipWithPeer(peer));
+      await Future.wait(futures, eagerError: false);
+    } finally {
+      _gossipCycleInProgress = false;
+    }
   }
 
   /// Selects peers for gossip based on the configured strategy.
@@ -709,6 +741,13 @@ class GossipNode {
 
       final response = await _exchangeDigestsWithTransportPeer(transportPeer);
 
+      // Validate response sender matches the expected peer id
+      if (response.senderId != peer.id) {
+        throw StateError(
+          'Digest response sender mismatch: expected ${peer.id}, got ${response.senderId}',
+        );
+      }
+
       // Process received events with existing peer
       eventsExchanged += await _processReceivedEvents(response.events, peer);
 
@@ -745,6 +784,13 @@ class GossipNode {
   ) async {
     try {
       final response = await _exchangeDigestsWithTransportPeer(transportPeer);
+
+      // Validate mapping consistency for this transport address
+      final existingMapped = _transportToNodeIdMap[transportPeer.address];
+      if (existingMapped != null && existingMapped != response.senderId) {
+        // Inconsistent mapping; ignore this peer for now
+        return;
+      }
 
       // Create or get the gossip peer using the sender ID from response
       final senderNodeId = response.senderId;
@@ -812,6 +858,7 @@ class GossipNode {
   }
 
   /// Sends requested events and returns the count of events sent.
+  /// Events are chunked to respect maxEventsPerMessage and maxMessageSizeBytes.
   Future<int> _sendRequestedEvents(
     Map<GossipNodeID, int> eventRequests,
     TransportPeer transportPeer,
@@ -841,17 +888,42 @@ class GossipNode {
       }
     }
 
-    if (eventsToSend.isNotEmpty) {
+    if (eventsToSend.isEmpty) {
+      return 0;
+    }
+
+    // Chunk events to respect maxEventsPerMessage and maxMessageSizeBytes
+    int sent = 0;
+    int idx = 0;
+    while (idx < eventsToSend.length) {
+      final chunk = <Event>[];
+      int byteBudget = config.maxMessageSizeBytes;
+
+      while (idx < eventsToSend.length &&
+          chunk.length < config.maxEventsPerMessage) {
+        final e = eventsToSend[idx];
+        // Approximate size using JSON string length
+        final approxSize = e.toJson().toString().length;
+        // If single event exceeds budget, still send it alone
+        if (chunk.isNotEmpty && approxSize > byteBudget) {
+          break;
+        }
+        chunk.add(e);
+        byteBudget -= approxSize;
+        idx++;
+      }
+
       final eventMessage = GossipEventMessage(
         senderId: GossipNodeID(config.nodeId),
-        events: eventsToSend,
+        events: chunk,
         createdAt: DateTime.now(),
       );
 
       await transport.sendEvents(transportPeer, eventMessage);
+      sent += chunk.length;
     }
 
-    return eventsToSend.length;
+    return sent;
   }
 
   /// Updates state after a successful exchange.
@@ -962,7 +1034,7 @@ class GossipNode {
         }
       }
     } catch (e) {
-      // Log warning but continue - better to start fresh than fail to start
+      // TODO: Log warning but continue - better to start fresh than fail to start
       // In production, you might want to handle this differently
     }
   }
@@ -980,7 +1052,7 @@ class GossipNode {
     try {
       await vectorClockStore!.saveVectorClock(config.nodeId, _vectorClock);
     } catch (e) {
-      // Log error but don't fail the operation
+      // TODO: Log error but don't fail the operation
       // The gossip protocol can continue even if persistence fails
     }
   }
