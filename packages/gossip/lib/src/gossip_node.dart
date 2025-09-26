@@ -573,6 +573,8 @@ class GossipNode {
                 ..setTimestampFor(event.nodeId.value, event.timestamp),
             );
 
+            _lastContactTimes[event.nodeId] = receivedAt;
+
             // Only notify application layer if this is a new event
             if (isNewEvent) {
               final receivedEvent = ReceivedEvent(
@@ -854,6 +856,7 @@ class GossipNode {
       _vectorClock.merge(
         VectorClock()..setTimestampFor(event.nodeId.value, event.timestamp),
       );
+      _lastContactTimes[event.nodeId] = receivedAt;
 
       // Only notify application layer if this is a new event
       if (isNewEvent) {
