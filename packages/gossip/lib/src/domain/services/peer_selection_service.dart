@@ -28,7 +28,9 @@ class PeerSelectionService {
     final activePeers = availablePeers.where((p) => p.isActive).toList();
     if (activePeers.isEmpty) return [];
 
-    final peersToSelect = math.min(maxPeers, activePeers.length);
+    final peersToSelect = math.min(math.max(0, maxPeers), activePeers.length);
+
+    if (peersToSelect <= 0) return [];
 
     switch (strategy) {
       case PeerSelectionStrategy.random:
