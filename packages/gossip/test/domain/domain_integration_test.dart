@@ -5,6 +5,7 @@ import 'package:gossip/src/domain/services/peer_selection_service.dart';
 import 'package:gossip/src/gossip_config.dart';
 import 'package:gossip/src/gossip_node_id.dart';
 import 'package:gossip/src/transport.dart';
+import 'test_helpers.dart';
 
 void main() {
   group('Domain Layer Integration Tests', () {
@@ -13,7 +14,7 @@ void main() {
 
     setUp(() {
       selectionService = PeerSelectionService(random: math.Random(42));
-      peers = _createTestPeers();
+      peers = DomainTestHelpers.createTestPeers(5);
     });
 
     group('Peer Lifecycle and Selection Integration', () {
@@ -132,7 +133,7 @@ void main() {
     group('Strategy Comparison and Consistency', () {
       test('different strategies select different peer sets', () {
         // Set up peers with different characteristics
-        _setupPeersWithDifferentCharacteristics(peers);
+        peers = DomainTestHelpers.createMixedScenarioPeers().take(5).toList();
 
         final randomSelection = selectionService.selectPeersForGossip(
           peers,
@@ -237,7 +238,7 @@ void main() {
         final maxAllowedTime = const Duration(milliseconds: 500);
 
         for (final peerCount in largePeerCounts) {
-          final largePeerList = _createLargePeerList(peerCount);
+          final largePeerList = DomainTestHelpers.createTestPeers(peerCount);
           final stopwatch = Stopwatch()..start();
 
           final selected = selectionService.selectPeersForGossip(
@@ -368,13 +369,20 @@ void main() {
 
     group('Real-world Scenario Simulation', () {
       test('gossip network with mixed reliability patterns', () {
-        final networkPeers = _createRealisticNetworkPeers();
+        final networkPeers = DomainTestHelpers.createMixedScenarioPeers();
         final results = <String, List<InternalGossipPeer>>{};
 
         // Simulate multiple gossip rounds
         for (int round = 0; round < 20; round++) {
-          // Simulate network conditions
-          _simulateNetworkRound(networkPeers, round);
+          // Simulate network conditions using test helpers
+          for (final peer in networkPeers) {
+            DomainTestHelpers.simulateNetworkActivity(
+              peer,
+              rounds: 1,
+              successProbability:
+                  0.6 + (round % 3) * 0.1, // Vary success rate over time
+            );
+          }
 
           // Test selection with different strategies
           for (final strategy in PeerSelectionStrategy.values) {
@@ -455,141 +463,6 @@ void main() {
 }
 
 // Helper Functions
-
-List<InternalGossipPeer> _createTestPeers() {
-  return List.generate(5, (index) {
-    return InternalGossipPeer(
-      nodeId: GossipNodeID('test-node-$index'),
-      address: TransportPeerAddress('test://peer$index'),
-      metadata: {'index': index, 'type': 'test'},
-    );
-  });
-}
-
-List<InternalGossipPeer> _createLargePeerList(int count) {
-  return List.generate(count, (index) {
-    return InternalGossipPeer(
-      nodeId: GossipNodeID('large-peer-$index'),
-      address: TransportPeerAddress('test://large$index'),
-      metadata: {'index': index, 'size': 'large'},
-    );
-  });
-}
-
-void _setupPeersWithDifferentCharacteristics(List<InternalGossipPeer> peers) {
-  if (peers.length < 5) return;
-
-  // Highly reliable peer
-  for (int i = 0; i < 10; i++) {
-    peers[0].recordSuccessfulContact();
-  }
-
-  // Moderately reliable peer
-  for (int i = 0; i < 5; i++) {
-    peers[1].recordSuccessfulContact();
-  }
-  for (int i = 0; i < 2; i++) {
-    peers[1].recordFailedContact();
-  }
-
-  // Unreliable peer
-  for (int i = 0; i < 8; i++) {
-    peers[2].recordFailedContact();
-  }
-  for (int i = 0; i < 2; i++) {
-    peers[2].recordSuccessfulContact();
-  }
-
-  // Recently contacted peer
-  peers[3].recordSuccessfulContact();
-
-  // Never contacted peer (peers[4] remains with default state)
-}
-
-List<InternalGossipPeer> _createRealisticNetworkPeers() {
-  return [
-    // Stable, reliable peer
-    InternalGossipPeer(
-      nodeId: GossipNodeID('stable-peer'),
-      address: const TransportPeerAddress('test://stable'),
-      metadata: {'type': 'stable'},
-    ),
-    // Intermittent peer
-    InternalGossipPeer(
-      nodeId: GossipNodeID('intermittent-peer'),
-      address: const TransportPeerAddress('test://intermittent'),
-      metadata: {'type': 'intermittent'},
-    ),
-    // Unreliable peer
-    InternalGossipPeer(
-      nodeId: GossipNodeID('unreliable-peer'),
-      address: const TransportPeerAddress('test://unreliable'),
-      metadata: {'type': 'unreliable'},
-    ),
-    // New peer (joins mid-simulation)
-    InternalGossipPeer(
-      nodeId: GossipNodeID('new-peer'),
-      address: const TransportPeerAddress('test://new'),
-      metadata: {'type': 'new'},
-    ),
-    // Edge case peer
-    InternalGossipPeer(
-      nodeId: GossipNodeID('edge-peer'),
-      address: const TransportPeerAddress('test://edge'),
-      metadata: {'type': 'edge'},
-    ),
-  ];
-}
-
-void _simulateNetworkRound(List<InternalGossipPeer> peers, int round) {
-  final stablePeer = peers[0];
-  final intermittentPeer = peers[1];
-  final unreliablePeer = peers[2];
-  final newPeer = peers[3];
-  final edgePeer = peers[4];
-
-  // Stable peer: 95% success rate
-  if (round % 20 < 19) {
-    stablePeer.recordSuccessfulContact();
-  } else {
-    stablePeer.recordFailedContact();
-  }
-
-  // Intermittent peer: alternating periods
-  if ((round / 5).floor() % 2 == 0) {
-    intermittentPeer.recordSuccessfulContact();
-  } else {
-    intermittentPeer.recordFailedContact();
-  }
-
-  // Unreliable peer: 30% success rate
-  if (round % 10 < 3) {
-    unreliablePeer.recordSuccessfulContact();
-  } else {
-    unreliablePeer.recordFailedContact();
-  }
-
-  // New peer: only active after round 10
-  if (round > 10) {
-    if (round % 3 < 2) {
-      newPeer.recordSuccessfulContact();
-    } else {
-      newPeer.recordFailedContact();
-    }
-  }
-
-  // Edge peer: has unusual patterns
-  if (round < 5) {
-    // Initially very good
-    edgePeer.recordSuccessfulContact();
-  } else if (round < 15) {
-    // Then very bad
-    edgePeer.recordFailedContact();
-  } else {
-    // Then recovers
-    edgePeer.recordSuccessfulContact();
-  }
-}
 
 double _calculateAverageReliability(List<InternalGossipPeer> peers) {
   if (peers.isEmpty) return 0.0;

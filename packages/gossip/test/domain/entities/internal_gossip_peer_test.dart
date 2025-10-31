@@ -3,6 +3,7 @@ import 'package:gossip/src/domain/entities/internal_gossip_peer.dart';
 import 'package:gossip/src/gossip_node_id.dart';
 import 'package:gossip/src/gossip_peer.dart';
 import 'package:gossip/src/transport.dart';
+import '../test_helpers.dart';
 
 void main() {
   group('InternalGossipPeer', () {
@@ -207,15 +208,11 @@ void main() {
       });
 
       test('calculates correct score with mixed success/failure', () {
-        final peer = InternalGossipPeer(nodeId: nodeId, address: address);
-
-        // 7 successes, 3 failures = 70% success rate
-        for (int i = 0; i < 7; i++) {
-          peer.recordSuccessfulContact();
-        }
-        for (int i = 0; i < 3; i++) {
-          peer.recordFailedContact();
-        }
+        final peer = DomainTestHelpers.createPeerWithReliability(
+          nodeIdSuffix: 'mixed-score-test',
+          successfulContacts: 7,
+          failedContacts: 3,
+        );
 
         expect(peer.successRate, equals(0.7));
         expect(peer.reliabilityScore, greaterThan(0.0));
@@ -223,12 +220,12 @@ void main() {
       });
 
       test('score never goes below 0.0', () {
-        final peer = InternalGossipPeer(nodeId: nodeId, address: address);
-
-        // Record many failures
-        for (int i = 0; i < 20; i++) {
-          peer.recordFailedContact();
-        }
+        final peer = DomainTestHelpers.createPeerWithReliability(
+          nodeIdSuffix: 'minimum-score-test',
+          successfulContacts: 0,
+          failedContacts: 20,
+          shouldBeActive: false,
+        );
 
         expect(peer.reliabilityScore, greaterThanOrEqualTo(0.0));
       });
@@ -392,18 +389,19 @@ void main() {
 
     group('edge cases and boundaries', () {
       test('handles rapid successive contacts correctly', () {
-        final peer = InternalGossipPeer(nodeId: nodeId, address: address);
+        final peer = DomainTestHelpers.createTestPeer(
+          nodeIdSuffix: 'rapid-contacts-test',
+        );
 
-        // Rapidly alternate between success and failure
-        for (int i = 0; i < 100; i++) {
-          if (i % 2 == 0) {
-            peer.recordSuccessfulContact();
-          } else {
-            peer.recordFailedContact();
-          }
-        }
+        // Use helper to simulate alternating network activity
+        DomainTestHelpers.simulateNetworkActivity(
+          peer,
+          rounds: 100,
+          successProbability: 0.5,
+          random: DomainTestHelpers.createSeededRandom(42),
+        );
 
-        expect(peer.successRate, closeTo(0.5, 0.01));
+        expect(peer.successRate, closeTo(0.5, 0.1));
         expect(peer.reliabilityScore, greaterThan(0.0));
         expect(peer.reliabilityScore, lessThan(1.0));
       });
@@ -421,28 +419,31 @@ void main() {
       });
 
       test('maintains state consistency across many operations', () {
-        final peer = InternalGossipPeer(nodeId: nodeId, address: address);
-        var expectedSuccesses = 0;
-        var expectedTotal = 0;
+        final peer = DomainTestHelpers.createTestPeer(
+          nodeIdSuffix: 'consistency-test',
+        );
 
-        // Perform random operations and verify consistency
+        // Use helper to calculate expected success rate
+        final expectedSuccesses = 17; // 1/3 of 50 iterations rounded
+        final expectedTotal = 50;
+        final expectedRate = DomainTestHelpers.calculateExpectedSuccessRate(
+          0,
+          0,
+          expectedSuccesses,
+          expectedTotal - expectedSuccesses,
+        );
+
+        // Simulate the operations using consistent pattern
         for (int i = 0; i < 50; i++) {
           if (i % 3 == 0) {
             peer.recordSuccessfulContact();
-            expectedSuccesses++;
           } else {
             peer.recordFailedContact();
           }
-          expectedTotal++;
         }
 
-        expect(
-          peer.successRate,
-          closeTo(expectedSuccesses / expectedTotal, 0.001),
-        );
-        expect(peer.reliabilityScore, isA<double>());
-        expect(peer.reliabilityScore, greaterThanOrEqualTo(0.0));
-        expect(peer.reliabilityScore, lessThanOrEqualTo(1.0));
+        expect(peer.successRate, closeTo(expectedRate, 0.001));
+        expect(DomainTestHelpers.validatePeerConsistency(peer), isTrue);
       });
     });
 

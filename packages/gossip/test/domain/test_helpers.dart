@@ -60,7 +60,7 @@ class DomainTestHelpers {
   }) {
     final peer = createTestPeer(nodeIdSuffix: nodeIdSuffix);
 
-    // Record the specified contact history
+    // Record the exact number of contacts requested
     for (int i = 0; i < successfulContacts; i++) {
       peer.recordSuccessfulContact();
     }
@@ -69,9 +69,11 @@ class DomainTestHelpers {
       peer.recordFailedContact();
     }
 
-    // If we want the peer to be active but it's not, add a success
+    // Use the test method to override active state if needed
     if (shouldBeActive && !peer.isActive) {
-      peer.recordSuccessfulContact();
+      peer.setActiveStateForTesting(true);
+    } else if (!shouldBeActive && peer.isActive) {
+      peer.setActiveStateForTesting(false);
     }
 
     return peer;

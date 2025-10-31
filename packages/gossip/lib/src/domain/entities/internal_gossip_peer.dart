@@ -118,4 +118,13 @@ class InternalGossipPeer {
 
   @override
   int get hashCode => Object.hash(nodeId, address);
+
+  /// Sets the active state directly for testing purposes only.
+  ///
+  /// This bypasses the normal business logic and allows tests to create
+  /// specific scenarios that might not occur naturally. Should only be used
+  /// in test code.
+  void setActiveStateForTesting(bool active) {
+    _isActive = active;
+  }
 }

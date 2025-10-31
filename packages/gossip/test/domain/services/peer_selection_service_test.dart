@@ -6,6 +6,7 @@ import 'package:gossip/src/gossip_config.dart';
 import 'package:gossip/src/gossip_node_id.dart';
 import 'package:gossip/src/transport.dart';
 import '../../test_config.dart';
+import '../test_helpers.dart';
 
 void main() {
   group('PeerSelectionService', () {
@@ -14,7 +15,7 @@ void main() {
 
     setUp(() {
       service = PeerSelectionService();
-      testPeers = _createTestPeers();
+      testPeers = DomainTestHelpers.createTestPeers(5);
     });
 
     group('Constructor', () {
@@ -525,7 +526,7 @@ void main() {
       });
 
       test('handles large peer lists efficiently', () {
-        final largePeerList = _createLargePeerList(1000);
+        final largePeerList = DomainTestHelpers.createTestPeers(1000);
 
         final stopwatch = Stopwatch()..start();
 
@@ -541,27 +542,5 @@ void main() {
         expect(stopwatch.elapsedMilliseconds, lessThan(100)); // Should be fast
       });
     });
-  });
-}
-
-/// Helper function to create test peers
-List<InternalGossipPeer> _createTestPeers() {
-  return List.generate(5, (index) {
-    return InternalGossipPeer(
-      nodeId: GossipNodeID('test-node-$index'),
-      address: TransportPeerAddress('test://peer$index'),
-      metadata: {'index': index},
-    );
-  });
-}
-
-/// Helper function to create a large list of test peers
-List<InternalGossipPeer> _createLargePeerList(int count) {
-  return List.generate(count, (index) {
-    return InternalGossipPeer(
-      nodeId: GossipNodeID('large-test-node-$index'),
-      address: TransportPeerAddress('test://large-peer$index'),
-      metadata: {'index': index, 'batch': 'large'},
-    );
   });
 }
