@@ -128,11 +128,12 @@ expect(peer.reliabilityScore, lessThan(initialScore));
 ### Simulation Testing
 Tests use realistic scenarios to validate domain logic:
 ```dart
-// Simulate network partition and recovery
-DomainTestHelpers.simulateNetworkPartition(peers,
-  partitionRounds: 10,
-  recoveryRounds: 5,
-  partitionedPeerIndices: [0, 2, 4]
+// Simulate network activity over time
+DomainTestHelpers.simulateNetworkActivity(
+  peer,
+  rounds: 100,
+  successProbability: 0.7,
+  random: DomainTestHelpers.createSeededRandom(42),
 );
 ```
 
@@ -168,6 +169,7 @@ The test helpers provide various utilities for creating test data:
 - `DomainTestHelpers.createTestPeers(count)` - List of basic test peers
 - `DomainTestHelpers.createPeerWithReliability()` - Peer with specific reliability history
 - `DomainTestHelpers.createMixedScenarioPeers()` - Realistic peer mix for integration tests
+- `DomainTestHelpers.createBenchmarkPeers()` - Large peer lists for performance testing
 
 ### Performance Benchmarks
 Performance tests establish baseline expectations:

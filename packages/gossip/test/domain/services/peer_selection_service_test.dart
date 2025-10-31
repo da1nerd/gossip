@@ -3,8 +3,6 @@ import 'package:test/test.dart';
 import 'package:gossip/src/domain/services/peer_selection_service.dart';
 import 'package:gossip/src/domain/entities/internal_gossip_peer.dart';
 import 'package:gossip/src/gossip_config.dart';
-import 'package:gossip/src/gossip_node_id.dart';
-import 'package:gossip/src/transport.dart';
 import '../../test_config.dart';
 import '../test_helpers.dart';
 

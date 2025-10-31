@@ -197,20 +197,8 @@ void main() {
       });
     });
 
-    group('performance helpers', () {
-      test('measureExecutionTime measures correctly', () {
-        var counter = 0;
-        final duration = DomainTestHelpers.measureExecutionTime(() {
-          for (int i = 0; i < 1000; i++) {
-            counter++;
-          }
-        });
-
-        expect(counter, equals(1000));
-        expect(duration.inMicroseconds, greaterThan(0));
-      });
-
-      test('createBenchmarkPeers creates varied peer history', () {
+    group('createBenchmarkPeers', () {
+      test('creates varied peer history', () {
         final peers = DomainTestHelpers.createBenchmarkPeers(10);
 
         expect(peers.length, equals(10));
@@ -221,6 +209,18 @@ void main() {
 
         // All peers should have some contact history
         expect(peers.every((p) => p.successRate >= 0.0), isTrue);
+      });
+
+      test('measureExecutionTime measures correctly', () {
+        var counter = 0;
+        final duration = DomainTestHelpers.measureExecutionTime(() {
+          for (int i = 0; i < 1000; i++) {
+            counter++;
+          }
+        });
+
+        expect(counter, equals(1000));
+        expect(duration.inMicroseconds, greaterThan(0));
       });
     });
   });

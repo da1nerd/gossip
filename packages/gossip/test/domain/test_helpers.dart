@@ -79,79 +79,6 @@ class DomainTestHelpers {
     return peer;
   }
 
-  /// Creates a peer with a specific contact time.
-  static InternalGossipPeer createPeerWithContactTime({
-    required String nodeIdSuffix,
-    required DateTime contactTime,
-    bool wasSuccessful = true,
-  }) {
-    final peer = createTestPeer(
-      nodeIdSuffix: nodeIdSuffix,
-      lastContactTime: contactTime,
-    );
-
-    // Record a contact to set the time (this will update the time, but it's close enough for tests)
-    if (wasSuccessful) {
-      peer.recordSuccessfulContact();
-    } else {
-      peer.recordFailedContact();
-    }
-
-    return peer;
-  }
-
-  /// Creates peers with graduated reliability scores (highest to lowest).
-  static List<InternalGossipPeer> createPeersWithGraduatedReliability(
-    int count,
-  ) {
-    final peers = <InternalGossipPeer>[];
-
-    for (int i = 0; i < count; i++) {
-      final successRate = 1.0 - (i * 0.2); // Decreasing success rate
-      final totalContacts = 10;
-      final successes = (totalContacts * successRate).round();
-      final failures = totalContacts - successes;
-
-      peers.add(
-        createPeerWithReliability(
-          nodeIdSuffix: 'graduated-$i',
-          successfulContacts: successes,
-          failedContacts: failures,
-          shouldBeActive:
-              successRate > 0.3, // Keep reasonably reliable peers active
-        ),
-      );
-    }
-
-    return peers;
-  }
-
-  /// Creates peers with specific contact time patterns.
-  static List<InternalGossipPeer> createPeersWithContactTimes({
-    required int count,
-    required Duration timeBetweenContacts,
-    DateTime? baseTime,
-  }) {
-    final base = baseTime ?? DateTime.now().subtract(Duration(hours: count));
-    final peers = <InternalGossipPeer>[];
-
-    for (int i = 0; i < count; i++) {
-      final contactTime = base.add(
-        Duration(milliseconds: i * timeBetweenContacts.inMilliseconds),
-      );
-
-      peers.add(
-        createPeerWithContactTime(
-          nodeIdSuffix: 'timed-$i',
-          contactTime: contactTime,
-          wasSuccessful: i % 4 != 3, // Most contacts successful, some failed
-        ),
-      );
-    }
-
-    return peers;
-  }
-
   /// Creates a mixed scenario with various peer types.
   static List<InternalGossipPeer> createMixedScenarioPeers() {
     return [
@@ -211,52 +138,6 @@ class DomainTestHelpers {
         peer.recordSuccessfulContact();
       } else {
         peer.recordFailedContact();
-      }
-    }
-  }
-
-  /// Simulates a realistic network partition scenario.
-  static void simulateNetworkPartition(
-    List<InternalGossipPeer> peers, {
-    required int partitionRounds,
-    required int recoveryRounds,
-    required List<int> partitionedPeerIndices,
-  }) {
-    // Partition phase - some peers fail all contacts
-    for (int round = 0; round < partitionRounds; round++) {
-      for (int i = 0; i < peers.length; i++) {
-        if (partitionedPeerIndices.contains(i)) {
-          peers[i].recordFailedContact();
-        } else {
-          // Non-partitioned peers have normal success rate
-          if (_random.nextDouble() < 0.8) {
-            peers[i].recordSuccessfulContact();
-          } else {
-            peers[i].recordFailedContact();
-          }
-        }
-      }
-    }
-
-    // Recovery phase - all peers gradually recover
-    for (int round = 0; round < recoveryRounds; round++) {
-      final recoveryProgress = round / recoveryRounds;
-
-      for (int i = 0; i < peers.length; i++) {
-        double successRate;
-        if (partitionedPeerIndices.contains(i)) {
-          // Partitioned peers gradually recover
-          successRate = 0.3 + (0.5 * recoveryProgress);
-        } else {
-          // Non-partitioned peers maintain high success rate
-          successRate = 0.8;
-        }
-
-        if (_random.nextDouble() < successRate) {
-          peers[i].recordSuccessfulContact();
-        } else {
-          peers[i].recordFailedContact();
-        }
       }
     }
   }
@@ -326,48 +207,6 @@ class DomainTestHelpers {
     return stopwatch.elapsed;
   }
 
-  /// Creates a peer list with specific active/inactive distribution.
-  static List<InternalGossipPeer> createPeersWithActiveDistribution({
-    required int totalPeers,
-    required int activePeers,
-  }) {
-    if (activePeers > totalPeers) {
-      throw ArgumentError('activePeers cannot exceed totalPeers');
-    }
-
-    final peers = createTestPeers(totalPeers);
-
-    // Make some peers inactive
-    final inactivePeerCount = totalPeers - activePeers;
-    for (int i = 0; i < inactivePeerCount; i++) {
-      final peer = peers[i];
-      // Make inactive by recording 3+ failures
-      for (int j = 0; j < 3; j++) {
-        peer.recordFailedContact();
-      }
-    }
-
-    return peers;
-  }
-
-  /// Asserts that two peer lists contain the same peers (order independent).
-  static bool peerListsEqual(
-    List<InternalGossipPeer> list1,
-    List<InternalGossipPeer> list2,
-  ) {
-    if (list1.length != list2.length) return false;
-
-    for (final peer in list1) {
-      if (!list2.any(
-        (p) => p.nodeId == peer.nodeId && p.address == peer.address,
-      )) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
   /// Creates test data for performance benchmarking.
   static List<InternalGossipPeer> createBenchmarkPeers(int count) {
     final peers = <InternalGossipPeer>[];
@@ -400,38 +239,5 @@ class DomainTestHelpers {
     }
 
     return peers;
-  }
-}
-
-/// Extension methods for test assertions and utilities.
-extension InternalGossipPeerTestExtensions on InternalGossipPeer {
-  /// Creates a copy of this peer for testing purposes.
-  InternalGossipPeer copyForTest() {
-    return InternalGossipPeer(
-      nodeId: nodeId,
-      address: address,
-      metadata: Map<String, dynamic>.from(metadata),
-      lastContactTime: lastContactTime,
-      initialReliabilityScore: reliabilityScore,
-      isActive: isActive,
-    );
-  }
-
-  /// Returns a human-readable summary of the peer's state for debugging.
-  String debugSummary() {
-    return 'Peer ${nodeId.value}: '
-        'reliability=${reliabilityScore.toStringAsFixed(3)}, '
-        'successRate=${successRate.toStringAsFixed(3)}, '
-        'consecutiveFailures=$consecutiveFailures, '
-        'active=$isActive, '
-        'lastContact=$lastContactTime';
-  }
-
-  /// Checks if this peer would be considered "similar" to another for testing.
-  bool isSimilarTo(InternalGossipPeer other, {double tolerance = 0.1}) {
-    return (reliabilityScore - other.reliabilityScore).abs() < tolerance &&
-        isActive == other.isActive &&
-        nodeId == other.nodeId &&
-        address == other.address;
   }
 }
