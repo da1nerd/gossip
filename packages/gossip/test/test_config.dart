@@ -17,10 +17,11 @@ class TestConfig {
   /// Maximum allowed execution time for single operations in performance tests.
   static const Duration maxOperationTime = Duration(milliseconds: 100);
 
-  /// Number of iterations for stress tests.
+  /// Number of iterations for stress tests (stability/reliability testing).
   static const int stressTestIterations = 1000;
 
-  /// Number of iterations for statistical tests (randomness, distribution).
+  /// Number of iterations for statistical tests (randomness, distribution validation).
+  /// Higher count needed for statistical significance.
   static const int statisticalTestIterations = 10000;
 
   /// Tolerance for floating-point comparisons in tests.
@@ -144,7 +145,25 @@ void performanceTest(
   }, timeout: Timeout(TestConfig.performanceTimeout));
 }
 
-/// Stress test helper that runs a test multiple times.
+/// Stress test helper that runs a test multiple times to verify stability.
+///
+/// Stress tests focus on system stability under repeated operations,
+/// checking for memory leaks, state corruption, or performance degradation.
+/// Each iteration should be independent and test the same operation.
+///
+/// Example usage:
+///
+/// Stress test - runs same operation repeatedly to check for stability:
+/// ```dart
+/// stressTest(
+///   'peer state remains consistent under repeated updates',
+///   (iteration) {
+///     peer.recordSuccessfulContact();
+///     peer.recordFailedContact();
+///     expect(peer.reliabilityScore, isValidReliabilityScore());
+///   },
+/// );
+/// ```
 void stressTest(
   String description,
   void Function(int iteration) testBody, {
@@ -159,17 +178,50 @@ void stressTest(
   }, timeout: Timeout(TestConfig.performanceTimeout));
 }
 
-/// Statistical test helper for randomness and distribution tests.
+/// Statistical test helper for validating randomness and distribution.
+///
+/// Statistical tests run many iterations to collect data and validate
+/// probabilistic behavior, checking for proper distribution, fairness,
+/// and statistical properties. Results are aggregated for analysis.
+///
+/// Example usage:
+///
+/// Statistical test - collects data to validate probabilistic behavior:
+/// ```dart
+/// statisticalTest(
+///   'random selection distributes fairly',
+///   (iteration) {
+///     final selected = service.selectPeers();
+///     return {'selected': selected.map((p) => p.id).toList()};
+///   },
+///   validator: (results) {
+///     // Validate distribution fairness across all iterations
+///     final allSelections = results['selected']!;
+///     // ... statistical analysis ...
+///   },
+/// );
+/// ```
 void statisticalTest(
   String description,
-  void Function(int iteration) testBody, {
+  Map<String, dynamic> Function(int iteration) testBody, {
   int? iterations,
+  void Function(Map<String, List<dynamic>>)? validator,
 }) {
   test(description, () {
     final testIterations = iterations ?? TestConfig.statisticalTestIterations;
+    final results = <String, List<dynamic>>{};
 
+    // Collect results from all iterations
     for (int i = 0; i < testIterations; i++) {
-      testBody(i);
+      final iterationResults = testBody(i);
+      for (final entry in iterationResults.entries) {
+        results.putIfAbsent(entry.key, () => []).add(entry.value);
+      }
+    }
+
+    // Apply statistical validation if provided
+    if (validator != null) {
+      validator(results);
     }
   }, timeout: Timeout(TestConfig.performanceTimeout));
 }

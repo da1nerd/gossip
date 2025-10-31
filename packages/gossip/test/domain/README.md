@@ -120,17 +120,43 @@ expect(selected.every((p) => p.isActive), isTrue);
 Tests focus on business behavior rather than implementation:
 ```dart
 // Test the behavior, not the internal calculation
+final initialScore = peer.reliabilityScore;
 peer.recordFailedContact();
-expect(peer.isLessReliableThanBefore(), isTrue);
+expect(peer.reliabilityScore, lessThan(initialScore));
 ```
 
 ### Simulation Testing
 Tests use realistic scenarios to validate domain logic:
 ```dart
 // Simulate network partition and recovery
-simulateNetworkPartition(peers, 
-  partitionRounds: 10, 
-  recoveryRounds: 5
+DomainTestHelpers.simulateNetworkPartition(peers,
+  partitionRounds: 10,
+  recoveryRounds: 5,
+  partitionedPeerIndices: [0, 2, 4]
+);
+```
+
+### Statistical Testing
+Tests validate probabilistic behavior over many iterations:
+```dart
+// Validate random peer selection fairness
+statisticalTest(
+  'random selection distributes fairly over many iterations',
+  (iteration) {
+    final selected = service.selectPeersForGossip(peers, 2, PeerSelectionStrategy.random);
+    return {
+      'selected': selected.map((p) => p.nodeId.value).toList(),
+    };
+  },
+  validator: (results) {
+    // Validate that each peer was selected roughly equally
+    final selections = results['selected']!.expand((list) => list).toList();
+    for (final peer in peers) {
+      final selectionCount = selections.where((id) => id == peer.nodeId.value).length;
+      final expectedCount = (results['selected']!.length * 2) / peers.length;
+      expect(selectionCount, closeTo(expectedCount, expectedCount * 0.3));
+    }
+  },
 );
 ```
 
@@ -138,10 +164,10 @@ simulateNetworkPartition(peers,
 
 ### Test Peer Creation
 The test helpers provide various utilities for creating test data:
-- `createTestPeer()` - Single peer with optional parameters
-- `createTestPeers(count)` - List of basic test peers
-- `createPeerWithReliability()` - Peer with specific reliability history
-- `createMixedScenarioPeers()` - Realistic peer mix for integration tests
+- `DomainTestHelpers.createTestPeer()` - Single peer with optional parameters
+- `DomainTestHelpers.createTestPeers(count)` - List of basic test peers
+- `DomainTestHelpers.createPeerWithReliability()` - Peer with specific reliability history
+- `DomainTestHelpers.createMixedScenarioPeers()` - Realistic peer mix for integration tests
 
 ### Performance Benchmarks
 Performance tests establish baseline expectations:
@@ -163,7 +189,8 @@ Tests are categorized for different CI/CD stages:
 - **Unit Tests**: Fast, isolated tests (< 1s each)
 - **Integration Tests**: Cross-component tests (< 5s each)  
 - **Performance Tests**: Scalability validation (< 30s each)
-- **Stress Tests**: High-load scenarios (< 2min each)
+- **Stress Tests**: Stability under repeated operations (< 2min each)
+- **Statistical Tests**: Randomness and distribution validation (< 2min each)
 
 ## Contributing
 

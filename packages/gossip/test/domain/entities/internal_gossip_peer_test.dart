@@ -234,8 +234,6 @@ void main() {
       });
 
       test('score never goes above 1.0', () {
-        final peer = InternalGossipPeer(nodeId: nodeId, address: address);
-
         // Start with high initial score and add successes
         final highScorePeer = InternalGossipPeer(
           nodeId: nodeId,

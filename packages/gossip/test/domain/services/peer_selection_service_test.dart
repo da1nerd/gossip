@@ -5,6 +5,7 @@ import 'package:gossip/src/domain/entities/internal_gossip_peer.dart';
 import 'package:gossip/src/gossip_config.dart';
 import 'package:gossip/src/gossip_node_id.dart';
 import 'package:gossip/src/transport.dart';
+import '../../test_config.dart';
 
 void main() {
   group('PeerSelectionService', () {
@@ -144,47 +145,49 @@ void main() {
         expect(orderDiffers, isTrue);
       });
 
-      test(
+      statisticalTest(
         'selects each peer with roughly equal probability over many iterations',
-        () {
-          final selectionCounts = <String, int>{};
-          final iterations = 1000;
-          final peersToSelect = 2;
+        (iteration) {
+          final selected = service.selectPeersForGossip(
+            testPeers,
+            2,
+            PeerSelectionStrategy.random,
+          );
 
-          // Initialize counters
+          return {
+            'selectedPeers': selected.map((p) => p.nodeId.value).toList(),
+          };
+        },
+        validator: (results) {
+          // Count selections for each peer
+          final selectionCounts = <String, int>{};
           for (final peer in testPeers) {
             selectionCounts[peer.nodeId.value] = 0;
           }
 
-          // Run many iterations
-          for (int i = 0; i < iterations; i++) {
-            final selected = service.selectPeersForGossip(
-              testPeers,
-              peersToSelect,
-              PeerSelectionStrategy.random,
-            );
-
-            for (final peer in selected) {
-              selectionCounts[peer.nodeId.value] =
-                  selectionCounts[peer.nodeId.value]! + 1;
+          final allSelections = results['selectedPeers']!;
+          for (final selectionList in allSelections) {
+            for (final peerId in selectionList as List<String>) {
+              selectionCounts[peerId] = selectionCounts[peerId]! + 1;
             }
           }
 
-          // Each peer should be selected roughly (iterations * peersToSelect / totalPeers) times
-          final expectedSelections =
-              (iterations * peersToSelect) / testPeers.length;
-          final tolerance =
-              expectedSelections * 0.3; // 30% tolerance for randomness
+          // Validate distribution fairness
+          final totalSelections = selectionCounts.values.reduce(
+            (a, b) => a + b,
+          );
+          final expectedPerPeer = totalSelections / testPeers.length;
+          final tolerance = expectedPerPeer * 0.3; // 30% tolerance
 
-          for (final count in selectionCounts.values) {
+          for (final entry in selectionCounts.entries) {
             expect(
-              count.toDouble(),
-              closeTo(expectedSelections, tolerance),
-              reason:
-                  'Peer selection should be roughly uniform over many iterations',
+              entry.value.toDouble(),
+              closeTo(expectedPerPeer, tolerance),
+              reason: 'Peer ${entry.key} selection should be roughly uniform',
             );
           }
         },
+        iterations: 1000,
       );
     });
 
@@ -273,7 +276,6 @@ void main() {
     group('Least Recently Contacted Selection Strategy', () {
       test('selects peers with no contact time first', () {
         // Give some peers contact times
-        final now = DateTime.now();
         testPeers[0].recordSuccessfulContact();
         testPeers[1].recordSuccessfulContact();
 
