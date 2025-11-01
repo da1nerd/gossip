@@ -12,6 +12,7 @@ import '../../event.dart';
 import '../../gossip_config.dart';
 import '../../transport.dart';
 import '../use_cases/gossip_cycle_use_case.dart';
+import '../use_cases/connected_gossip_cycle_use_case.dart';
 import 'event_creation_service.dart';
 import 'peer_management_service.dart';
 
@@ -20,6 +21,7 @@ class GossipOrchestrationService {
   final GossipConfig config;
   final GossipTransport transport;
   final GossipCycleUseCase gossipCycleUseCase;
+  final ConnectedGossipCycleUseCase? connectedGossipCycleUseCase;
   final EventCreationService eventCreationService;
   final PeerManagementService peerManagementService;
 
@@ -42,6 +44,7 @@ class GossipOrchestrationService {
     required this.config,
     required this.transport,
     required this.gossipCycleUseCase,
+    this.connectedGossipCycleUseCase,
     required this.eventCreationService,
     required this.peerManagementService,
   });
@@ -138,7 +141,11 @@ class GossipOrchestrationService {
 
     _gossipCycleInProgress = true;
     try {
-      await gossipCycleUseCase.execute();
+      if (connectedGossipCycleUseCase != null) {
+        await connectedGossipCycleUseCase!.execute();
+      } else {
+        await gossipCycleUseCase.execute();
+      }
     } finally {
       _gossipCycleInProgress = false;
     }

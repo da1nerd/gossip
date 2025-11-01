@@ -24,9 +24,14 @@ import 'package:gossip/src/application/use_cases/gossip_cycle_use_case.dart';
 import 'package:gossip/src/application/use_cases/gossip_with_peer_use_case.dart';
 import 'package:gossip/src/application/use_cases/handle_incoming_digest_use_case.dart';
 import 'package:gossip/src/application/use_cases/handle_incoming_events_use_case.dart';
+import 'package:gossip/src/application/use_cases/connected_gossip_cycle_use_case.dart';
+import 'package:gossip/src/application/use_cases/gossip_with_connected_peer_use_case.dart';
 import 'package:gossip/src/application/ports/peer_repository.dart';
+import 'package:gossip/src/application/ports/connected_peer_repository.dart';
 import 'package:gossip/src/domain/services/peer_selection_service.dart';
+import 'package:gossip/src/domain/services/connected_peer_selection_service.dart';
 import 'package:gossip/src/infrastructure/repositories/in_memory_peer_repository.dart';
+import 'package:gossip/src/infrastructure/repositories/in_memory_connected_peer_repository.dart';
 
 /// Clean architecture implementation of gossip protocol.
 ///
@@ -96,9 +101,14 @@ class ModularGossipNode {
       nodeId: config.nodeId,
     );
 
+    // New: Connected peer repository (transport-address keyed, no temp IDs)
+    final ConnectedPeerRepository connectedPeerRepository =
+        InMemoryConnectedPeerRepository();
+
     _peerManagementService = PeerManagementService(
       peerRepository: _peerRepository,
       transport: transport,
+      connectedPeerRepository: connectedPeerRepository,
     );
 
     // Wire application use cases
@@ -130,10 +140,27 @@ class ModularGossipNode {
       handleIncomingEventsUseCase: handleIncomingEventsUseCase,
     );
 
+    // New connected-peer selection/cycle (non-breaking: provided as optional to orchestration)
+    final connectedPeerSelectionService = ConnectedPeerSelectionService();
+    final gossipWithConnectedPeerUseCase = GossipWithConnectedPeerUseCase(
+      transport: transport,
+      eventStore: eventStore,
+      vectorClockService: _vectorClockService,
+      connectedPeerRepository: connectedPeerRepository,
+      maxEventsPerMessage: config.maxEventsPerMessage,
+      operationTimeout: config.gossipTimeout,
+    );
+    final connectedGossipCycleUseCase = ConnectedGossipCycleUseCase(
+      connectedPeerRepository: connectedPeerRepository,
+      connectedPeerSelectionService: connectedPeerSelectionService,
+      gossipWithConnectedPeerUseCase: gossipWithConnectedPeerUseCase,
+      config: config,
+    );
     _orchestrationService = GossipOrchestrationService(
       config: config,
       transport: transport,
       gossipCycleUseCase: _gossipCycleUseCase,
+      connectedGossipCycleUseCase: connectedGossipCycleUseCase,
       eventCreationService: _eventCreationService,
       peerManagementService: _peerManagementService,
     );

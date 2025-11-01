@@ -1,23 +1,34 @@
 /// Service for managing peer lifecycle and discovery.
 ///
 /// This service handles adding, removing, and discovering peers in the
-/// gossip network. It coordinates between the transport layer and the
-/// peer repository.
+/// gossip network. In the new design, transport-discovered peers are
+/// tracked as "ConnectedPeers" (address-keyed, reliability/liveness),
+/// while identity is tracked separately as "IdentifiedNodes"
+/// (GossipNodeID-keyed).
+///
+/// This layer will evolve to:
+/// - upsert ConnectedPeers on discovery (no temporary IDs)
+/// - select/gossip using ConnectedPeers
+/// - promote/link ConnectedPeers to IdentifiedNodes when a real node ID
+///   is learned from digests/events
 library;
 
 import '../../gossip_node_id.dart';
 import '../../transport.dart';
 import '../ports/peer_repository.dart';
+import '../ports/connected_peer_repository.dart';
 import '../../domain/entities/internal_gossip_peer.dart';
 
 /// Service for managing peer lifecycle and discovery.
 class PeerManagementService {
   final PeerRepository peerRepository;
   final GossipTransport transport;
+  final ConnectedPeerRepository connectedPeerRepository;
 
   PeerManagementService({
     required this.peerRepository,
     required this.transport,
+    required this.connectedPeerRepository,
   });
 
   /// Add a new peer to the gossip network.
@@ -38,33 +49,17 @@ class PeerManagementService {
 
   /// Discover new peers using the transport layer.
   ///
-  /// This method queries the transport for available peers and adds
-  /// any new ones to the repository.
+  /// This method queries the transport for available peers and (in the
+  /// ConnectedPeer/IdentifiedNode design) should upsert them into a
+  /// ConnectedPeerRepository keyed by address, without creating any
+  /// temporary GossipNodeIDs. Identity will be linked later once learned.
   Future<void> discoverPeers() async {
     try {
       final discoveredPeers = await transport.discoverPeers();
 
       for (final transportPeer in discoveredPeers) {
-        // For now, we'll use the transport address as a temporary nodeId
-        // This is a limitation - in a real implementation, we'd need a way
-        // to discover the actual gossip node ID from the transport peer
-        final tempNodeId = GossipNodeID(
-          'transport_${transportPeer.address.value}',
-        );
-
-        // Check if we already know about this peer by address
-        final allPeers = await peerRepository.getAllPeers();
-        final existingPeer = allPeers
-            .where((p) => p.address == transportPeer.address)
-            .firstOrNull;
-
-        if (existingPeer == null) {
-          // Add new peer with temporary node ID
-          await addPeer(tempNodeId, transportPeer.address);
-        } else {
-          // Update existing peer information if needed
-          await _updatePeerFromTransport(existingPeer, transportPeer);
-        }
+        // Upsert connected peers by address (no temporary GossipNodeIDs).
+        await connectedPeerRepository.upsertFromTransport(transportPeer);
       }
     } catch (e) {
       // Peer discovery failures should not crash the node
@@ -108,5 +103,16 @@ class PeerManagementService {
     if (existing != null) {
       await _updatePeerFromTransport(existing, transportPeer);
     }
+  }
+
+  /// Promote a connected peer (by address) to an identified node (by id).
+  /// Placeholder for identity promotion plumbing; links will be implemented where appropriate.
+  Future<void> promote(
+    TransportPeerAddress address,
+    GossipNodeID nodeId,
+  ) async {
+    // TODO: Implement linking to IdentifiedNodeRepository and merging metadata/addresses.
+    // For now, ensure the connected peer exists.
+    await connectedPeerRepository.getByAddress(address);
   }
 }
