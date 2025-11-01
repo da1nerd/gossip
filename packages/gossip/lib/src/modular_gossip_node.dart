@@ -165,6 +165,8 @@ class ModularGossipNode {
       transport: transport,
       gossipCycleUseCase: _gossipCycleUseCase,
       connectedGossipCycleUseCase: connectedGossipCycleUseCase,
+      gossipWithConnectedPeerUseCase: gossipWithConnectedPeerUseCase,
+      connectedPeerRepository: connectedPeerRepository,
       eventCreationService: _eventCreationService,
       peerManagementService: _peerManagementService,
     );

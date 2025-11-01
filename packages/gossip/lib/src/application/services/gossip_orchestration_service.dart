@@ -11,9 +11,10 @@ import 'dart:math';
 import '../../event.dart';
 import '../../gossip_config.dart';
 import '../../transport.dart';
-import '../../gossip_node_id.dart';
 import '../use_cases/gossip_cycle_use_case.dart';
 import '../use_cases/connected_gossip_cycle_use_case.dart';
+import '../use_cases/gossip_with_connected_peer_use_case.dart';
+import '../ports/connected_peer_repository.dart';
 import 'event_creation_service.dart';
 import 'peer_management_service.dart';
 
@@ -23,6 +24,8 @@ class GossipOrchestrationService {
   final GossipTransport transport;
   final GossipCycleUseCase gossipCycleUseCase;
   final ConnectedGossipCycleUseCase? connectedGossipCycleUseCase;
+  final GossipWithConnectedPeerUseCase? gossipWithConnectedPeerUseCase;
+  final ConnectedPeerRepository? connectedPeerRepository;
   final EventCreationService eventCreationService;
   final PeerManagementService peerManagementService;
 
@@ -41,7 +44,7 @@ class GossipOrchestrationService {
   bool _isGossiping = false;
   bool _gossipCycleInProgress = false;
 
-  // One-off targeted exchange cooldown tracking (by nodeId value)
+  // One-off targeted exchange cooldown tracking (by address)
   final Map<String, DateTime> _lastTargetedExchange = {};
   final Duration _targetedExchangeCooldown = Duration(seconds: 2);
 
@@ -50,6 +53,8 @@ class GossipOrchestrationService {
     required this.transport,
     required this.gossipCycleUseCase,
     this.connectedGossipCycleUseCase,
+    this.gossipWithConnectedPeerUseCase,
+    this.connectedPeerRepository,
     required this.eventCreationService,
     required this.peerManagementService,
   });
@@ -184,8 +189,8 @@ class GossipOrchestrationService {
         digest.fromTransportPeer.address,
         digest.digest.senderId,
       );
-      // Schedule a one-off targeted exchange back to this node (cooldown-guarded)
-      _maybeScheduleTargetedExchange(digest.digest.senderId.value);
+      // Schedule a one-off targeted exchange back to this address (cooldown-guarded)
+      _maybeScheduleTargetedExchangeByAddress(digest.fromTransportPeer.address);
     } catch (_) {
       // Ignore repository update failures; proceed with digest handling.
     }
@@ -207,8 +212,8 @@ class GossipOrchestrationService {
         events.fromTransportPeer.address,
         events.message.senderId,
       );
-      // Schedule a one-off targeted exchange back to this node (cooldown-guarded)
-      _maybeScheduleTargetedExchange(events.message.senderId.value);
+      // Schedule a one-off targeted exchange back to this address (cooldown-guarded)
+      _maybeScheduleTargetedExchangeByAddress(events.fromTransportPeer.address);
     } catch (_) {
       // Ignore repository update failures; proceed with event handling.
     }
@@ -221,23 +226,41 @@ class GossipOrchestrationService {
     }
   }
 
-  // Schedules a one-off targeted exchange to the specified nodeId value
+  // Schedules a one-off targeted exchange to the specified address
   // if cooldown has elapsed and no cycle is currently in progress.
-  void _maybeScheduleTargetedExchange(String nodeIdValue) {
+  void _maybeScheduleTargetedExchangeByAddress(TransportPeerAddress address) {
     final now = DateTime.now();
-    final last = _lastTargetedExchange[nodeIdValue];
+    final key = address.value;
+    final last = _lastTargetedExchange[key];
     if (last != null && now.difference(last) < _targetedExchangeCooldown) {
       return;
     }
-    _lastTargetedExchange[nodeIdValue] = now;
+    _lastTargetedExchange[key] = now;
 
     if (_gossipCycleInProgress) {
       return;
     }
 
-    // Fire-and-forget targeted exchange using the identified nodeId.
-    unawaited(
-      gossipCycleUseCase.gossipWithSpecificPeer(GossipNodeID(nodeIdValue)),
-    );
+    // If connected-peer plumbing is not available, skip.
+    if (connectedPeerRepository == null ||
+        gossipWithConnectedPeerUseCase == null) {
+      return;
+    }
+
+    // Fire-and-forget targeted exchange using the connected peer resolved by address.
+    unawaited(_exchangeWithAddress(address));
+  }
+
+  Future<void> _exchangeWithAddress(TransportPeerAddress address) async {
+    try {
+      final peer = await connectedPeerRepository!.getByAddress(address);
+      if (peer == null) return;
+      await gossipWithConnectedPeerUseCase!.execute(
+        peer: peer,
+        now: DateTime.now(),
+      );
+    } catch (_) {
+      // Best-effort; do not propagate errors from targeted exchange
+    }
   }
 }
