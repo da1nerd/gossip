@@ -174,6 +174,11 @@ class GossipOrchestrationService {
       await peerManagementService.updatePeerFromTransport(
         digest.fromTransportPeer,
       );
+      // Link transport address -> real node id when digest identity is learned.
+      await peerManagementService.promote(
+        digest.fromTransportPeer.address,
+        digest.digest.senderId,
+      );
     } catch (_) {
       // Ignore repository update failures; proceed with digest handling.
     }
@@ -189,6 +194,11 @@ class GossipOrchestrationService {
     try {
       await peerManagementService.updatePeerFromTransport(
         events.fromTransportPeer,
+      );
+      // Link transport address -> real node id when message identity is learned.
+      await peerManagementService.promote(
+        events.fromTransportPeer.address,
+        events.message.senderId,
       );
     } catch (_) {
       // Ignore repository update failures; proceed with event handling.

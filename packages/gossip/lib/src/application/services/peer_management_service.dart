@@ -17,6 +17,7 @@ import '../../gossip_node_id.dart';
 import '../../transport.dart';
 import '../ports/peer_repository.dart';
 import '../ports/connected_peer_repository.dart';
+import '../ports/identified_node_repository.dart';
 import '../../domain/entities/internal_gossip_peer.dart';
 
 /// Service for managing peer lifecycle and discovery.
@@ -24,11 +25,13 @@ class PeerManagementService {
   final PeerRepository peerRepository;
   final GossipTransport transport;
   final ConnectedPeerRepository connectedPeerRepository;
+  final IdentifiedNodeRepository identifiedNodeRepository;
 
   PeerManagementService({
     required this.peerRepository,
     required this.transport,
     required this.connectedPeerRepository,
+    required this.identifiedNodeRepository,
   });
 
   /// Add a new peer to the gossip network.
@@ -106,13 +109,14 @@ class PeerManagementService {
   }
 
   /// Promote a connected peer (by address) to an identified node (by id).
-  /// Placeholder for identity promotion plumbing; links will be implemented where appropriate.
+  ///
+  /// Links the transport address to the provided GossipNodeID via the
+  /// IdentifiedNodeRepository. Repository policy determines whether a new
+  /// node is created or an existing one is updated.
   Future<void> promote(
     TransportPeerAddress address,
     GossipNodeID nodeId,
   ) async {
-    // TODO: Implement linking to IdentifiedNodeRepository and merging metadata/addresses.
-    // For now, ensure the connected peer exists.
-    await connectedPeerRepository.getByAddress(address);
+    await identifiedNodeRepository.linkAddress(nodeId, address);
   }
 }

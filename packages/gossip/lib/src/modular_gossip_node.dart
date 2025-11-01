@@ -32,6 +32,7 @@ import 'package:gossip/src/domain/services/peer_selection_service.dart';
 import 'package:gossip/src/domain/services/connected_peer_selection_service.dart';
 import 'package:gossip/src/infrastructure/repositories/in_memory_peer_repository.dart';
 import 'package:gossip/src/infrastructure/repositories/in_memory_connected_peer_repository.dart';
+import 'package:gossip/src/infrastructure/repositories/in_memory_identified_node_repository.dart';
 
 /// Clean architecture implementation of gossip protocol.
 ///
@@ -104,11 +105,14 @@ class ModularGossipNode {
     // New: Connected peer repository (transport-address keyed, no temp IDs)
     final ConnectedPeerRepository connectedPeerRepository =
         InMemoryConnectedPeerRepository();
+    // New: Identified node repository (GossipNodeID-keyed, tracks identity and addresses)
+    final identifiedNodeRepository = InMemoryIdentifiedNodeRepository();
 
     _peerManagementService = PeerManagementService(
       peerRepository: _peerRepository,
       transport: transport,
       connectedPeerRepository: connectedPeerRepository,
+      identifiedNodeRepository: identifiedNodeRepository,
     );
 
     // Wire application use cases
