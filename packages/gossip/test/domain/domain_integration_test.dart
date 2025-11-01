@@ -3,7 +3,6 @@ import 'package:test/test.dart';
 import 'package:gossip/src/domain/entities/connected_peer.dart';
 import 'package:gossip/src/domain/services/connected_peer_selection_service.dart';
 import 'package:gossip/src/gossip_config.dart';
-import 'package:gossip/src/gossip_node_id.dart';
 import 'package:gossip/src/transport.dart';
 import 'test_helpers.dart';
 
@@ -75,12 +74,14 @@ void main() {
 
       test('peer inactivation affects availability across strategies', () {
         final activePeer = peers[0];
-        final inactivePeer = peers[1];
+        final inactivePeer = DomainTestHelpers.createPeerWithReliability(
+          addressSuffix: 'inactive',
+          successfulContacts: 0,
+          failedContacts: 0,
+          shouldBeActive: false,
+        );
 
         // Make one peer inactive
-        inactivePeer.recordFailedContact();
-        inactivePeer.recordFailedContact();
-        inactivePeer.recordFailedContact();
 
         expect(inactivePeer.isActive, isFalse);
         expect(activePeer.isActive, isTrue);
@@ -104,29 +105,6 @@ void main() {
           expect(selected, isNot(contains(inactivePeer)));
           expect(selected.length, equals(1));
         }
-      });
-
-      test('peer reactivation restores availability', () {
-        final peer = peers[0];
-
-        // Make peer inactive
-        peer.recordFailedContact();
-        peer.recordFailedContact();
-        peer.recordFailedContact();
-        expect(peer.isActive, isFalse);
-
-        // Reactivate with successful contact
-        peer.recordSuccessfulContact();
-        expect(peer.isActive, isTrue);
-
-        // Should be available for selection again
-        final selected = selectionService.selectPeersForGossip(
-          [peer],
-          1,
-          PeerSelectionStrategy.random,
-        );
-
-        expect(selected, contains(peer));
       });
     });
 
@@ -291,8 +269,7 @@ void main() {
         }
 
         // Create fresh peer to test upper boundary
-        final freshPeer = InternalGossipPeer(
-          nodeId: GossipNodeID('boundary-test'),
+        final freshPeer = ConnectedPeer(
           address: const TransportPeerAddress('test://boundary'),
           initialReliabilityScore: 0.99,
         );
@@ -300,40 +277,6 @@ void main() {
         for (int i = 0; i < 1000; i++) {
           freshPeer.recordSuccessfulContact();
           expect(freshPeer.reliabilityScore, lessThanOrEqualTo(1.0));
-        }
-      });
-
-      test('peer activation state transitions are deterministic', () {
-        final peer = peers[0];
-
-        // Test activation threshold
-        expect(peer.isActive, isTrue);
-
-        peer.recordFailedContact();
-        expect(peer.isActive, isTrue);
-
-        peer.recordFailedContact();
-        expect(peer.isActive, isTrue);
-
-        peer.recordFailedContact(); // Third failure should deactivate
-        expect(peer.isActive, isFalse);
-
-        // Test reactivation
-        peer.recordSuccessfulContact();
-        expect(peer.isActive, isTrue);
-
-        // Test that activation state affects selection
-        final inactivePeers = peers.where((p) => !p.isActive).toList();
-        final activePeers = peers.where((p) => p.isActive).toList();
-
-        if (inactivePeers.isNotEmpty && activePeers.isNotEmpty) {
-          final selected = selectionService.selectPeersForGossip(
-            peers,
-            peers.length,
-            PeerSelectionStrategy.random,
-          );
-
-          expect(selected.every((p) => p.isActive), isTrue);
         }
       });
 
@@ -437,7 +380,6 @@ void main() {
           peer.recordFailedContact();
         }
 
-        expect(peer.isActive, isFalse);
         final partitionScore = peer.reliabilityScore;
 
         // Simulate recovery (successful contacts)

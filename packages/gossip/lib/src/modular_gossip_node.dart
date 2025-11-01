@@ -77,7 +77,7 @@ class ModularGossipNode {
   }) {
     if (connectedPeerRepository != null)
       _connectedPeerRepository = connectedPeerRepository;
-    if (vectorClockService != null) _vectorClockService = vectorClockService;
+      if (vectorClockService != null) _vectorClockService = vectorClockService;
   }
 
   /// Initialize the node and wire up all dependencies.

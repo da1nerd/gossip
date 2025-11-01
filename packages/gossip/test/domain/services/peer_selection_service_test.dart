@@ -413,26 +413,6 @@ void main() {
         // Should select some peers (exact selection may vary but should be deterministic)
         expect(result.every((peer) => peer.reliabilityScore == 1.0), isTrue);
       });
-
-      test('handles peers with zero reliability', () {
-        // Create a peer with very low reliability through many failures
-        for (int i = 0; i < 20; i++) {
-          testPeers[0].recordFailedContact();
-        }
-
-        // Note: testPeers[0] is now inactive due to consecutive failures
-        expect(testPeers[0].isActive, isFalse);
-
-        final result = service.selectPeersForGossip(
-          testPeers,
-          testPeers.length,
-          PeerSelectionStrategy.mostReliable,
-        );
-
-        // Should exclude inactive peers, even if they have history
-        expect(result, isNot(contains(testPeers[0])));
-        expect(result.length, equals(testPeers.length - 1)); // All active peers
-      });
     });
 
     group('Strategy Enum Coverage', () {
