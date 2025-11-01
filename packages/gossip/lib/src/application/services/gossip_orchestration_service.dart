@@ -162,6 +162,15 @@ class GossipOrchestrationService {
 
   /// Handle incoming digest messages from other nodes.
   Future<void> _handleIncomingDigest(IncomingDigest digest) async {
+    // Update peer repository immediately with latest transport info to improve liveness after partitions heal.
+    try {
+      await peerManagementService.updatePeerFromTransport(
+        digest.fromTransportPeer,
+      );
+    } catch (_) {
+      // Ignore repository update failures; proceed with digest handling.
+    }
+
     await gossipCycleUseCase.handleIncomingDigest(digest);
   }
 
@@ -169,6 +178,15 @@ class GossipOrchestrationService {
   ///
   /// Processes the events and notifies listeners of newly received events.
   Future<void> _handleIncomingEvents(IncomingEvents events) async {
+    // Update peer repository immediately with latest transport info to improve liveness after partitions heal.
+    try {
+      await peerManagementService.updatePeerFromTransport(
+        events.fromTransportPeer,
+      );
+    } catch (_) {
+      // Ignore repository update failures; proceed with event handling.
+    }
+
     final receivedEvents = await gossipCycleUseCase.handleIncomingEvents(
       events,
     );
