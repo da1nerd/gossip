@@ -503,7 +503,9 @@ void main() {
 
     group('Performance and Consistency', () {
       test('maintains consistent selection with same input', () {
-        final seededService = PeerSelectionService(random: math.Random(123));
+        final seededService = ConnectedPeerSelectionService(
+          random: math.Random(123),
+        );
 
         final result1 = seededService.selectPeersForGossip(
           testPeers,
@@ -511,7 +513,9 @@ void main() {
           PeerSelectionStrategy.random,
         );
 
-        final seededService2 = PeerSelectionService(random: math.Random(123));
+        final seededService2 = ConnectedPeerSelectionService(
+          random: math.Random(123),
+        );
         final result2 = seededService2.selectPeersForGossip(
           testPeers,
           3,
@@ -520,7 +524,7 @@ void main() {
 
         expect(result1.length, equals(result2.length));
         for (int i = 0; i < result1.length; i++) {
-          expect(result1[i].nodeId, equals(result2[i].nodeId));
+          expect(result1[i].address, equals(result2[i].address));
         }
       });
 

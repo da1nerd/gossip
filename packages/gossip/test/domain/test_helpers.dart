@@ -194,14 +194,14 @@ class DomainTestHelpers {
     return stopwatch.elapsed;
   }
 
-  /// Creates test data for performance benchmarking.
-  static List<InternalGossipPeer> createBenchmarkPeers(int count) {
-    final peers = <InternalGossipPeer>[];
+  /// Creates test data for performance benchmarking using ConnectedPeer.
+  static List<ConnectedPeer> createBenchmarkPeers(int count) {
+    final peers = <ConnectedPeer>[];
     final random = createSeededRandom(42);
 
     for (int i = 0; i < count; i++) {
       final peer = createTestPeer(
-        nodeIdSuffix: 'benchmark-$i',
+        addressSuffix: 'benchmark-$i',
         metadata: {
           'benchmark': true,
           'index': i,

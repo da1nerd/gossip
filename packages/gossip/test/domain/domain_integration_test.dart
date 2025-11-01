@@ -209,8 +209,7 @@ void main() {
         // Set up contact times in known order (oldest to newest)
         for (int i = 0; i < timeSortedPeers.length; i++) {
           final contactTime = baseTime.add(Duration(minutes: i * 10));
-          final peerWithTime = InternalGossipPeer(
-            nodeId: timeSortedPeers[i].nodeId,
+          final peerWithTime = ConnectedPeer(
             address: timeSortedPeers[i].address,
             lastContactTime: contactTime,
             isActive: true,
@@ -370,7 +369,7 @@ void main() {
     group('Real-world Scenario Simulation', () {
       test('gossip network with mixed reliability patterns', () {
         final networkPeers = DomainTestHelpers.createMixedScenarioPeers();
-        final results = <String, List<InternalGossipPeer>>{};
+        final results = <String, List<ConnectedPeer>>{};
 
         // Simulate multiple gossip rounds
         for (int round = 0; round < 20; round++) {
@@ -464,7 +463,7 @@ void main() {
 
 // Helper Functions
 
-double _calculateAverageReliability(List<InternalGossipPeer> peers) {
+double _calculateAverageReliability(List<ConnectedPeer> peers) {
   if (peers.isEmpty) return 0.0;
   return peers.map((p) => p.reliabilityScore).reduce((a, b) => a + b) /
       peers.length;
