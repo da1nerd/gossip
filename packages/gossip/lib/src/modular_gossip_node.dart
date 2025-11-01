@@ -45,7 +45,7 @@ class ModularGossipNode {
   final VectorClockStore? vectorClockStore;
 
   // Clean architecture components
-  late final ConnectedPeerRepository _connectedPeerRepository;
+  final ConnectedPeerRepository _connectedPeerRepository;
 
   late final PeerManagementService _peerManagementService;
   late final EventCreationService _eventCreationService;
@@ -64,7 +64,7 @@ class ModularGossipNode {
     required this.eventStore,
     required this.transport,
     this.vectorClockStore,
-  });
+  }) : _connectedPeerRepository = InMemoryConnectedPeerRepository();
 
   /// Alternative constructor for dependency injection (for testing).
   ModularGossipNode.withDependencies({
@@ -74,18 +74,14 @@ class ModularGossipNode {
     this.vectorClockStore,
     ConnectedPeerRepository? connectedPeerRepository,
     VectorClockService? vectorClockService,
-  }) {
-    if (connectedPeerRepository != null)
-      _connectedPeerRepository = connectedPeerRepository;
-      if (vectorClockService != null) _vectorClockService = vectorClockService;
+  }) : _connectedPeerRepository =
+           connectedPeerRepository ?? InMemoryConnectedPeerRepository() {
+    if (vectorClockService != null) _vectorClockService = vectorClockService;
   }
 
   /// Initialize the node and wire up all dependencies.
   Future<void> initialize() async {
     if (_isInitialized) return;
-
-    // Wire up clean architecture components
-    _connectedPeerRepository = InMemoryConnectedPeerRepository();
 
     _vectorClockService = VectorClockService(
       nodeId: config.nodeId,
@@ -98,8 +94,6 @@ class ModularGossipNode {
       nodeId: config.nodeId,
     );
 
-    // New: Connected peer repository (transport-address keyed, no temp IDs)
-    _connectedPeerRepository = InMemoryConnectedPeerRepository();
     // New: Identified node repository (GossipNodeID-keyed, tracks identity and addresses)
     final identifiedNodeRepository = InMemoryIdentifiedNodeRepository();
 
