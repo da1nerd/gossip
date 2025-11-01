@@ -36,20 +36,36 @@ class HandleIncomingDigestUseCase {
     required GossipDigest incoming,
     required DateTime now,
   }) async {
-    // Build typed summaries for the pure domain reconciler
-    final ours = ClockSummary.fromStringMap(
-      vectorClockService.currentClock.summary,
-    );
-    final peers = ClockSummary.fromStringMap(incoming.vectorClock);
+    final ours = _ourSummary();
+    final peers = _peerSummary(incoming);
+    final plan = _computePlan(ours, peers);
+    final eventsToSend = await _collectEventsFairShare(plan);
+    await _advanceClock(plan);
+    return _buildResponse(eventsToSend, plan, now);
+  }
 
-    // Compute a domain-pure reconciliation plan
-    final plan = GossipReconciler.plan(
+  // Build our current summary from the vector clock service.
+  ClockSummary _ourSummary() {
+    return ClockSummary.fromStringMap(vectorClockService.currentClock.summary);
+  }
+
+  // Build the peer's summary from the incoming digest.
+  ClockSummary _peerSummary(GossipDigest incoming) {
+    return ClockSummary.fromStringMap(incoming.vectorClock);
+  }
+
+  // Compute a reconciliation plan describing what to send/request and the merged clock.
+  GossipPlan _computePlan(ClockSummary ours, ClockSummary peers) {
+    return GossipReconciler.plan(
       ours: ours,
       peers: peers,
       perNodeSendLimit: maxEventsPerMessage,
     );
+  }
 
-    // Fulfill SendSpecs by fetching concrete events to send (fair-share across nodes, total cap)
+  // Collect events to send using a fair-share allocator across nodes,
+  // respecting the total message cap.
+  Future<List<Event>> _collectEventsFairShare(GossipPlan plan) async {
     final eventsToSend = <Event>[];
     var remaining = maxEventsPerMessage;
 
@@ -62,6 +78,7 @@ class HandleIncomingDigestUseCase {
 
     while (remaining > 0 && pending.isNotEmpty) {
       var anyProgress = false;
+
       // Distribute capacity fairly across nodes this round
       final perNodeChunk = remaining ~/ pending.length;
       final chunkSize = perNodeChunk > 0 ? perNodeChunk : 1;
@@ -99,12 +116,22 @@ class HandleIncomingDigestUseCase {
       }
     }
 
-    // Advance our local clock to the merged summary (element-wise max)
+    return eventsToSend;
+  }
+
+  // Advance our local vector clock to the merged summary from the plan.
+  Future<void> _advanceClock(GossipPlan plan) async {
     final merged = VectorClock.fromMap(plan.mergedSummary.toStringMap());
     vectorClockService.update(merged);
     await vectorClockService.save();
+  }
 
-    // Build the response for the transport layer to send
+  // Build the final response to return to the transport layer.
+  GossipDigestResponse _buildResponse(
+    List<Event> eventsToSend,
+    GossipPlan plan,
+    DateTime now,
+  ) {
     return GossipDigestResponse(
       senderId: GossipNodeID(vectorClockService.nodeId),
       events: eventsToSend,

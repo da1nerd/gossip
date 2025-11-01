@@ -50,102 +50,12 @@ class GossipWithPeerUseCase {
     var success = false;
 
     try {
-      // Resolve the corresponding transport peer (by address).
-      final transportPeer = await _findTransportPeerByAddress(peer.address);
-      if (transportPeer == null) {
-        throw StateError('Transport peer not found for ${peer.nodeId}');
-      }
+      final transportPeer = await _resolveTransportPeerOrThrow(peer);
+      final digest = _buildDigest(now);
+      final response = await _sendDigest(transportPeer, digest);
 
-      // Build and send our digest using the current vector clock.
-      final digest = GossipDigest(
-        senderId: GossipNodeID(vectorClockService.nodeId),
-        vectorClock: vectorClockService.currentClock.summary,
-        createdAt: now,
-      );
-
-      final response = await transport.sendDigest(
-        transportPeer,
-        digest,
-        timeout: operationTimeout,
-      );
-
-      // Accept any events they sent us in response to our digest.
-      if (response.events.isNotEmpty) {
-        for (final event in response.events) {
-          final exists = await eventStore.hasEvent(event.id);
-          if (!exists) {
-            await eventStore.saveEvent(event);
-            eventsExchanged++;
-          }
-        }
-      }
-
-      // Fulfill any event requests they made by sending them the events they need (fair-share across nodes).
-      if (response.eventRequests.isNotEmpty) {
-        final toSend = <Event>[];
-
-        // Cursor per node to avoid re-reading the same window in multiple rounds.
-        final cursorTs = <GossipNodeID, int>{
-          for (final e in response.eventRequests.entries) e.key: e.value,
-        };
-        final pending = response.eventRequests.keys.toList();
-
-        var remaining = maxEventsPerMessage;
-        while (remaining > 0 && pending.isNotEmpty) {
-          var anyProgress = false;
-
-          // Compute a small fair chunk per pending node this round.
-          final perNodeChunk = remaining ~/ pending.length;
-          final chunkSize = perNodeChunk > 0 ? perNodeChunk : 1;
-
-          // Round-robin fetch across pending nodes.
-          for (final nodeId in List<GossipNodeID>.from(pending)) {
-            final afterTs = cursorTs[nodeId]!;
-            final limit = chunkSize < remaining ? chunkSize : remaining;
-
-            final batch = await eventStore.getEventsSince(
-              nodeId,
-              afterTs,
-              limit: limit,
-            );
-
-            if (batch.isEmpty) {
-              // No more events for this node; remove from pending.
-              pending.remove(nodeId);
-              continue;
-            }
-
-            // Append up to remaining capacity and advance cursor to last timestamp.
-            final takeCount = batch.length > remaining
-                ? remaining
-                : batch.length;
-            toSend.addAll(batch.take(takeCount));
-            remaining -= takeCount;
-            cursorTs[nodeId] = batch.last.timestamp;
-            anyProgress = true;
-
-            if (remaining <= 0) break;
-          }
-
-          if (!anyProgress) {
-            // No node produced events in this round; stop.
-            break;
-          }
-        }
-
-        if (toSend.isNotEmpty) {
-          final message = GossipEventMessage(
-            senderId: GossipNodeID(vectorClockService.nodeId),
-            events: toSend,
-            createdAt: now,
-          );
-          await transport.sendEvents(
-            transportPeer,
-            message,
-            timeout: operationTimeout,
-          );
-        }
-      }
+      eventsExchanged += await _acceptIncomingEvents(response);
+      await _fulfillEventRequests(response, transportPeer, now);
 
       success = true;
     } catch (e) {
@@ -160,6 +70,112 @@ class GossipWithPeerUseCase {
       error: error,
     );
     // Note: Reliability updates and persistence are handled by the cycle use case.
+  }
+
+  Future<TransportPeer> _resolveTransportPeerOrThrow(
+    InternalGossipPeer peer,
+  ) async {
+    final transportPeer = await _findTransportPeerByAddress(peer.address);
+    if (transportPeer == null) {
+      throw StateError('Transport peer not found for ${peer.nodeId}');
+    }
+    return transportPeer;
+  }
+
+  GossipDigest _buildDigest(DateTime now) {
+    return GossipDigest(
+      senderId: GossipNodeID(vectorClockService.nodeId),
+      vectorClock: vectorClockService.currentClock.summary,
+      createdAt: now,
+    );
+  }
+
+  Future<dynamic> _sendDigest(TransportPeer to, GossipDigest digest) {
+    return transport.sendDigest(to, digest, timeout: operationTimeout);
+  }
+
+  Future<int> _acceptIncomingEvents(dynamic response) async {
+    var exchanged = 0;
+    if (response.events.isNotEmpty) {
+      for (final event in response.events) {
+        final exists = await eventStore.hasEvent(event.id);
+        if (!exists) {
+          await eventStore.saveEvent(event);
+          exchanged++;
+        }
+      }
+    }
+    return exchanged;
+  }
+
+  Future<void> _fulfillEventRequests(
+    dynamic response,
+    TransportPeer transportPeer,
+    DateTime now,
+  ) async {
+    if (response.eventRequests.isEmpty) return;
+
+    final toSend = <Event>[];
+
+    // Cursor per node to avoid re-reading the same window in multiple rounds.
+    final cursorTs = <GossipNodeID, int>{
+      for (final e in response.eventRequests.entries) e.key: e.value,
+    };
+    final pending = response.eventRequests.keys.toList();
+
+    var remaining = maxEventsPerMessage;
+    while (remaining > 0 && pending.isNotEmpty) {
+      var anyProgress = false;
+
+      // Compute a small fair chunk per pending node this round.
+      final perNodeChunk = remaining ~/ pending.length;
+      final chunkSize = perNodeChunk > 0 ? perNodeChunk : 1;
+
+      // Round-robin fetch across pending nodes.
+      for (final nodeId in List<GossipNodeID>.from(pending)) {
+        final afterTs = cursorTs[nodeId]!;
+        final limit = chunkSize < remaining ? chunkSize : remaining;
+
+        final batch = await eventStore.getEventsSince(
+          nodeId,
+          afterTs,
+          limit: limit,
+        );
+
+        if (batch.isEmpty) {
+          // No more events for this node; remove from pending.
+          pending.remove(nodeId);
+          continue;
+        }
+
+        // Append up to remaining capacity and advance cursor to last timestamp.
+        final takeCount = batch.length > remaining ? remaining : batch.length;
+        toSend.addAll(batch.take(takeCount));
+        remaining -= takeCount;
+        cursorTs[nodeId] = batch.last.timestamp;
+        anyProgress = true;
+
+        if (remaining <= 0) break;
+      }
+
+      if (!anyProgress) {
+        // No node produced events in this round; stop.
+        break;
+      }
+    }
+
+    if (toSend.isNotEmpty) {
+      final message = GossipEventMessage(
+        senderId: GossipNodeID(vectorClockService.nodeId),
+        events: toSend,
+        createdAt: now,
+      );
+      await transport.sendEvents(
+        transportPeer,
+        message,
+        timeout: operationTimeout,
+      );
+    }
   }
 
   /// Finds a [TransportPeer] by matching the address to the provided [peerAddress].

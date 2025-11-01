@@ -30,34 +30,55 @@ class HandleIncomingEventsUseCase {
     required GossipPeer fromPeer,
     required DateTime now,
   }) async {
-    // Build a set of known event IDs (simple per-id check; can be optimized with batch APIs).
+    final knownIds = await _collectKnownIds(message);
+    final admission = _admit(message, knownIds);
+    await _persistAccepted(admission);
+    await _advanceClock(admission);
+    return _buildReceivedEvents(admission, fromPeer, now);
+  }
+
+  // Collect known event IDs to avoid re-persisting duplicates.
+  Future<Set<String>> _collectKnownIds(GossipEventMessage message) async {
     final knownIds = <String>{};
     for (final e in message.events) {
       if (await eventStore.hasEvent(e.id)) {
         knownIds.add(e.id);
       }
     }
+    return knownIds;
+  }
 
-    // Pure domain decision: which events to accept and the vector-clock delta.
-    final admission = EventAdmissionPolicy.admit(
+  // Decide which events to accept using the domain policy.
+  AdmissionResult _admit(GossipEventMessage message, Set<String> knownIds) {
+    return EventAdmissionPolicy.admit(
       incoming: message.events,
       knownEventIds: knownIds,
     );
+  }
 
-    // Persist accepted events.
+  // Persist newly accepted events.
+  Future<void> _persistAccepted(AdmissionResult admission) async {
     for (final e in admission.toPersist) {
       await eventStore.saveEvent(e);
     }
+  }
 
-    // Advance vector clock using the delta produced by the domain policy.
+  // Advance our vector clock based on the domain-produced delta.
+  Future<void> _advanceClock(AdmissionResult admission) async {
     final delta = VectorClock();
     for (final entry in admission.delta.byNode.entries) {
       delta.setTimestampFor(entry.key.value, entry.value);
     }
     vectorClockService.update(delta);
     await vectorClockService.save();
+  }
 
-    // Return enriched records for higher layers to consume.
+  // Build enriched ReceivedEvent records for higher layers.
+  List<ReceivedEvent> _buildReceivedEvents(
+    AdmissionResult admission,
+    GossipPeer fromPeer,
+    DateTime now,
+  ) {
     return [
       for (final e in admission.toPersist)
         ReceivedEvent(event: e, fromPeer: fromPeer, receivedAt: now),
