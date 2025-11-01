@@ -114,9 +114,9 @@ class SimulatedTransport implements GossipTransport {
     );
 
     // Register a one-shot listener for the response
-    final sub = network._onDigestResponseFor(self.address).listen((resp) {
-      if (!completer.isCompleted) {
-        completer.complete(resp);
+    final sub = network._onDigestResponseFor(self.address).listen((entry) {
+      if (entry.key == transportPeer.address && !completer.isCompleted) {
+        completer.complete(entry.value);
       }
     });
 
@@ -258,7 +258,10 @@ class SimulatedNetwork {
   final Random rng;
 
   // One-off response streams keyed by destination address for digest responses
-  final Map<TransportPeerAddress, StreamController<GossipDigestResponse>>
+  final Map<
+    TransportPeerAddress,
+    StreamController<MapEntry<TransportPeerAddress, GossipDigestResponse>>
+  >
   _digestResponseStreams = {};
 
   SimulatedNetwork({int? seed}) : rng = Random(seed);
@@ -316,10 +319,14 @@ class SimulatedNetwork {
   }
 
   /// Internal stream for digest responses addressed to [to].
-  Stream<GossipDigestResponse> _onDigestResponseFor(TransportPeerAddress to) {
+  Stream<MapEntry<TransportPeerAddress, GossipDigestResponse>>
+  _onDigestResponseFor(TransportPeerAddress to) {
     final ctrl = _digestResponseStreams.putIfAbsent(
       to,
-      () => StreamController<GossipDigestResponse>.broadcast(),
+      () =>
+          StreamController<
+            MapEntry<TransportPeerAddress, GossipDigestResponse>
+          >.broadcast(),
     );
     return ctrl.stream;
   }
@@ -367,12 +374,12 @@ class SimulatedNetwork {
 
     final ctrl = _digestResponseStreams[to];
     if (ctrl != null && !ctrl.isClosed) {
-      ctrl.add(response);
+      ctrl.add(MapEntry(from, response));
       if (link.shouldDuplicate(rng)) {
         final dupLatency = link.sampleLatency(rng);
         await Future.delayed(dupLatency);
         if (!ctrl.isClosed) {
-          ctrl.add(response);
+          ctrl.add(MapEntry(from, response));
         }
       }
     }
@@ -408,6 +415,67 @@ class SimulatedNetwork {
     TransportPeerAddress to,
   ) {
     return _links[from]?[to];
+  }
+
+  /// Returns true if a directed link exists from [from] to [to].
+  bool isLinked(TransportPeerAddress from, TransportPeerAddress to) {
+    return _links[from]?.containsKey(to) ?? false;
+  }
+
+  /// Disconnects a directed link from [from] to [to], if present.
+  void disconnectDirected(TransportPeerAddress from, TransportPeerAddress to) {
+    final neigh = _adjacency[from];
+    neigh?.remove(to);
+    final linkMap = _links[from];
+    linkMap?.remove(to);
+
+    if (linkMap != null && linkMap.isEmpty) {
+      _links.remove(from);
+    }
+    if (neigh != null && neigh.isEmpty) {
+      _adjacency.remove(from);
+    }
+  }
+
+  /// Disconnects an undirected link between [a] and [b] (both directions).
+  void disconnectUndirected(TransportPeerAddress a, TransportPeerAddress b) {
+    disconnectDirected(a, b);
+    disconnectDirected(b, a);
+  }
+
+  /// Removes all links (both outgoing and incoming) associated with [address].
+  ///
+  /// Useful for simulating node isolation or partitions.
+  void clearLinksFor(TransportPeerAddress address) {
+    // Remove outgoing adjacency and link maps
+    _adjacency.remove(address);
+    _links.remove(address);
+
+    // Remove incoming references from other nodes
+    for (final neighbors in _adjacency.values) {
+      neighbors.remove(address);
+    }
+    for (final linkMap in _links.values) {
+      linkMap.remove(address);
+    }
+  }
+
+  /// Adds an undirected "bridge" between two nodes (both directions).
+  ///
+  /// This is a convenience wrapper around [connectUndirected] for scenarios
+  /// like partition healing where a single link reconnects two components.
+  void addBridge(
+    TransportPeerAddress a,
+    TransportPeerAddress b, {
+    SimulatedLinkConfig configAB = const SimulatedLinkConfig(),
+    SimulatedLinkConfig? configBA,
+  }) {
+    connectUndirected(a, b, configAB: configAB, configBA: configBA);
+  }
+
+  /// Removes an undirected "bridge" between two nodes (both directions).
+  void removeBridge(TransportPeerAddress a, TransportPeerAddress b) {
+    disconnectUndirected(a, b);
   }
 }
 
