@@ -6,8 +6,7 @@
 library;
 
 import 'dart:math' as math;
-import 'package:gossip/src/domain/entities/internal_gossip_peer.dart';
-import 'package:gossip/src/gossip_node_id.dart';
+import 'package:gossip/src/domain/entities/connected_peer.dart';
 import 'package:gossip/src/transport.dart';
 
 /// Test helper class providing utilities for domain tests.
@@ -17,7 +16,7 @@ class DomainTestHelpers {
   ); // Seeded for reproducibility
 
   /// Creates a single test peer with optional parameters.
-  static InternalGossipPeer createTestPeer({
+  static ConnectedPeer createTestPeer({
     String? nodeIdSuffix,
     String? addressSuffix,
     Map<String, dynamic>? metadata,
@@ -25,9 +24,9 @@ class DomainTestHelpers {
     double? initialReliabilityScore,
     bool? isActive,
   }) {
-    final suffix = nodeIdSuffix ?? _random.nextInt(100000).toString();
-    return InternalGossipPeer(
-      nodeId: GossipNodeID('test-node-$suffix'),
+    final suffix =
+        addressSuffix ?? nodeIdSuffix ?? _random.nextInt(100000).toString();
+    return ConnectedPeer(
       address: TransportPeerAddress('test://peer$suffix'),
       metadata: metadata ?? {'created': 'test', 'suffix': suffix},
       lastContactTime: lastContactTime,
@@ -37,10 +36,9 @@ class DomainTestHelpers {
   }
 
   /// Creates a list of test peers with default configurations.
-  static List<InternalGossipPeer> createTestPeers(int count) {
+  static List<ConnectedPeer> createTestPeers(int count) {
     return List.generate(count, (index) {
       return createTestPeer(
-        nodeIdSuffix: index.toString(),
         addressSuffix: index.toString(),
         metadata: {
           'index': index,
@@ -52,13 +50,16 @@ class DomainTestHelpers {
   }
 
   /// Creates a peer with specific reliability characteristics.
-  static InternalGossipPeer createPeerWithReliability({
+  static ConnectedPeer createPeerWithReliability({
     required String nodeIdSuffix,
     required int successfulContacts,
     required int failedContacts,
     bool shouldBeActive = true,
   }) {
-    final peer = createTestPeer(nodeIdSuffix: nodeIdSuffix);
+    final peer = createTestPeer(
+      nodeIdSuffix: nodeIdSuffix,
+      isActive: shouldBeActive,
+    );
 
     // Record the exact number of contacts requested
     for (int i = 0; i < successfulContacts; i++) {
@@ -69,18 +70,14 @@ class DomainTestHelpers {
       peer.recordFailedContact();
     }
 
-    // Use the test method to override active state if needed
-    if (shouldBeActive && !peer.isActive) {
-      peer.setActiveStateForTesting(true);
-    } else if (!shouldBeActive && peer.isActive) {
-      peer.setActiveStateForTesting(false);
-    }
+    // Ensure desired active state
+    peer.markActive(shouldBeActive);
 
     return peer;
   }
 
   /// Creates a mixed scenario with various peer types.
-  static List<InternalGossipPeer> createMixedScenarioPeers() {
+  static List<ConnectedPeer> createMixedScenarioPeers() {
     return [
       // Perfect peer
       createPeerWithReliability(
@@ -126,7 +123,7 @@ class DomainTestHelpers {
 
   /// Simulates network activity on a peer over multiple rounds.
   static void simulateNetworkActivity(
-    InternalGossipPeer peer, {
+    ConnectedPeer peer, {
     required int rounds,
     required double successProbability,
     math.Random? random,
@@ -143,7 +140,7 @@ class DomainTestHelpers {
   }
 
   /// Validates that a peer's internal state is consistent.
-  static bool validatePeerConsistency(InternalGossipPeer peer) {
+  static bool validatePeerConsistency(ConnectedPeer peer) {
     // Check reliability score bounds
     if (peer.reliabilityScore < 0.0 || peer.reliabilityScore > 1.0) {
       return false;
@@ -156,14 +153,6 @@ class DomainTestHelpers {
 
     // Check consecutive failures is non-negative
     if (peer.consecutiveFailures < 0) {
-      return false;
-    }
-
-    // Check that inactive peers have at least 3 consecutive failures
-    // (unless they have no contact history at all)
-    if (!peer.isActive &&
-        peer.lastContactTime != null &&
-        peer.consecutiveFailures < 3) {
       return false;
     }
 

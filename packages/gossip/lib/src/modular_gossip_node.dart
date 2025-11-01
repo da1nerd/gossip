@@ -196,6 +196,7 @@ class ModularGossipNode {
   /// Get current list of peers (converted to external GossipPeer format).
   Future<List<GossipPeer>> get peers async {
     _checkInitialized();
+    // TODO: get the identified nodes instead of connected peers.
     final connected = await _connectedPeerRepository.getAllConnectedPeers();
     return connected
         .map(

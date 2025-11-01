@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:test/test.dart';
-import 'package:gossip/src/domain/entities/internal_gossip_peer.dart';
-import 'package:gossip/src/domain/services/peer_selection_service.dart';
+import 'package:gossip/src/domain/entities/connected_peer.dart';
+import 'package:gossip/src/domain/services/connected_peer_selection_service.dart';
 import 'package:gossip/src/gossip_config.dart';
 import 'package:gossip/src/gossip_node_id.dart';
 import 'package:gossip/src/transport.dart';
@@ -9,11 +9,11 @@ import 'test_helpers.dart';
 
 void main() {
   group('Domain Layer Integration Tests', () {
-    late PeerSelectionService selectionService;
-    late List<InternalGossipPeer> peers;
+    late ConnectedPeerSelectionService selectionService;
+    late List<ConnectedPeer> peers;
 
     setUp(() {
-      selectionService = PeerSelectionService(random: math.Random(42));
+      selectionService = ConnectedPeerSelectionService(random: math.Random(42));
       peers = DomainTestHelpers.createTestPeers(5);
     });
 

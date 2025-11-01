@@ -1,30 +1,30 @@
 import 'dart:math' as math;
 import 'package:test/test.dart';
-import 'package:gossip/src/domain/services/peer_selection_service.dart';
-import 'package:gossip/src/domain/entities/internal_gossip_peer.dart';
+import 'package:gossip/src/domain/services/connected_peer_selection_service.dart';
+import 'package:gossip/src/domain/entities/connected_peer.dart';
 import 'package:gossip/src/gossip_config.dart';
 import '../../test_config.dart';
 import '../test_helpers.dart';
 
 void main() {
-  group('PeerSelectionService', () {
-    late PeerSelectionService service;
-    late List<InternalGossipPeer> testPeers;
+  group('ConnectedPeerSelectionService', () {
+    late ConnectedPeerSelectionService service;
+    late List<ConnectedPeer> testPeers;
 
     setUp(() {
-      service = PeerSelectionService();
+      service = ConnectedPeerSelectionService();
       testPeers = DomainTestHelpers.createTestPeers(5);
     });
 
     group('Constructor', () {
       test('creates service with default random generator', () {
-        final service = PeerSelectionService();
+        final service = ConnectedPeerSelectionService();
         expect(service, isNotNull);
       });
 
       test('creates service with custom random generator', () {
         final customRandom = math.Random(12345); // Seeded for predictability
-        final service = PeerSelectionService(random: customRandom);
+        final service = ConnectedPeerSelectionService(random: customRandom);
         expect(service, isNotNull);
       });
     });
@@ -42,9 +42,7 @@ void main() {
       test('returns empty list when no active peers available', () {
         final inactivePeers = testPeers.map((peer) {
           // Make all peers inactive
-          for (int i = 0; i < 3; i++) {
-            peer.recordFailedContact();
-          }
+          peer.markActive(false);
           return peer;
         }).toList();
 
@@ -58,9 +56,7 @@ void main() {
 
       test('filters out inactive peers', () {
         // Make first peer inactive
-        testPeers[0].recordFailedContact();
-        testPeers[0].recordFailedContact();
-        testPeers[0].recordFailedContact();
+        testPeers[0].markActive(false);
 
         final result = service.selectPeersForGossip(
           testPeers,
@@ -94,7 +90,9 @@ void main() {
     group('Random Selection Strategy', () {
       test('selects peers randomly', () {
         // Use seeded random for reproducible results
-        final seededService = PeerSelectionService(random: math.Random(42));
+        final seededService = ConnectedPeerSelectionService(
+          random: math.Random(42),
+        );
 
         final result1 = seededService.selectPeersForGossip(
           testPeers,
@@ -103,7 +101,9 @@ void main() {
         );
 
         // Reset to same seed for second call
-        final seededService2 = PeerSelectionService(random: math.Random(42));
+        final seededService2 = ConnectedPeerSelectionService(
+          random: math.Random(42),
+        );
         final result2 = seededService2.selectPeersForGossip(
           testPeers,
           3,
@@ -113,13 +113,13 @@ void main() {
         // Should get same results with same seed
         expect(result1.length, equals(result2.length));
         for (int i = 0; i < result1.length; i++) {
-          expect(result1[i].nodeId, equals(result2[i].nodeId));
+          expect(result1[i].address, equals(result2[i].address));
         }
       });
 
       test('returns different selections with different random seeds', () {
-        final service1 = PeerSelectionService(random: math.Random(1));
-        final service2 = PeerSelectionService(random: math.Random(2));
+        final service1 = ConnectedPeerSelectionService(random: math.Random(1));
+        final service2 = ConnectedPeerSelectionService(random: math.Random(2));
 
         final result1 = service1.selectPeersForGossip(
           testPeers,
@@ -136,7 +136,7 @@ void main() {
         // With different seeds, order should likely be different
         bool orderDiffers = false;
         for (int i = 0; i < result1.length; i++) {
-          if (result1[i].nodeId != result2[i].nodeId) {
+          if (result1[i].address != result2[i].address) {
             orderDiffers = true;
             break;
           }
@@ -154,20 +154,20 @@ void main() {
           );
 
           return {
-            'selectedPeers': selected.map((p) => p.nodeId.value).toList(),
+            'selectedPeers': selected.map((p) => p.address.value).toList(),
           };
         },
         validator: (results) {
           // Count selections for each peer
           final selectionCounts = <String, int>{};
           for (final peer in testPeers) {
-            selectionCounts[peer.nodeId.value] = 0;
+            selectionCounts[peer.address.value] = 0;
           }
 
           final allSelections = results['selectedPeers']!;
           for (final selectionList in allSelections) {
-            for (final peerId in selectionList as List<String>) {
-              selectionCounts[peerId] = selectionCounts[peerId]! + 1;
+            for (final addr in selectionList as List<String>) {
+              selectionCounts[addr] = selectionCounts[addr]! + 1;
             }
           }
 
@@ -305,22 +305,22 @@ void main() {
         testPeers[0].recordSuccessfulContact(); // Most recent (now)
 
         // Simulate older contact times by directly setting them
-        final peer1 = InternalGossipPeer(
-          nodeId: testPeers[1].nodeId,
+        final peer1 = ConnectedPeer(
           address: testPeers[1].address,
           lastContactTime: baseTime.subtract(const Duration(minutes: 30)),
+          isActive: true,
         );
 
-        final peer2 = InternalGossipPeer(
-          nodeId: testPeers[2].nodeId,
+        final peer2 = ConnectedPeer(
           address: testPeers[2].address,
           lastContactTime: baseTime.subtract(const Duration(minutes: 10)),
+          isActive: true,
         );
 
-        final peer3 = InternalGossipPeer(
-          nodeId: testPeers[3].nodeId,
+        final peer3 = ConnectedPeer(
           address: testPeers[3].address,
           lastContactTime: baseTime.subtract(const Duration(minutes: 45)),
+          isActive: true,
         );
 
         final peersWithTimes = [testPeers[0], peer1, peer2, peer3];
@@ -333,9 +333,9 @@ void main() {
 
         // Should select in order: peer3 (45 min ago), peer1 (30 min ago), peer2 (10 min ago)
         // testPeers[0] contacted most recently should not be selected
-        expect(result[0].nodeId, equals(peer3.nodeId));
-        expect(result[1].nodeId, equals(peer1.nodeId));
-        expect(result[2].nodeId, equals(peer2.nodeId));
+        expect(result[0].address, equals(peer3.address));
+        expect(result[1].address, equals(peer1.address));
+        expect(result[2].address, equals(peer2.address));
       });
 
       test('treats peers with no contact time as least recently contacted', () {
