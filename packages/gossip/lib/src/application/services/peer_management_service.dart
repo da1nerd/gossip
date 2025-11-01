@@ -15,40 +15,21 @@ library;
 
 import '../../gossip_node_id.dart';
 import '../../transport.dart';
-import '../ports/peer_repository.dart';
+
 import '../ports/connected_peer_repository.dart';
 import '../ports/identified_node_repository.dart';
-import '../../domain/entities/internal_gossip_peer.dart';
 
 /// Service for managing peer lifecycle and discovery.
 class PeerManagementService {
-  final PeerRepository peerRepository;
   final GossipTransport transport;
   final ConnectedPeerRepository connectedPeerRepository;
   final IdentifiedNodeRepository identifiedNodeRepository;
 
   PeerManagementService({
-    required this.peerRepository,
     required this.transport,
     required this.connectedPeerRepository,
     required this.identifiedNodeRepository,
   });
-
-  /// Add a new peer to the gossip network.
-  ///
-  /// Creates an [InternalGossipPeer] and stores it in the repository.
-  Future<void> addPeer(
-    GossipNodeID nodeId,
-    TransportPeerAddress address,
-  ) async {
-    final peer = InternalGossipPeer(nodeId: nodeId, address: address);
-    await peerRepository.savePeer(peer);
-  }
-
-  /// Remove a peer from the gossip network.
-  Future<void> removePeer(GossipNodeID nodeId) async {
-    await peerRepository.removePeer(nodeId);
-  }
 
   /// Discover new peers using the transport layer.
   ///
@@ -70,42 +51,12 @@ class PeerManagementService {
     }
   }
 
-  /// Update an existing peer with information from the transport layer.
-  Future<void> _updatePeerFromTransport(
-    InternalGossipPeer existingPeer,
-    TransportPeer transportPeer,
-  ) async {
-    // Create updated peer with new transport information
-    final updatedPeer = InternalGossipPeer(
-      nodeId: existingPeer.nodeId,
-      address: transportPeer.address,
-      metadata: {
-        ...existingPeer.metadata,
-        'displayName': transportPeer.displayName,
-        'transportId': transportPeer.address.value,
-        ...transportPeer.metadata,
-      },
-      lastContactTime: existingPeer.lastContactTime,
-      isActive: transportPeer.isActive,
-    );
-
-    await peerRepository.savePeer(updatedPeer);
-  }
-
-  /// Update peer status based on transport peer information.
+  /// Update or insert a connected peer from the latest transport snapshot.
   ///
-  /// This is used when the transport layer provides updates about
-  /// peer connectivity status.
+  /// This keeps transport-derived liveness/metadata fresh without relying on
+  /// any legacy ID-based repositories.
   Future<void> updatePeerFromTransport(TransportPeer transportPeer) async {
-    // Find existing peer by address since TransportPeer doesn't have nodeId
-    final allPeers = await peerRepository.getAllPeers();
-    final existing = allPeers
-        .where((p) => p.address == transportPeer.address)
-        .firstOrNull;
-
-    if (existing != null) {
-      await _updatePeerFromTransport(existing, transportPeer);
-    }
+    await connectedPeerRepository.upsertFromTransport(transportPeer);
   }
 
   /// Promote a connected peer (by address) to an identified node (by id).

@@ -12,6 +12,7 @@ import 'package:gossip/src/event_store.dart';
 import 'package:gossip/src/exceptions.dart';
 import 'package:gossip/src/gossip_config.dart';
 import 'package:gossip/src/gossip_peer.dart';
+import 'package:gossip/src/gossip_node_id.dart';
 import 'package:gossip/src/transport.dart';
 import 'package:gossip/src/vector_clock.dart';
 import 'package:gossip/src/vector_clock_store.dart';
@@ -20,17 +21,16 @@ import 'package:gossip/src/application/services/event_creation_service.dart';
 import 'package:gossip/src/application/services/gossip_orchestration_service.dart';
 import 'package:gossip/src/application/services/peer_management_service.dart';
 import 'package:gossip/src/application/services/vector_clock_service.dart';
-import 'package:gossip/src/application/use_cases/gossip_cycle_use_case.dart';
-import 'package:gossip/src/application/use_cases/gossip_with_peer_use_case.dart';
+
 import 'package:gossip/src/application/use_cases/handle_incoming_digest_use_case.dart';
 import 'package:gossip/src/application/use_cases/handle_incoming_events_use_case.dart';
 import 'package:gossip/src/application/use_cases/connected_gossip_cycle_use_case.dart';
 import 'package:gossip/src/application/use_cases/gossip_with_connected_peer_use_case.dart';
-import 'package:gossip/src/application/ports/peer_repository.dart';
+
 import 'package:gossip/src/application/ports/connected_peer_repository.dart';
-import 'package:gossip/src/domain/services/peer_selection_service.dart';
+
 import 'package:gossip/src/domain/services/connected_peer_selection_service.dart';
-import 'package:gossip/src/infrastructure/repositories/in_memory_peer_repository.dart';
+
 import 'package:gossip/src/infrastructure/repositories/in_memory_connected_peer_repository.dart';
 import 'package:gossip/src/infrastructure/repositories/in_memory_identified_node_repository.dart';
 
@@ -45,9 +45,8 @@ class ModularGossipNode {
   final VectorClockStore? vectorClockStore;
 
   // Clean architecture components
-  late final PeerRepository _peerRepository;
-  late final PeerSelectionService _peerSelectionService;
-  late final GossipCycleUseCase _gossipCycleUseCase;
+  late final ConnectedPeerRepository _connectedPeerRepository;
+
   late final PeerManagementService _peerManagementService;
   late final EventCreationService _eventCreationService;
   late final VectorClockService _vectorClockService;
@@ -73,13 +72,11 @@ class ModularGossipNode {
     required this.eventStore,
     required this.transport,
     this.vectorClockStore,
-    PeerRepository? peerRepository,
-    PeerSelectionService? peerSelectionService,
+    ConnectedPeerRepository? connectedPeerRepository,
     VectorClockService? vectorClockService,
   }) {
-    if (peerRepository != null) _peerRepository = peerRepository;
-    if (peerSelectionService != null)
-      _peerSelectionService = peerSelectionService;
+    if (connectedPeerRepository != null)
+      _connectedPeerRepository = connectedPeerRepository;
     if (vectorClockService != null) _vectorClockService = vectorClockService;
   }
 
@@ -88,8 +85,7 @@ class ModularGossipNode {
     if (_isInitialized) return;
 
     // Wire up clean architecture components
-    _peerRepository = InMemoryPeerRepository();
-    _peerSelectionService = PeerSelectionService();
+    _connectedPeerRepository = InMemoryConnectedPeerRepository();
 
     _vectorClockService = VectorClockService(
       nodeId: config.nodeId,
@@ -103,15 +99,13 @@ class ModularGossipNode {
     );
 
     // New: Connected peer repository (transport-address keyed, no temp IDs)
-    final ConnectedPeerRepository connectedPeerRepository =
-        InMemoryConnectedPeerRepository();
+    _connectedPeerRepository = InMemoryConnectedPeerRepository();
     // New: Identified node repository (GossipNodeID-keyed, tracks identity and addresses)
     final identifiedNodeRepository = InMemoryIdentifiedNodeRepository();
 
     _peerManagementService = PeerManagementService(
-      peerRepository: _peerRepository,
       transport: transport,
-      connectedPeerRepository: connectedPeerRepository,
+      connectedPeerRepository: _connectedPeerRepository,
       identifiedNodeRepository: identifiedNodeRepository,
     );
 
@@ -125,23 +119,6 @@ class ModularGossipNode {
     final handleIncomingEventsUseCase = HandleIncomingEventsUseCase(
       eventStore: eventStore,
       vectorClockService: _vectorClockService,
-    );
-
-    final gossipWithPeerUseCase = GossipWithPeerUseCase(
-      transport: transport,
-      eventStore: eventStore,
-      vectorClockService: _vectorClockService,
-      maxEventsPerMessage: config.maxEventsPerMessage,
-      operationTimeout: config.gossipTimeout,
-    );
-
-    _gossipCycleUseCase = GossipCycleUseCase(
-      peerRepository: _peerRepository,
-      peerSelectionService: _peerSelectionService,
-      config: config,
-      gossipWithPeerUseCase: gossipWithPeerUseCase,
-      handleIncomingDigestUseCase: handleIncomingDigestUseCase,
-      handleIncomingEventsUseCase: handleIncomingEventsUseCase,
     );
 
     // New connected-peer selection/cycle (non-breaking: provided as optional to orchestration)
@@ -163,10 +140,11 @@ class ModularGossipNode {
     _orchestrationService = GossipOrchestrationService(
       config: config,
       transport: transport,
-      gossipCycleUseCase: _gossipCycleUseCase,
+      handleIncomingDigestUseCase: handleIncomingDigestUseCase,
+      handleIncomingEventsUseCase: handleIncomingEventsUseCase,
       connectedGossipCycleUseCase: connectedGossipCycleUseCase,
       gossipWithConnectedPeerUseCase: gossipWithConnectedPeerUseCase,
-      connectedPeerRepository: connectedPeerRepository,
+      connectedPeerRepository: _connectedPeerRepository,
       eventCreationService: _eventCreationService,
       peerManagementService: _peerManagementService,
     );
@@ -189,8 +167,9 @@ class ModularGossipNode {
     await _orchestrationService.shutdown();
     _eventCreationService.dispose();
 
-    if (_peerRepository is InMemoryPeerRepository) {
-      await (_peerRepository as InMemoryPeerRepository).dispose();
+    if (_connectedPeerRepository is InMemoryConnectedPeerRepository) {
+      await (_connectedPeerRepository as InMemoryConnectedPeerRepository)
+          .dispose();
     }
 
     _isInitialized = false;
@@ -217,8 +196,18 @@ class ModularGossipNode {
   /// Get current list of peers (converted to external GossipPeer format).
   Future<List<GossipPeer>> get peers async {
     _checkInitialized();
-    final internalPeers = await _peerRepository.getAllPeers();
-    return internalPeers.map((p) => p.toGossipPeer()).toList();
+    final connected = await _connectedPeerRepository.getAllConnectedPeers();
+    return connected
+        .map(
+          (p) => GossipPeer(
+            id: GossipNodeID('unknown'),
+            address: p.address,
+            metadata: p.metadata,
+            lastContactTime: p.lastContactTime,
+            isActive: p.isActive,
+          ),
+        )
+        .toList();
   }
 
   /// Get current vector clock.

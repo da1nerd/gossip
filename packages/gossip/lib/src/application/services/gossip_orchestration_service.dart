@@ -11,10 +11,12 @@ import 'dart:math';
 import '../../event.dart';
 import '../../gossip_config.dart';
 import '../../transport.dart';
-import '../use_cases/gossip_cycle_use_case.dart';
+import '../use_cases/handle_incoming_digest_use_case.dart';
+import '../use_cases/handle_incoming_events_use_case.dart';
 import '../use_cases/connected_gossip_cycle_use_case.dart';
 import '../use_cases/gossip_with_connected_peer_use_case.dart';
 import '../ports/connected_peer_repository.dart';
+import '../../gossip_peer.dart';
 import 'event_creation_service.dart';
 import 'peer_management_service.dart';
 
@@ -22,7 +24,8 @@ import 'peer_management_service.dart';
 class GossipOrchestrationService {
   final GossipConfig config;
   final GossipTransport transport;
-  final GossipCycleUseCase gossipCycleUseCase;
+  final HandleIncomingDigestUseCase handleIncomingDigestUseCase;
+  final HandleIncomingEventsUseCase handleIncomingEventsUseCase;
   final ConnectedGossipCycleUseCase? connectedGossipCycleUseCase;
   final GossipWithConnectedPeerUseCase? gossipWithConnectedPeerUseCase;
   final ConnectedPeerRepository? connectedPeerRepository;
@@ -51,7 +54,8 @@ class GossipOrchestrationService {
   GossipOrchestrationService({
     required this.config,
     required this.transport,
-    required this.gossipCycleUseCase,
+    required this.handleIncomingDigestUseCase,
+    required this.handleIncomingEventsUseCase,
     this.connectedGossipCycleUseCase,
     this.gossipWithConnectedPeerUseCase,
     this.connectedPeerRepository,
@@ -153,8 +157,6 @@ class GossipOrchestrationService {
     try {
       if (connectedGossipCycleUseCase != null) {
         await connectedGossipCycleUseCase!.execute();
-      } else {
-        await gossipCycleUseCase.execute();
       }
     } finally {
       _gossipCycleInProgress = false;
@@ -163,7 +165,9 @@ class GossipOrchestrationService {
 
   /// Perform anti-entropy operations to ensure eventual consistency.
   Future<void> _performAntiEntropy() async {
-    await gossipCycleUseCase.performAntiEntropy();
+    if (connectedGossipCycleUseCase != null) {
+      await connectedGossipCycleUseCase!.execute();
+    }
   }
 
   /// Discover new peers using the peer management service.
@@ -195,7 +199,11 @@ class GossipOrchestrationService {
       // Ignore repository update failures; proceed with digest handling.
     }
 
-    await gossipCycleUseCase.handleIncomingDigest(digest);
+    final response = await handleIncomingDigestUseCase.createResponse(
+      incoming: digest.digest,
+      now: DateTime.now(),
+    );
+    await digest.respond(response);
   }
 
   /// Handle incoming event messages from other nodes.
@@ -218,8 +226,17 @@ class GossipOrchestrationService {
       // Ignore repository update failures; proceed with event handling.
     }
 
-    final receivedEvents = await gossipCycleUseCase.handleIncomingEvents(
-      events,
+    final fromPeer = GossipPeer(
+      id: GossipNodeID('unknown'),
+      address: events.fromTransportPeer.address,
+      metadata: events.fromTransportPeer.metadata,
+      lastContactTime: events.fromTransportPeer.connectedAt,
+      isActive: events.fromTransportPeer.isActive,
+    );
+    final receivedEvents = await handleIncomingEventsUseCase.execute(
+      message: events.message,
+      fromPeer: fromPeer,
+      now: DateTime.now(),
     );
     for (final event in receivedEvents) {
       _eventReceivedController.add(event);

@@ -1,9 +1,3 @@
-/// Main gossip node implementation that coordinates the gossip protocol.
-///
-/// This module contains the core GossipNode class that orchestrates event
-/// creation, storage, and synchronization using the gossip protocol. It ties
-/// together all the other components (events, vector clocks, storage, transport)
-/// to provide a complete gossip protocol implementation.
 library;
 
 import 'dart:async';
