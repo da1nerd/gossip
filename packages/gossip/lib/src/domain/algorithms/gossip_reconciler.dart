@@ -1,5 +1,6 @@
+import 'package:gossip/src/domain/value_objects/clock_summary.dart';
+
 import '../../gossip_node_id.dart';
-import 'clock_types.dart';
 
 /// Domain-pure reconciliation logic for gossip vector clocks.
 /// This contains no I/O and depends only on typed inputs/outputs.
