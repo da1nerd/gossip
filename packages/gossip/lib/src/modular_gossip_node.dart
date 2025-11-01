@@ -21,6 +21,9 @@ import 'application/services/gossip_orchestration_service.dart';
 import 'application/services/peer_management_service.dart';
 import 'application/services/vector_clock_service.dart';
 import 'application/use_cases/gossip_cycle_use_case.dart';
+import 'application/use_cases/gossip_with_peer_use_case.dart';
+import 'application/use_cases/handle_incoming_digest_use_case.dart';
+import 'application/use_cases/handle_incoming_events_use_case.dart';
 import 'domain/repositories/peer_repository.dart';
 import 'domain/services/peer_selection_service.dart';
 import 'infrastructure/repositories/in_memory_peer_repository.dart';
@@ -98,13 +101,32 @@ class ModularGossipNode {
       transport: transport,
     );
 
-    _gossipCycleUseCase = GossipCycleUseCase(
-      peerRepository: _peerRepository,
-      peerSelectionService: _peerSelectionService,
+    // Wire application use cases
+    final handleIncomingDigestUseCase = HandleIncomingDigestUseCase(
+      eventStore: eventStore,
+      vectorClockService: _vectorClockService,
+      maxEventsPerMessage: config.maxEventsPerMessage,
+    );
+
+    final handleIncomingEventsUseCase = HandleIncomingEventsUseCase(
+      eventStore: eventStore,
+      vectorClockService: _vectorClockService,
+    );
+
+    final gossipWithPeerUseCase = GossipWithPeerUseCase(
       transport: transport,
       eventStore: eventStore,
       vectorClockService: _vectorClockService,
+      maxEventsPerMessage: config.maxEventsPerMessage,
+    );
+
+    _gossipCycleUseCase = GossipCycleUseCase(
+      peerRepository: _peerRepository,
+      peerSelectionService: _peerSelectionService,
       config: config,
+      gossipWithPeerUseCase: gossipWithPeerUseCase,
+      handleIncomingDigestUseCase: handleIncomingDigestUseCase,
+      handleIncomingEventsUseCase: handleIncomingEventsUseCase,
     );
 
     _orchestrationService = GossipOrchestrationService(
