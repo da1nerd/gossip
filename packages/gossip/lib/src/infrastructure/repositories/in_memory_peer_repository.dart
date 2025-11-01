@@ -40,9 +40,13 @@ class InMemoryPeerRepository implements PeerRepository {
     _peers[peer.nodeId] = peer;
 
     if (wasNew) {
-      _peerAddedController.add(peer);
+      if (!_peerAddedController.isClosed) {
+        _peerAddedController.add(peer);
+      }
     } else {
-      _peerUpdatedController.add(peer);
+      if (!_peerUpdatedController.isClosed) {
+        _peerUpdatedController.add(peer);
+      }
     }
   }
 
@@ -50,7 +54,9 @@ class InMemoryPeerRepository implements PeerRepository {
   Future<void> removePeer(GossipNodeID id) async {
     final peer = _peers.remove(id);
     if (peer != null) {
-      _peerRemovedController.add(peer);
+      if (!_peerRemovedController.isClosed) {
+        _peerRemovedController.add(peer);
+      }
     }
   }
 

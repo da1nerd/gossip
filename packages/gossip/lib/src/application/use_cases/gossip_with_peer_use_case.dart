@@ -26,11 +26,15 @@ class GossipWithPeerUseCase {
   /// Maximum number of events to include in a single message (total cap).
   final int maxEventsPerMessage;
 
+  /// Timeout to use for transport operations (digest and events).
+  final Duration operationTimeout;
+
   GossipWithPeerUseCase({
     required this.transport,
     required this.eventStore,
     required this.vectorClockService,
     this.maxEventsPerMessage = 50,
+    this.operationTimeout = const Duration(seconds: 3),
   });
 
   /// Execute a single gossip exchange with [peer], returning the result metrics.
@@ -59,7 +63,11 @@ class GossipWithPeerUseCase {
         createdAt: now,
       );
 
-      final response = await transport.sendDigest(transportPeer, digest);
+      final response = await transport.sendDigest(
+        transportPeer,
+        digest,
+        timeout: operationTimeout,
+      );
 
       // Accept any events they sent us in response to our digest.
       if (response.events.isNotEmpty) {
@@ -72,27 +80,56 @@ class GossipWithPeerUseCase {
         }
       }
 
-      // Fulfill any event requests they made by sending them the events they need.
+      // Fulfill any event requests they made by sending them the events they need (fair-share across nodes).
       if (response.eventRequests.isNotEmpty) {
         final toSend = <Event>[];
-        for (final entry in response.eventRequests.entries) {
-          final remaining = maxEventsPerMessage - toSend.length;
-          if (remaining <= 0) break;
 
-          final nodeId = entry.key;
-          final afterTs = entry.value;
-          final batch = await eventStore.getEventsSince(
-            nodeId,
-            afterTs,
-            limit: remaining,
-          );
-          if (batch.isNotEmpty) {
-            final needed = maxEventsPerMessage - toSend.length;
-            if (batch.length > needed) {
-              toSend.addAll(batch.take(needed));
-            } else {
-              toSend.addAll(batch);
+        // Cursor per node to avoid re-reading the same window in multiple rounds.
+        final cursorTs = <GossipNodeID, int>{
+          for (final e in response.eventRequests.entries) e.key: e.value,
+        };
+        final pending = response.eventRequests.keys.toList();
+
+        var remaining = maxEventsPerMessage;
+        while (remaining > 0 && pending.isNotEmpty) {
+          var anyProgress = false;
+
+          // Compute a small fair chunk per pending node this round.
+          final perNodeChunk = remaining ~/ pending.length;
+          final chunkSize = perNodeChunk > 0 ? perNodeChunk : 1;
+
+          // Round-robin fetch across pending nodes.
+          for (final nodeId in List<GossipNodeID>.from(pending)) {
+            final afterTs = cursorTs[nodeId]!;
+            final limit = chunkSize < remaining ? chunkSize : remaining;
+
+            final batch = await eventStore.getEventsSince(
+              nodeId,
+              afterTs,
+              limit: limit,
+            );
+
+            if (batch.isEmpty) {
+              // No more events for this node; remove from pending.
+              pending.remove(nodeId);
+              continue;
             }
+
+            // Append up to remaining capacity and advance cursor to last timestamp.
+            final takeCount = batch.length > remaining
+                ? remaining
+                : batch.length;
+            toSend.addAll(batch.take(takeCount));
+            remaining -= takeCount;
+            cursorTs[nodeId] = batch.last.timestamp;
+            anyProgress = true;
+
+            if (remaining <= 0) break;
+          }
+
+          if (!anyProgress) {
+            // No node produced events in this round; stop.
+            break;
           }
         }
 
@@ -102,7 +139,11 @@ class GossipWithPeerUseCase {
             events: toSend,
             createdAt: now,
           );
-          await transport.sendEvents(transportPeer, message);
+          await transport.sendEvents(
+            transportPeer,
+            message,
+            timeout: operationTimeout,
+          );
         }
       }
 

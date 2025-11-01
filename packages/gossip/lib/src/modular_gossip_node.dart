@@ -118,6 +118,7 @@ class ModularGossipNode {
       eventStore: eventStore,
       vectorClockService: _vectorClockService,
       maxEventsPerMessage: config.maxEventsPerMessage,
+      operationTimeout: config.gossipTimeout,
     );
 
     _gossipCycleUseCase = GossipCycleUseCase(

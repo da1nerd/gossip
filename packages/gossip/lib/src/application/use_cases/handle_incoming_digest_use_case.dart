@@ -49,27 +49,53 @@ class HandleIncomingDigestUseCase {
       perNodeSendLimit: maxEventsPerMessage,
     );
 
-    // Fulfill SendSpecs by fetching concrete events to send (respect total cap)
+    // Fulfill SendSpecs by fetching concrete events to send (fair-share across nodes, total cap)
     final eventsToSend = <Event>[];
-    for (final spec in plan.toSendSpecs) {
-      final remaining = maxEventsPerMessage - eventsToSend.length;
-      if (remaining <= 0) break;
+    var remaining = maxEventsPerMessage;
 
-      final limit = remaining < spec.limit ? remaining : spec.limit;
+    // Initialize per-node cursors from send specs
+    final Map<GossipNodeID, int> cursorTs = {
+      for (final spec in plan.toSendSpecs)
+        spec.nodeId: spec.afterTimestampExclusive,
+    };
+    final pending = cursorTs.keys.toList();
 
-      final batch = await eventStore.getEventsSince(
-        spec.nodeId,
-        spec.afterTimestampExclusive,
-        limit: limit,
-      );
-      if (batch.isNotEmpty) {
-        // Defensive trim in case store returns more than requested
-        final needed = maxEventsPerMessage - eventsToSend.length;
-        if (batch.length > needed) {
-          eventsToSend.addAll(batch.take(needed));
-        } else {
-          eventsToSend.addAll(batch);
+    while (remaining > 0 && pending.isNotEmpty) {
+      var anyProgress = false;
+      // Distribute capacity fairly across nodes this round
+      final perNodeChunk = remaining ~/ pending.length;
+      final chunkSize = perNodeChunk > 0 ? perNodeChunk : 1;
+
+      // Round-robin across pending nodes
+      for (final nodeId in List<GossipNodeID>.from(pending)) {
+        final afterTs = cursorTs[nodeId]!;
+        final limit = chunkSize < remaining ? chunkSize : remaining;
+
+        final batch = await eventStore.getEventsSince(
+          nodeId,
+          afterTs,
+          limit: limit,
+        );
+
+        if (batch.isEmpty) {
+          // No more for this node
+          pending.remove(nodeId);
+          continue;
         }
+
+        // Append up to remaining capacity and advance cursor to last timestamp
+        final takeCount = batch.length > remaining ? remaining : batch.length;
+        eventsToSend.addAll(batch.take(takeCount));
+        remaining -= takeCount;
+        cursorTs[nodeId] = batch.last.timestamp;
+        anyProgress = true;
+
+        if (remaining <= 0) break;
+      }
+
+      if (!anyProgress) {
+        // No node produced events; stop
+        break;
       }
     }
 

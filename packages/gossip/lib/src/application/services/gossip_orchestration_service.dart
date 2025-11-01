@@ -6,6 +6,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math';
 
 import '../../event.dart';
 import '../../gossip_config.dart';
@@ -96,10 +97,20 @@ class GossipOrchestrationService {
 
   /// Start the periodic gossip timer.
   void _startGossipTimer() {
-    _gossipTimer = Timer.periodic(
-      config.gossipInterval,
-      (_) => _performGossipCycle(),
-    );
+    final interval = config.gossipInterval;
+
+    // Add jitter to avoid synchronized cycles across nodes (hot spots).
+    // Jitter up to 20% of the interval.
+    final jitterMs = (interval.inMilliseconds * 0.2).toInt();
+    final initialDelay = jitterMs > 0
+        ? Duration(milliseconds: Random().nextInt(jitterMs))
+        : Duration.zero;
+
+    // Start with a one-shot timer for the initial jitter, then switch to periodic.
+    _gossipTimer = Timer(initialDelay, () {
+      _performGossipCycle();
+      _gossipTimer = Timer.periodic(interval, (_) => _performGossipCycle());
+    });
   }
 
   /// Start the periodic anti-entropy timer.
