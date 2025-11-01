@@ -9,7 +9,7 @@ import 'dart:async';
 
 import '../../gossip_node_id.dart';
 import '../../domain/entities/internal_gossip_peer.dart';
-import '../../domain/repositories/peer_repository.dart';
+import '../../application/ports/peer_repository.dart';
 
 /// In-memory implementation of PeerRepository.
 ///

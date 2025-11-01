@@ -4,7 +4,7 @@ import '../../gossip_event_message.dart';
 import '../../gossip_peer.dart';
 import '../../vector_clock.dart';
 import '../services/vector_clock_service.dart';
-import '../../domain/pure/event_admission_policy.dart';
+import '../../domain/policies/event_admission_policy.dart';
 
 /// Use case for handling incoming gossip events.
 ///

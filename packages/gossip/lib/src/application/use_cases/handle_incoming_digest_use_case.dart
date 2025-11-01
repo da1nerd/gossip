@@ -5,8 +5,8 @@ import '../../gossip_digest_response.dart';
 import '../../gossip_node_id.dart';
 import '../../vector_clock.dart';
 import '../services/vector_clock_service.dart';
-import '../../domain/pure/clock_types.dart';
-import '../../domain/pure/gossip_reconciler.dart';
+import '../../domain/value_objects/clock_summary.dart';
+import '../../domain/algorithms/gossip_reconciler.dart';
 
 /// Use case for handling an incoming gossip digest (anti-entropy step).
 ///

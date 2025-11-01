@@ -8,7 +8,7 @@ library;
 import 'dart:async';
 
 import '../../gossip_node_id.dart';
-import '../entities/internal_gossip_peer.dart';
+import '../../domain/entities/internal_gossip_peer.dart';
 
 /// Repository interface for peer persistence.
 ///

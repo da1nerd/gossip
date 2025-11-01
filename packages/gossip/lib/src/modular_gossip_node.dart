@@ -24,7 +24,7 @@ import 'application/use_cases/gossip_cycle_use_case.dart';
 import 'application/use_cases/gossip_with_peer_use_case.dart';
 import 'application/use_cases/handle_incoming_digest_use_case.dart';
 import 'application/use_cases/handle_incoming_events_use_case.dart';
-import 'domain/repositories/peer_repository.dart';
+import 'application/ports/peer_repository.dart';
 import 'domain/services/peer_selection_service.dart';
 import 'infrastructure/repositories/in_memory_peer_repository.dart';
 

@@ -7,7 +7,7 @@ library;
 
 import '../../gossip_node_id.dart';
 import '../../transport.dart';
-import '../../domain/repositories/peer_repository.dart';
+import '../ports/peer_repository.dart';
 import '../../domain/entities/internal_gossip_peer.dart';
 
 /// Service for managing peer lifecycle and discovery.

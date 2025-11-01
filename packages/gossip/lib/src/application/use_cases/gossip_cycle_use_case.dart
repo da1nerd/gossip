@@ -14,7 +14,7 @@ import '../../gossip_node.dart';
 import '../../gossip_node_id.dart';
 import '../../transport.dart';
 
-import '../../domain/repositories/peer_repository.dart';
+import '../ports/peer_repository.dart';
 
 import '../../domain/services/peer_selection_service.dart';
 import '../../gossip_peer.dart';
