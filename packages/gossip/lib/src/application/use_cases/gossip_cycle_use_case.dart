@@ -17,6 +17,7 @@ import 'package:gossip/src/transport.dart';
 import 'package:gossip/src/application/ports/peer_repository.dart';
 
 import 'package:gossip/src/domain/services/peer_selection_service.dart';
+import 'package:gossip/src/domain/entities/internal_gossip_peer.dart';
 import 'package:gossip/src/gossip_peer.dart';
 import 'package:gossip/src/application/use_cases/gossip_with_peer_use_case.dart';
 import 'package:gossip/src/application/use_cases/handle_incoming_digest_use_case.dart';
@@ -50,36 +51,12 @@ class GossipCycleUseCase {
   /// 3. Performs gossip exchanges with selected peers
   /// 4. Updates peer reliability scores based on results
   Future<List<GossipExchangeResult>> execute() async {
-    // Get all available peers
-    final allPeers = await peerRepository.getAllPeers();
+    final allPeers = await _loadAllPeers();
     if (allPeers.isEmpty) return [];
 
-    // Select peers for this gossip cycle
-    final selectedPeers = peerSelectionService.selectPeersForGossip(
-      allPeers,
-      config.fanout,
-      config.peerSelectionStrategy,
-    );
-
-    // Perform gossip with selected peers concurrently
-    final futures = selectedPeers.map(
-      (peer) => gossipWithPeerUseCase.execute(peer: peer, now: DateTime.now()),
-    );
-    final results = await Future.wait(futures, eagerError: false);
-
-    // Update peer states based on results
-    for (int i = 0; i < results.length; i++) {
-      final result = results[i];
-      final peer = selectedPeers[i];
-
-      if (result.success) {
-        peer.recordSuccessfulContact();
-      } else {
-        peer.recordFailedContact();
-      }
-
-      await peerRepository.savePeer(peer);
-    }
+    final selectedPeers = _selectPeers(allPeers);
+    final results = await _gossipWithSelectedPeers(selectedPeers);
+    await _applyResultsToPeers(selectedPeers, results);
 
     return results;
   }
@@ -88,24 +65,9 @@ class GossipCycleUseCase {
   Future<GossipExchangeResult> gossipWithSpecificPeer(
     GossipNodeID peerId,
   ) async {
-    final peer = await peerRepository.getPeerById(peerId);
-    if (peer == null) {
-      throw ArgumentError('Peer not found: $peerId');
-    }
-
-    final result = await gossipWithPeerUseCase.execute(
-      peer: peer,
-      now: DateTime.now(),
-    );
-
-    // Update peer state based on result
-    if (result.success) {
-      peer.recordSuccessfulContact();
-    } else {
-      peer.recordFailedContact();
-    }
-
-    await peerRepository.savePeer(peer);
+    final peer = await _loadPeerOrThrow(peerId);
+    final result = await _gossipWithSinglePeer(peer);
+    await _applyResultToPeer(peer, result);
     return result;
   }
 
@@ -125,11 +87,7 @@ class GossipCycleUseCase {
   /// Processes the digest and sends back requested events.
   Future<void> handleIncomingDigest(IncomingDigest incomingDigest) async {
     try {
-      final response = await handleIncomingDigestUseCase.createResponse(
-        incoming: incomingDigest.digest,
-        now: DateTime.now(),
-      );
-      await incomingDigest.respond(response);
+      await _createAndSendDigestResponse(incomingDigest);
     } catch (e) {
       // Log error but don't throw - we don't want one bad digest to crash the node
     }
@@ -142,14 +100,7 @@ class GossipCycleUseCase {
     IncomingEvents incomingEvents,
   ) async {
     try {
-      final fromPeer = _createGossipPeerFromTransport(
-        incomingEvents.fromTransportPeer,
-      );
-      return await handleIncomingEventsUseCase.execute(
-        message: incomingEvents.message,
-        fromPeer: fromPeer,
-        now: DateTime.now(),
-      );
+      return await _processIncomingEvents(incomingEvents);
     } catch (e) {
       // Log error but don't throw - partial processing is better than none
       return <ReceivedEvent>[];
@@ -166,6 +117,94 @@ class GossipCycleUseCase {
       metadata: transportPeer.metadata,
       lastContactTime: transportPeer.connectedAt,
       isActive: transportPeer.isActive,
+    );
+  }
+
+  // --- Private helpers to make the use case read like prose ---
+
+  Future<List<InternalGossipPeer>> _loadAllPeers() {
+    return peerRepository.getAllPeers();
+  }
+
+  List<InternalGossipPeer> _selectPeers(List<InternalGossipPeer> allPeers) {
+    return peerSelectionService.selectPeersForGossip(
+      allPeers,
+      config.fanout,
+      config.peerSelectionStrategy,
+    );
+  }
+
+  Future<List<GossipExchangeResult>> _gossipWithSelectedPeers(
+    List<InternalGossipPeer> selectedPeers,
+  ) {
+    final futures = selectedPeers.map(
+      (peer) => gossipWithPeerUseCase.execute(peer: peer, now: DateTime.now()),
+    );
+    return Future.wait(futures, eagerError: false);
+  }
+
+  Future<void> _applyResultsToPeers(
+    List<InternalGossipPeer> selectedPeers,
+    List<GossipExchangeResult> results,
+  ) async {
+    for (int i = 0; i < results.length; i++) {
+      final result = results[i];
+      final peer = selectedPeers[i];
+
+      if (result.success) {
+        peer.recordSuccessfulContact();
+      } else {
+        peer.recordFailedContact();
+      }
+
+      await peerRepository.savePeer(peer);
+    }
+  }
+
+  Future<InternalGossipPeer> _loadPeerOrThrow(GossipNodeID peerId) async {
+    final peer = await peerRepository.getPeerById(peerId);
+    if (peer == null) {
+      throw ArgumentError('Peer not found: $peerId');
+    }
+    return peer;
+  }
+
+  Future<GossipExchangeResult> _gossipWithSinglePeer(InternalGossipPeer peer) {
+    return gossipWithPeerUseCase.execute(peer: peer, now: DateTime.now());
+  }
+
+  Future<void> _applyResultToPeer(
+    InternalGossipPeer peer,
+    GossipExchangeResult result,
+  ) async {
+    if (result.success) {
+      peer.recordSuccessfulContact();
+    } else {
+      peer.recordFailedContact();
+    }
+    await peerRepository.savePeer(peer);
+  }
+
+  Future<void> _createAndSendDigestResponse(
+    IncomingDigest incomingDigest,
+  ) async {
+    final response = await handleIncomingDigestUseCase.createResponse(
+      incoming: incomingDigest.digest,
+      now: DateTime.now(),
+    );
+    await incomingDigest.respond(response);
+  }
+
+  Future<List<ReceivedEvent>> _processIncomingEvents(
+    IncomingEvents incomingEvents,
+  ) {
+    final fromPeer = _createGossipPeerFromTransport(
+      incomingEvents.fromTransportPeer,
+    );
+    return handleIncomingEventsUseCase.execute(
+      message: incomingEvents.message,
+      fromPeer: fromPeer,
+      now: DateTime.now(),
     );
   }
 }
