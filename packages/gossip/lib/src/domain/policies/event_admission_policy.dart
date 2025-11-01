@@ -1,7 +1,7 @@
 import 'package:gossip/src/domain/value_objects/clock_summary.dart';
 
-import '../../event.dart';
-import '../../gossip_node_id.dart';
+import 'package:gossip/src/event.dart';
+import 'package:gossip/src/gossip_node_id.dart';
 
 /// Result of applying the admission policy to a batch of incoming events.
 ///

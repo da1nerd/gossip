@@ -1,12 +1,12 @@
-import '../../event.dart';
-import '../../event_store.dart';
-import '../../gossip_digest.dart';
-import '../../gossip_digest_response.dart';
-import '../../gossip_node_id.dart';
-import '../../vector_clock.dart';
-import '../services/vector_clock_service.dart';
-import '../../domain/value_objects/clock_summary.dart';
-import '../../domain/algorithms/gossip_reconciler.dart';
+import 'package:gossip/src/event.dart';
+import 'package:gossip/src/event_store.dart';
+import 'package:gossip/src/gossip_digest.dart';
+import 'package:gossip/src/gossip_digest_response.dart';
+import 'package:gossip/src/gossip_node_id.dart';
+import 'package:gossip/src/vector_clock.dart';
+import 'package:gossip/src/application/services/vector_clock_service.dart';
+import 'package:gossip/src/domain/value_objects/clock_summary.dart';
+import 'package:gossip/src/domain/algorithms/gossip_reconciler.dart';
 
 /// Use case for handling an incoming gossip digest (anti-entropy step).
 ///

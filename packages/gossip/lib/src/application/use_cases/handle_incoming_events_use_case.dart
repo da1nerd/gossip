@@ -1,10 +1,10 @@
-import '../../event.dart';
-import '../../event_store.dart';
-import '../../gossip_event_message.dart';
-import '../../gossip_peer.dart';
-import '../../vector_clock.dart';
-import '../services/vector_clock_service.dart';
-import '../../domain/policies/event_admission_policy.dart';
+import 'package:gossip/src/event.dart';
+import 'package:gossip/src/event_store.dart';
+import 'package:gossip/src/gossip_event_message.dart';
+import 'package:gossip/src/gossip_peer.dart';
+import 'package:gossip/src/vector_clock.dart';
+import 'package:gossip/src/application/services/vector_clock_service.dart';
+import 'package:gossip/src/domain/policies/event_admission_policy.dart';
 
 /// Use case for handling incoming gossip events.
 ///

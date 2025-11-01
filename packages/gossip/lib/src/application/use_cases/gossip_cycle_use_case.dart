@@ -7,20 +7,20 @@ library;
 
 import 'dart:async';
 
-import '../../event.dart';
-import '../../gossip_config.dart';
+import 'package:gossip/src/event.dart';
+import 'package:gossip/src/gossip_config.dart';
 
-import '../../gossip_node.dart';
-import '../../gossip_node_id.dart';
-import '../../transport.dart';
+import 'package:gossip/src/gossip_node.dart';
+import 'package:gossip/src/gossip_node_id.dart';
+import 'package:gossip/src/transport.dart';
 
-import '../ports/peer_repository.dart';
+import 'package:gossip/src/application/ports/peer_repository.dart';
 
-import '../../domain/services/peer_selection_service.dart';
-import '../../gossip_peer.dart';
-import './gossip_with_peer_use_case.dart';
-import './handle_incoming_digest_use_case.dart';
-import './handle_incoming_events_use_case.dart';
+import 'package:gossip/src/domain/services/peer_selection_service.dart';
+import 'package:gossip/src/gossip_peer.dart';
+import 'package:gossip/src/application/use_cases/gossip_with_peer_use_case.dart';
+import 'package:gossip/src/application/use_cases/handle_incoming_digest_use_case.dart';
+import 'package:gossip/src/application/use_cases/handle_incoming_events_use_case.dart';
 
 /// Use case for executing a single gossip cycle.
 ///

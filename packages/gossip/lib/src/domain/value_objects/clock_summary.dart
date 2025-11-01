@@ -1,4 +1,4 @@
-import '../../gossip_node_id.dart';
+import 'package:gossip/src/gossip_node_id.dart';
 
 /// Pure, type-safe wrapper around a vector clock summary.
 /// Keys are strongly typed as `GossipNodeID` to prevent mixing node IDs with

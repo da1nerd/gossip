@@ -7,26 +7,26 @@ library;
 
 import 'dart:async';
 
-import 'event.dart';
-import 'event_store.dart';
-import 'exceptions.dart';
-import 'gossip_config.dart';
-import 'gossip_peer.dart';
-import 'transport.dart';
-import 'vector_clock.dart';
-import 'vector_clock_store.dart';
+import 'package:gossip/src/event.dart';
+import 'package:gossip/src/event_store.dart';
+import 'package:gossip/src/exceptions.dart';
+import 'package:gossip/src/gossip_config.dart';
+import 'package:gossip/src/gossip_peer.dart';
+import 'package:gossip/src/transport.dart';
+import 'package:gossip/src/vector_clock.dart';
+import 'package:gossip/src/vector_clock_store.dart';
 
-import 'application/services/event_creation_service.dart';
-import 'application/services/gossip_orchestration_service.dart';
-import 'application/services/peer_management_service.dart';
-import 'application/services/vector_clock_service.dart';
-import 'application/use_cases/gossip_cycle_use_case.dart';
-import 'application/use_cases/gossip_with_peer_use_case.dart';
-import 'application/use_cases/handle_incoming_digest_use_case.dart';
-import 'application/use_cases/handle_incoming_events_use_case.dart';
-import 'application/ports/peer_repository.dart';
-import 'domain/services/peer_selection_service.dart';
-import 'infrastructure/repositories/in_memory_peer_repository.dart';
+import 'package:gossip/src/application/services/event_creation_service.dart';
+import 'package:gossip/src/application/services/gossip_orchestration_service.dart';
+import 'package:gossip/src/application/services/peer_management_service.dart';
+import 'package:gossip/src/application/services/vector_clock_service.dart';
+import 'package:gossip/src/application/use_cases/gossip_cycle_use_case.dart';
+import 'package:gossip/src/application/use_cases/gossip_with_peer_use_case.dart';
+import 'package:gossip/src/application/use_cases/handle_incoming_digest_use_case.dart';
+import 'package:gossip/src/application/use_cases/handle_incoming_events_use_case.dart';
+import 'package:gossip/src/application/ports/peer_repository.dart';
+import 'package:gossip/src/domain/services/peer_selection_service.dart';
+import 'package:gossip/src/infrastructure/repositories/in_memory_peer_repository.dart';
 
 /// Clean architecture implementation of gossip protocol.
 ///
