@@ -77,7 +77,11 @@ class GossipWithConnectedPeerUseCase {
 
       // Mark reliability failure
       peer.recordFailedContact();
-      await connectedPeerRepository.save(peer);
+      try {
+        await connectedPeerRepository.save(peer);
+      } catch (_) {
+        // Ignore save errors on failure path
+      }
     }
 
     return GossipExchangeResult(

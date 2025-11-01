@@ -32,6 +32,13 @@ class SimulatedTransport implements GossipTransport {
   bool _started = false;
   bool _closed = false;
 
+  // Track pending digest requests to cancel/complete on shutdown.
+  final Set<Completer<GossipDigestResponse>> _pendingDigestCompleters = {};
+  final Set<
+    StreamSubscription<MapEntry<TransportPeerAddress, GossipDigestResponse>>
+  >
+  _pendingDigestSubscriptions = {};
+
   SimulatedTransport({
     required this.network,
     required TransportPeerAddress address,
@@ -59,6 +66,23 @@ class SimulatedTransport implements GossipTransport {
   Future<void> shutdown() async {
     if (_closed) return;
     await stop();
+
+    // Complete any pending digest requests with an error and cancel subscriptions.
+    for (final sub in _pendingDigestSubscriptions.toList()) {
+      try {
+        await sub.cancel();
+      } catch (_) {}
+    }
+    _pendingDigestSubscriptions.clear();
+    for (final c in _pendingDigestCompleters.toList()) {
+      if (!c.isCompleted) {
+        c.completeError(
+          TransportException('SimulatedTransport is shutting down'),
+        );
+      }
+    }
+    _pendingDigestCompleters.clear();
+
     _incomingDigestsController.close();
     _incomingEventsController.close();
     network.unregister(self.address);
@@ -98,6 +122,7 @@ class SimulatedTransport implements GossipTransport {
     _ensureStarted();
 
     final completer = Completer<GossipDigestResponse>();
+    _pendingDigestCompleters.add(completer);
 
     // Construct the incoming message for the destination peer with a respond callback.
     final incoming = IncomingDigest(
@@ -119,6 +144,7 @@ class SimulatedTransport implements GossipTransport {
         completer.complete(entry.value);
       }
     });
+    _pendingDigestSubscriptions.add(sub);
 
     // Send the digest to the destination
     await network.deliverDigest(
@@ -129,23 +155,41 @@ class SimulatedTransport implements GossipTransport {
 
     // Respect timeout if provided
     if (timeout != null) {
-      return completer.future.timeout(
+      final future = completer.future.timeout(
         timeout,
         onTimeout: () {
           // Cancel listener and signal timeout via TransportException.
-          // Throwing here ensures the Future completes with an error and satisfies the non-null return contract.
+          // Also complete the underlying completer with error for cleanup.
           sub.cancel();
-          throw TransportException(
+          _pendingDigestSubscriptions.remove(sub);
+          final err = TransportException(
             'SimulatedTransport timeout waiting for GossipDigestResponse '
             'from ${transportPeer.address} after ${timeout.inMilliseconds}ms',
           );
+          if (!completer.isCompleted) {
+            completer.completeError(err);
+          }
+          throw err;
         },
       );
+      try {
+        final result = await future;
+        return result;
+      } finally {
+        _pendingDigestCompleters.remove(completer);
+        _pendingDigestSubscriptions.remove(sub);
+        await sub.cancel();
+      }
     }
 
-    final result = await completer.future;
-    await sub.cancel();
-    return result;
+    try {
+      final result = await completer.future;
+      return result;
+    } finally {
+      _pendingDigestCompleters.remove(completer);
+      _pendingDigestSubscriptions.remove(sub);
+      await sub.cancel();
+    }
   }
 
   /// Sends a final gossip event message to [transportPeer].
