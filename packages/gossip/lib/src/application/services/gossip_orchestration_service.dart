@@ -11,6 +11,7 @@ import 'dart:math';
 import '../../event.dart';
 import '../../gossip_config.dart';
 import '../../transport.dart';
+import '../../gossip_node_id.dart';
 import '../use_cases/gossip_cycle_use_case.dart';
 import '../use_cases/connected_gossip_cycle_use_case.dart';
 import 'event_creation_service.dart';
@@ -39,6 +40,10 @@ class GossipOrchestrationService {
 
   bool _isGossiping = false;
   bool _gossipCycleInProgress = false;
+
+  // One-off targeted exchange cooldown tracking (by nodeId value)
+  final Map<String, DateTime> _lastTargetedExchange = {};
+  final Duration _targetedExchangeCooldown = Duration(seconds: 2);
 
   GossipOrchestrationService({
     required this.config,
@@ -179,6 +184,8 @@ class GossipOrchestrationService {
         digest.fromTransportPeer.address,
         digest.digest.senderId,
       );
+      // Schedule a one-off targeted exchange back to this node (cooldown-guarded)
+      _maybeScheduleTargetedExchange(digest.digest.senderId.value);
     } catch (_) {
       // Ignore repository update failures; proceed with digest handling.
     }
@@ -200,6 +207,8 @@ class GossipOrchestrationService {
         events.fromTransportPeer.address,
         events.message.senderId,
       );
+      // Schedule a one-off targeted exchange back to this node (cooldown-guarded)
+      _maybeScheduleTargetedExchange(events.message.senderId.value);
     } catch (_) {
       // Ignore repository update failures; proceed with event handling.
     }
@@ -210,5 +219,25 @@ class GossipOrchestrationService {
     for (final event in receivedEvents) {
       _eventReceivedController.add(event);
     }
+  }
+
+  // Schedules a one-off targeted exchange to the specified nodeId value
+  // if cooldown has elapsed and no cycle is currently in progress.
+  void _maybeScheduleTargetedExchange(String nodeIdValue) {
+    final now = DateTime.now();
+    final last = _lastTargetedExchange[nodeIdValue];
+    if (last != null && now.difference(last) < _targetedExchangeCooldown) {
+      return;
+    }
+    _lastTargetedExchange[nodeIdValue] = now;
+
+    if (_gossipCycleInProgress) {
+      return;
+    }
+
+    // Fire-and-forget targeted exchange using the identified nodeId.
+    unawaited(
+      gossipCycleUseCase.gossipWithSpecificPeer(GossipNodeID(nodeIdValue)),
+    );
   }
 }

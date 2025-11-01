@@ -13,6 +13,7 @@ import '../../domain/entities/internal_gossip_peer.dart';
 /// Repository interface for peer persistence.
 ///
 /// This abstracts the storage concerns away from the domain logic.
+@Deprecated('Use ConnectedPeerRepository and IdentifiedNodeRepository instead')
 abstract class PeerRepository {
   /// Get all peers from storage.
   Future<List<InternalGossipPeer>> getAllPeers();

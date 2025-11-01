@@ -18,6 +18,7 @@ import '../../domain/entities/internal_gossip_peer.dart';
 /// - Builds and sends a digest
 /// - Accepts any events returned in the digest response
 /// - Fulfills any event requests by sending events the peer is missing
+@Deprecated('use GossipWithConnectedPeerUseCase instead')
 class GossipWithPeerUseCase {
   final GossipTransport transport;
   final EventStore eventStore;

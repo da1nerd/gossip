@@ -67,16 +67,15 @@ class ConnectedPeer {
   }
 
   /// Records a failed contact attempt, updating reliability and liveness.
+  ///
+  /// Note: Do not flip isActive here. Let transport discovery drive liveness.
+  /// This avoids starving selection under lossy networks while still reducing
+  /// selection probability via reliability score.
   void recordFailedContact() {
     _lastContactTime = DateTime.now();
     _totalAttempts++;
     _consecutiveFailures++;
     _updateReliabilityScore();
-
-    // Optionally mark inactive after repeated failures; threshold can be tuned.
-    if (_consecutiveFailures >= 3) {
-      _isActive = false;
-    }
   }
 
   /// Updates in-memory transport-derived properties for this peer.

@@ -14,6 +14,7 @@ import '../../transport.dart';
 ///
 /// Contains business logic for reliability scoring and contact tracking.
 /// Separate from the external GossipPeer API interface.
+@Deprecated('Use ConnectedPeer and IdentifiedNode instead')
 class InternalGossipPeer {
   final GossipNodeID nodeId;
   final TransportPeerAddress address;

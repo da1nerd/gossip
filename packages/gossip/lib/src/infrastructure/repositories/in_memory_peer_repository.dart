@@ -14,6 +14,9 @@ import '../../application/ports/peer_repository.dart';
 /// In-memory implementation of PeerRepository.
 ///
 /// This can be easily replaced with persistent storage implementations.
+@Deprecated(
+  'Use InMemoryConnectedPeerRepository and InMemoryIdentifiedNodeRepository instead',
+)
 class InMemoryPeerRepository implements PeerRepository {
   final Map<GossipNodeID, InternalGossipPeer> _peers = {};
 

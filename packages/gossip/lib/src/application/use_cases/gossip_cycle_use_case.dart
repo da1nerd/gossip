@@ -26,6 +26,7 @@ import 'package:gossip/src/application/use_cases/handle_incoming_events_use_case
 /// Use case for executing a single gossip cycle.
 ///
 /// Orchestrates domain services and repositories to perform gossip exchanges.
+@Deprecated('use ConnectedGossipCycleUseCase instead')
 class GossipCycleUseCase {
   final PeerRepository peerRepository;
   final PeerSelectionService peerSelectionService;

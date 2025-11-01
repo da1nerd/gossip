@@ -12,6 +12,7 @@ import '../entities/internal_gossip_peer.dart';
 /// Domain service for peer selection strategies.
 ///
 /// Contains the core business logic for how peers are selected for gossip.
+@Deprecated('Use ConnectedPeerSelectionService instead')
 class PeerSelectionService {
   final math.Random _random;
   int _lastRoundRobinIndex = 0;

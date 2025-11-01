@@ -7,6 +7,7 @@ import 'package:gossip/src/gossip_node_id.dart';
 import 'package:gossip/src/gossip_peer.dart';
 import 'package:gossip/src/transport.dart';
 import 'package:gossip/src/application/services/vector_clock_service.dart';
+import 'package:gossip/src/vector_clock.dart';
 import 'package:gossip/src/domain/entities/connected_peer.dart';
 import 'package:gossip/src/application/ports/connected_peer_repository.dart';
 
@@ -117,13 +118,24 @@ class GossipWithConnectedPeerUseCase {
     final events = response.events as List<Event>? ?? const <Event>[];
     if (events.isEmpty) return 0;
 
+    // Persist unique events and build a vector clock delta.
+    final delta = VectorClock();
     for (final event in events) {
       final exists = await eventStore.hasEvent(event.id);
       if (!exists) {
         await eventStore.saveEvent(event);
+        // Advance delta for the originating node
+        delta.setTimestampFor(event.nodeId.value, event.timestamp);
         exchanged++;
       }
     }
+
+    // Apply the accumulated vector clock delta if any updates were made.
+    if (exchanged > 0) {
+      vectorClockService.update(delta);
+      await vectorClockService.save();
+    }
+
     return exchanged;
   }
 
