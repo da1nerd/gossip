@@ -181,7 +181,7 @@ void main() {
 
         // Initialize counters
         for (final peer in smallPeerSet) {
-          selectionCounts[peer.nodeId.value] = 0;
+          selectionCounts[peer.address.value] = 0;
         }
 
         // Perform many single-peer selections
@@ -192,8 +192,8 @@ void main() {
             PeerSelectionStrategy.roundRobin,
           );
 
-          selectionCounts[selected.first.nodeId.value] =
-              selectionCounts[selected.first.nodeId.value]! + 1;
+          selectionCounts[selected.first.address.value] =
+              selectionCounts[selected.first.address.value]! + 1;
         }
 
         // Each peer should be selected exactly 10 times (30 selections / 3 peers)

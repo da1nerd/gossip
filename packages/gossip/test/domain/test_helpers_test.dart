@@ -6,7 +6,7 @@ void main() {
     group('createPeerWithReliability', () {
       test('creates peer with exact success and failure counts', () {
         final peer = DomainTestHelpers.createPeerWithReliability(
-          nodeIdSuffix: 'exact-counts-test',
+          addressSuffix: 'exact-counts-test',
           successfulContacts: 7,
           failedContacts: 3,
         );
@@ -17,7 +17,7 @@ void main() {
 
       test('creates inactive peer when shouldBeActive is false', () {
         final peer = DomainTestHelpers.createPeerWithReliability(
-          nodeIdSuffix: 'inactive-test',
+          addressSuffix: 'inactive-test',
           successfulContacts: 2,
           failedContacts: 10,
           shouldBeActive: false,
@@ -29,7 +29,7 @@ void main() {
 
       test('keeps peer active when requested despite many failures', () {
         final peer = DomainTestHelpers.createPeerWithReliability(
-          nodeIdSuffix: 'forced-active-test',
+          addressSuffix: 'forced-active-test',
           successfulContacts: 5,
           failedContacts: 15,
           shouldBeActive: true,
@@ -45,7 +45,7 @@ void main() {
 
       test('creates peer with only successes', () {
         final peer = DomainTestHelpers.createPeerWithReliability(
-          nodeIdSuffix: 'only-success-test',
+          addressSuffix: 'only-success-test',
           successfulContacts: 10,
           failedContacts: 0,
         );
@@ -57,7 +57,7 @@ void main() {
 
       test('creates peer with only failures', () {
         final peer = DomainTestHelpers.createPeerWithReliability(
-          nodeIdSuffix: 'only-failure-test',
+          addressSuffix: 'only-failure-test',
           successfulContacts: 0,
           failedContacts: 5,
           shouldBeActive: false,
@@ -75,14 +75,14 @@ void main() {
         final contactTime = DateTime.now().subtract(Duration(hours: 1));
 
         final peer = DomainTestHelpers.createTestPeer(
-          nodeIdSuffix: 'custom-test',
+          addressSuffix: 'custom-test',
           metadata: metadata,
           lastContactTime: contactTime,
           initialReliabilityScore: 0.8,
           isActive: false,
         );
 
-        expect(peer.nodeId.value, contains('custom-test'));
+        expect(peer.address.value, contains('custom-test'));
         expect(peer.metadata, equals(metadata));
         expect(peer.lastContactTime, equals(contactTime));
         expect(peer.reliabilityScore, equals(0.8));
@@ -93,7 +93,7 @@ void main() {
     group('validatePeerConsistency', () {
       test('validates consistent peer state', () {
         final peer = DomainTestHelpers.createPeerWithReliability(
-          nodeIdSuffix: 'validation-test',
+          addressSuffix: 'validation-test',
           successfulContacts: 7,
           failedContacts: 3,
         );
@@ -103,7 +103,7 @@ void main() {
 
       test('detects inconsistent peer state', () {
         final peer = DomainTestHelpers.createTestPeer(
-          nodeIdSuffix: 'invalid-test',
+          addressSuffix: 'invalid-test',
           initialReliabilityScore: 1.5, // Invalid score > 1.0
         );
 
@@ -132,7 +132,7 @@ void main() {
     group('simulateNetworkActivity', () {
       test('simulates activity with specified success probability', () {
         final peer = DomainTestHelpers.createTestPeer(
-          nodeIdSuffix: 'simulation-test',
+          addressSuffix: 'simulation-test',
         );
 
         DomainTestHelpers.simulateNetworkActivity(
@@ -148,10 +148,10 @@ void main() {
 
       test('produces consistent results with same seed', () {
         final peer1 = DomainTestHelpers.createTestPeer(
-          nodeIdSuffix: 'consistent-test-1',
+          addressSuffix: 'consistent-test-1',
         );
         final peer2 = DomainTestHelpers.createTestPeer(
-          nodeIdSuffix: 'consistent-test-2',
+          addressSuffix: 'consistent-test-2',
         );
 
         final seed = 12345;
@@ -182,13 +182,13 @@ void main() {
 
         // Find different peer types
         final perfectPeer = peers.firstWhere(
-          (p) => p.nodeId.value.contains('perfect'),
+          (p) => p.address.value.contains('perfect'),
         );
         final inactivePeer = peers.firstWhere(
-          (p) => p.nodeId.value.contains('inactive'),
+          (p) => p.address.value.contains('inactive'),
         );
         final freshPeer = peers.firstWhere(
-          (p) => p.nodeId.value.contains('fresh'),
+          (p) => p.address.value.contains('fresh'),
         );
 
         expect(perfectPeer.successRate, equals(1.0));
@@ -199,7 +199,22 @@ void main() {
 
     group('createBenchmarkPeers', () {
       test('creates varied peer history', () {
-        final peers = DomainTestHelpers.createBenchmarkPeers(10);
+        // Synthesize benchmark peers and simulate varied histories
+        final peers = List.generate(
+          10,
+          (i) => DomainTestHelpers.createTestPeer(addressSuffix: 'bench-$i'),
+        );
+
+        for (var i = 0; i < peers.length; i++) {
+          final successes = (i % 5) + 1;
+          final failures = (i % 3) + 1;
+          for (var s = 0; s < successes; s++) {
+            peers[i].recordSuccessfulContact();
+          }
+          for (var f = 0; f < failures; f++) {
+            peers[i].recordFailedContact();
+          }
+        }
 
         expect(peers.length, equals(10));
 

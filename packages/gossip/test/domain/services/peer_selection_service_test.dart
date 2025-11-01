@@ -292,7 +292,8 @@ void main() {
         final uncontactedPeers = [testPeers[2], testPeers[3], testPeers[4]];
         final selectedUncontacted = result
             .where(
-              (peer) => uncontactedPeers.any((up) => up.nodeId == peer.nodeId),
+              (peer) =>
+                  uncontactedPeers.any((up) => up.address == peer.address),
             )
             .length;
         expect(selectedUncontacted, greaterThan(0));

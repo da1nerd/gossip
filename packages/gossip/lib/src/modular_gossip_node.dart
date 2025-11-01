@@ -127,12 +127,12 @@ class ModularGossipNode {
       transport: transport,
       eventStore: eventStore,
       vectorClockService: _vectorClockService,
-      connectedPeerRepository: connectedPeerRepository,
+      connectedPeerRepository: _connectedPeerRepository,
       maxEventsPerMessage: config.maxEventsPerMessage,
       operationTimeout: config.gossipTimeout,
     );
     final connectedGossipCycleUseCase = ConnectedGossipCycleUseCase(
-      connectedPeerRepository: connectedPeerRepository,
+      connectedPeerRepository: _connectedPeerRepository,
       connectedPeerSelectionService: connectedPeerSelectionService,
       gossipWithConnectedPeerUseCase: gossipWithConnectedPeerUseCase,
       config: config,

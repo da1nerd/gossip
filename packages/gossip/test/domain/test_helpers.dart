@@ -17,15 +17,13 @@ class DomainTestHelpers {
 
   /// Creates a single test peer with optional parameters.
   static ConnectedPeer createTestPeer({
-    String? nodeIdSuffix,
     String? addressSuffix,
     Map<String, dynamic>? metadata,
     DateTime? lastContactTime,
     double? initialReliabilityScore,
     bool? isActive,
   }) {
-    final suffix =
-        addressSuffix ?? nodeIdSuffix ?? _random.nextInt(100000).toString();
+    final suffix = addressSuffix ?? _random.nextInt(100000).toString();
     return ConnectedPeer(
       address: TransportPeerAddress('test://peer$suffix'),
       metadata: metadata ?? {'created': 'test', 'suffix': suffix},
@@ -51,13 +49,13 @@ class DomainTestHelpers {
 
   /// Creates a peer with specific reliability characteristics.
   static ConnectedPeer createPeerWithReliability({
-    required String nodeIdSuffix,
+    required String addressSuffix,
     required int successfulContacts,
     required int failedContacts,
     bool shouldBeActive = true,
   }) {
     final peer = createTestPeer(
-      nodeIdSuffix: nodeIdSuffix,
+      addressSuffix: addressSuffix,
       isActive: shouldBeActive,
     );
 
@@ -81,28 +79,28 @@ class DomainTestHelpers {
     return [
       // Perfect peer
       createPeerWithReliability(
-        nodeIdSuffix: 'perfect',
+        addressSuffix: 'perfect',
         successfulContacts: 20,
         failedContacts: 0,
       ),
 
       // Very reliable peer
       createPeerWithReliability(
-        nodeIdSuffix: 'very-reliable',
+        addressSuffix: 'very-reliable',
         successfulContacts: 18,
         failedContacts: 2,
       ),
 
       // Moderately reliable peer
       createPeerWithReliability(
-        nodeIdSuffix: 'moderate',
+        addressSuffix: 'moderate',
         successfulContacts: 12,
         failedContacts: 8,
       ),
 
       // Unreliable but active peer
       createPeerWithReliability(
-        nodeIdSuffix: 'unreliable-active',
+        addressSuffix: 'unreliable-active',
         successfulContacts: 5,
         failedContacts: 10,
         shouldBeActive: true,
@@ -110,14 +108,14 @@ class DomainTestHelpers {
 
       // Inactive peer
       createPeerWithReliability(
-        nodeIdSuffix: 'inactive',
+        addressSuffix: 'inactive',
         successfulContacts: 2,
         failedContacts: 15,
         shouldBeActive: false,
       ),
 
       // Fresh peer (no history)
-      createTestPeer(nodeIdSuffix: 'fresh'),
+      createTestPeer(addressSuffix: 'fresh'),
     ];
   }
 

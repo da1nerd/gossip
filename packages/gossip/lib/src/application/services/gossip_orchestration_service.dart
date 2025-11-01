@@ -227,7 +227,7 @@ class GossipOrchestrationService {
     }
 
     final fromPeer = GossipPeer(
-      id: GossipNodeID('unknown'),
+      id: events.message.senderId,
       address: events.fromTransportPeer.address,
       metadata: events.fromTransportPeer.metadata,
       lastContactTime: events.fromTransportPeer.connectedAt,
