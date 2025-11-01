@@ -72,6 +72,9 @@ class GossipOrchestrationService {
   Future<void> startGossiping() async {
     if (_isGossiping) return;
 
+    // Ensure transport is started before scheduling timers
+    await transport.start();
+
     _startGossipTimer();
     _startAntiEntropyTimer();
     _startPeerDiscoveryTimer();
@@ -84,6 +87,9 @@ class GossipOrchestrationService {
     _gossipTimer?.cancel();
     _antiEntropyTimer?.cancel();
     _peerDiscoveryTimer?.cancel();
+
+    // Stop transport to cease network activity
+    await transport.stop();
 
     _isGossiping = false;
   }
