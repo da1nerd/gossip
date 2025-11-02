@@ -82,7 +82,7 @@ class GossipOrchestrationService {
     await stopGossiping();
     await _digestSub?.cancel();
     await _eventsSub?.cancel();
-    await transport.shutdown();
+    await transport.dispose();
     await _eventReceivedController.close();
   }
 
@@ -91,7 +91,6 @@ class GossipOrchestrationService {
     if (_isGossiping) return;
 
     // Ensure transport is started before scheduling timers
-    await transport.start();
     await transport.onStartGossip();
 
     _startGossipTimer();
@@ -109,7 +108,6 @@ class GossipOrchestrationService {
 
     // Stop transport to cease network activity
     await transport.onStoppedGossip();
-    await transport.stop();
 
     _isGossiping = false;
   }

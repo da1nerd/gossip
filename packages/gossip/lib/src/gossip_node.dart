@@ -143,7 +143,7 @@ class GossipNode {
     await _eventsSub?.cancel();
 
     // Shutdown transport
-    await transport.shutdown();
+    await transport.dispose();
 
     // Close stream controllers
     await _eventCreatedController.close();

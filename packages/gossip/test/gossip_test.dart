@@ -431,7 +431,7 @@ void main() {
       // Create a copy to avoid concurrent modification
       final transports = List<MockTransport>.from(network.values);
       for (final transport in transports) {
-        await transport.shutdown();
+        await transport.dispose();
       }
     });
 

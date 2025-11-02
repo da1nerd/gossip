@@ -634,7 +634,7 @@ void main() {
     tearDown(() async {
       final transports = List.from(network.values);
       for (final transport in transports) {
-        await transport.shutdown();
+        await transport.dispose();
       }
       network.clear();
     });
@@ -784,7 +784,7 @@ void main() {
 
     tearDown(() async {
       for (final transport in network.values) {
-        await transport.shutdown();
+        await transport.dispose();
       }
     });
 

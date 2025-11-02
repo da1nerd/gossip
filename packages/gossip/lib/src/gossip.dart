@@ -12,7 +12,7 @@ import 'package:gossip/src/event_store.dart';
 import 'package:gossip/src/exceptions.dart';
 import 'package:gossip/src/gossip_config.dart';
 import 'package:gossip/src/gossip_peer.dart';
-import 'package:gossip/src/gossip_node_id.dart';
+
 import 'package:gossip/src/gossip_transport.dart';
 import 'package:gossip/src/vector_clock.dart';
 import 'package:gossip/src/vector_clock_store.dart';
@@ -32,6 +32,7 @@ import 'package:gossip/src/application/ports/connected_peer_repository.dart';
 import 'package:gossip/src/domain/services/connected_peer_selection_service.dart';
 
 import 'package:gossip/src/infrastructure/repositories/in_memory_connected_peer_repository.dart';
+import 'package:gossip/src/application/ports/identified_node_repository.dart';
 import 'package:gossip/src/infrastructure/repositories/in_memory_identified_node_repository.dart';
 
 /// Main class implementing a gossip protocol node.
@@ -54,6 +55,7 @@ class Gossip {
 
   // Clean architecture components
   final ConnectedPeerRepository _connectedPeerRepository;
+  final IdentifiedNodeRepository _identifiedNodeRepository;
 
   late final PeerManagementService _peerManagementService;
   late final EventCreationService _eventCreationService;
@@ -72,7 +74,8 @@ class Gossip {
     required this.eventStore,
     required this.transport,
     this.vectorClockStore,
-  }) : _connectedPeerRepository = InMemoryConnectedPeerRepository();
+  }) : _connectedPeerRepository = InMemoryConnectedPeerRepository(),
+       _identifiedNodeRepository = InMemoryIdentifiedNodeRepository();
 
   /// Alternative constructor for dependency injection (for testing).
   Gossip.withDependencies({
@@ -81,9 +84,12 @@ class Gossip {
     required this.transport,
     this.vectorClockStore,
     ConnectedPeerRepository? connectedPeerRepository,
+    IdentifiedNodeRepository? identifiedNodeRepository,
     VectorClockService? vectorClockService,
   }) : _connectedPeerRepository =
-           connectedPeerRepository ?? InMemoryConnectedPeerRepository() {
+           connectedPeerRepository ?? InMemoryConnectedPeerRepository(),
+       _identifiedNodeRepository =
+           identifiedNodeRepository ?? InMemoryIdentifiedNodeRepository() {
     if (vectorClockService != null) _vectorClockService = vectorClockService;
   }
 
@@ -103,12 +109,11 @@ class Gossip {
     );
 
     // New: Identified node repository (GossipNodeID-keyed, tracks identity and addresses)
-    final identifiedNodeRepository = InMemoryIdentifiedNodeRepository();
 
     _peerManagementService = PeerManagementService(
       transport: transport,
       connectedPeerRepository: _connectedPeerRepository,
-      identifiedNodeRepository: identifiedNodeRepository,
+      identifiedNodeRepository: _identifiedNodeRepository,
     );
 
     // Wire application use cases
@@ -195,19 +200,47 @@ class Gossip {
   /// Get current list of peers (converted to external GossipPeer format).
   Future<List<GossipPeer>> get peers async {
     _checkInitialized();
-    // TODO: get the identified nodes instead of connected peers.
-    final connected = await _connectedPeerRepository.getAllConnectedPeers();
-    return connected
-        .map(
-          (p) => GossipPeer(
-            id: GossipNodeID('unknown'),
-            address: p.address,
-            metadata: p.metadata,
-            lastContactTime: p.lastContactTime,
-            isActive: p.isActive,
-          ),
-        )
-        .toList();
+    final nodes = await _identifiedNodeRepository.getAllNodes();
+
+    final result = <GossipPeer>[];
+    for (final n in nodes) {
+      if (n.addresses.isEmpty) continue;
+
+      // Select the address with the most recent successful contact.
+      var selectedAddress = n.addresses.first;
+      DateTime? selectedLastContact;
+      var selectedIsActive = true;
+
+      for (final addr in n.addresses) {
+        final cp = await _connectedPeerRepository.getByAddress(addr);
+        final cpTime = cp?.lastContactTime;
+        if (cpTime != null) {
+          if (selectedLastContact == null ||
+              cpTime.isAfter(selectedLastContact)) {
+            selectedAddress = addr;
+            selectedLastContact = cpTime;
+            selectedIsActive = cp?.isActive ?? true;
+          }
+        }
+      }
+
+      // If no address had a last contact time, derive isActive from the first address (if present).
+      if (selectedLastContact == null) {
+        final cp = await _connectedPeerRepository.getByAddress(selectedAddress);
+        selectedIsActive = cp?.isActive ?? true;
+      }
+
+      result.add(
+        GossipPeer(
+          id: n.id,
+          address: selectedAddress,
+          metadata: n.metadata,
+          lastContactTime: selectedLastContact,
+          isActive: selectedIsActive,
+        ),
+      );
+    }
+    return result;
   }
 
   /// Get current vector clock.

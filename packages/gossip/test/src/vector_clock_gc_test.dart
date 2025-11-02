@@ -141,7 +141,7 @@ void main() {
 
     tearDown(() async {
       for (final transport in network.values) {
-        await transport.shutdown();
+        await transport.dispose();
       }
       await eventStore1.close();
       await eventStore2.close();
