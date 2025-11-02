@@ -54,4 +54,7 @@ abstract class ConnectedPeerRepository {
 
   /// Stream of connected peers removed from the repository.
   Stream<ConnectedPeer> get onPeerRemoved;
+
+  /// Disposes any resources held by the repository.
+  Future<void> dispose();
 }

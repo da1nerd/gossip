@@ -113,6 +113,7 @@ class InMemoryConnectedPeerRepository implements ConnectedPeerRepository {
   /// Disposes this repository and closes its streams.
   ///
   /// After disposal, any method call will throw [StateError].
+  @override
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;

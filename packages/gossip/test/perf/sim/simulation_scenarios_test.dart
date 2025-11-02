@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:test/test.dart';
 import 'package:gossip/src/gossip_config.dart';
-import 'package:gossip/src/modular_gossip_node.dart';
+import 'package:gossip/src/gossip.dart';
 import 'package:gossip/src/stores/memory_event_store.dart';
 import 'package:gossip/src/event.dart';
 
@@ -43,7 +43,7 @@ void main() {
       );
 
       // Create nodes (ModularGossipNode) with in-memory stores
-      final nodes = <ModularGossipNode>[];
+      final nodes = <Gossip>[];
       final stores = <MemoryEventStore>[];
 
       for (var i = 0; i < n; i++) {
@@ -60,7 +60,7 @@ void main() {
           peerDiscoveryInterval: Duration(milliseconds: 100),
         );
 
-        final node = ModularGossipNode(
+        final node = Gossip(
           config: cfg,
           eventStore: store,
           transport: transports[i],
@@ -194,7 +194,7 @@ void main() {
         }
       }
 
-      final nodes = <ModularGossipNode>[];
+      final nodes = <Gossip>[];
       final stores = <MemoryEventStore>[];
       for (var i = 0; i < n; i++) {
         final store = MemoryEventStore();
@@ -210,7 +210,7 @@ void main() {
           peerDiscoveryInterval: Duration(milliseconds: 100),
         );
 
-        final node = ModularGossipNode(
+        final node = Gossip(
           config: cfg,
           eventStore: store,
           transport: transports[i],
@@ -310,7 +310,7 @@ void main() {
         seed: seed,
       );
 
-      final nodes = <ModularGossipNode>[];
+      final nodes = <Gossip>[];
       final stores = <MemoryEventStore>[];
       for (var i = 0; i < n; i++) {
         final store = MemoryEventStore();
@@ -325,7 +325,7 @@ void main() {
           peerDiscoveryInterval: Duration(milliseconds: 150),
         );
         nodes.add(
-          ModularGossipNode(
+          Gossip(
             config: cfg,
             eventStore: store,
             transport: transports[i],
@@ -396,7 +396,7 @@ void main() {
           seed: seed,
         );
 
-        final nodes = <ModularGossipNode>[];
+        final nodes = <Gossip>[];
         final stores = <MemoryEventStore>[];
         for (var i = 0; i < n; i++) {
           final store = MemoryEventStore();
@@ -411,7 +411,7 @@ void main() {
             peerDiscoveryInterval: Duration(milliseconds: 100),
           );
           nodes.add(
-            ModularGossipNode(
+            Gossip(
               config: cfg,
               eventStore: store,
               transport: transports[i],

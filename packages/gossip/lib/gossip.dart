@@ -43,7 +43,7 @@ export 'src/event.dart';
 export 'src/vector_clock.dart';
 export 'src/event_store.dart';
 export 'src/gossip_node.dart';
-export 'src/modular_gossip_node.dart';
+export 'src/gossip.dart';
 export 'src/gossip_config.dart';
 export 'src/gossip_node_id.dart';
 export 'src/gossip_peer.dart';

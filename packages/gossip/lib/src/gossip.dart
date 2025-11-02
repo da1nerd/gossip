@@ -34,11 +34,19 @@ import 'package:gossip/src/domain/services/connected_peer_selection_service.dart
 import 'package:gossip/src/infrastructure/repositories/in_memory_connected_peer_repository.dart';
 import 'package:gossip/src/infrastructure/repositories/in_memory_identified_node_repository.dart';
 
-/// Clean architecture implementation of gossip protocol.
+/// Main class implementing a gossip protocol node.
 ///
-/// Provides the same core functionality as GossipNode but with better
-/// separation of concerns and testability.
-class ModularGossipNode {
+/// This class coordinates all aspects of the gossip protocol including:
+/// - Creating and managing local events
+/// - Synchronizing with peers through gossip exchanges
+/// - Managing vector clocks for causality tracking
+/// - Handling peer discovery and management
+/// - Providing hooks for application-layer integration
+///
+/// The node operates asynchronously and can handle multiple concurrent
+/// gossip exchanges. It's designed to be resilient to network failures
+/// and peer unavailability.
+class Gossip {
   final GossipConfig config;
   final EventStore eventStore;
   final GossipTransport transport;
@@ -59,7 +67,7 @@ class ModularGossipNode {
   bool _isInitialized = false;
 
   /// Creates a new modular gossip node.
-  ModularGossipNode({
+  Gossip({
     required this.config,
     required this.eventStore,
     required this.transport,
@@ -67,7 +75,7 @@ class ModularGossipNode {
   }) : _connectedPeerRepository = InMemoryConnectedPeerRepository();
 
   /// Alternative constructor for dependency injection (for testing).
-  ModularGossipNode.withDependencies({
+  Gossip.withDependencies({
     required this.config,
     required this.eventStore,
     required this.transport,
@@ -161,10 +169,7 @@ class ModularGossipNode {
     await _orchestrationService.shutdown();
     _eventCreationService.dispose();
 
-    if (_connectedPeerRepository is InMemoryConnectedPeerRepository) {
-      await (_connectedPeerRepository as InMemoryConnectedPeerRepository)
-          .dispose();
-    }
+    await _connectedPeerRepository.dispose();
 
     _isInitialized = false;
   }
