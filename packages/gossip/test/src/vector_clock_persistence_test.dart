@@ -33,7 +33,7 @@ import 'package:test/test.dart';
 import '../../lib/gossip.dart';
 
 /// Mock transport for testing - minimal implementation
-class MockTransport implements GossipTransport {
+class MockTransport extends GossipTransport {
   final String nodeId;
   final Map<String, MockTransport> _connections = {};
   final StreamController<IncomingDigest> _digestController =

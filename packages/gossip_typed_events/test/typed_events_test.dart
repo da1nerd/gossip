@@ -5,7 +5,7 @@ import 'package:gossip_typed_events/gossip_typed_events.dart';
 import 'package:test/test.dart';
 
 /// Mock transport for testing
-class MockTransport implements GossipTransport {
+class MockTransport extends GossipTransport {
   MockTransport(this.nodeId, this._network);
   final String nodeId;
   final Map<String, MockTransport> _network;

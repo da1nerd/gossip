@@ -19,7 +19,7 @@ import 'package:gossip/src/exceptions.dart';
 /// - Register nodes (transports) with addresses on the network
 /// - Wire each node to a ModularGossipNode or use-cases for testing
 /// - Drive gossip cycles in tests and collect metrics
-class SimulatedTransport implements GossipTransport {
+class SimulatedTransport extends GossipTransport {
   final SimulatedNetwork network;
   final TransportPeer self;
 

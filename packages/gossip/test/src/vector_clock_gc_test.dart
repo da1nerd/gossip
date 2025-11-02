@@ -4,7 +4,7 @@ import 'package:gossip/gossip.dart';
 import 'package:test/test.dart';
 
 /// Mock transport for testing vector clock garbage collection
-class MockGCTransport implements GossipTransport {
+class MockGCTransport extends GossipTransport {
   final String nodeId;
   final Map<String, MockGCTransport> _network;
 

@@ -5,7 +5,7 @@ import 'package:gossip_crdts/gossip_crdts.dart';
 import 'package:test/test.dart';
 
 /// Mock transport for testing
-class MockTransport implements GossipTransport {
+class MockTransport extends GossipTransport {
   final String nodeId;
   final Map<String, MockTransport> _network;
 

@@ -57,7 +57,7 @@ class RequestID {
 /// 1. Digest phase: Exchange vector clocks to determine what events are missing
 /// 2. Response phase: Send missing events and request needed events
 /// 3. Events phase: Send the requested events
-class NearbyConnectionsTransport implements GossipTransport {
+class NearbyConnectionsTransport extends GossipTransport {
   final String serviceId;
   final String userName;
 
