@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:gossip/src/transport.dart';
+import 'package:gossip/src/gossip_transport.dart';
 
 import 'simulated_transport.dart';
 

@@ -21,7 +21,7 @@ library;
 ///    step links this address to an identified node (outside of this entity)
 import 'dart:math' as math;
 
-import '../../transport.dart';
+import '../../gossip_transport.dart';
 
 class ConnectedPeer {
   /// Transport-level address used as the unique key for this peer.

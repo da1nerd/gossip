@@ -14,7 +14,7 @@
 library;
 
 import '../../gossip_node_id.dart';
-import '../../transport.dart';
+import '../../gossip_transport.dart';
 
 import '../ports/connected_peer_repository.dart';
 import '../ports/identified_node_repository.dart';

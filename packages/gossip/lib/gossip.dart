@@ -50,7 +50,7 @@ export 'src/gossip_peer.dart';
 export 'src/gossip_digest.dart';
 export 'src/gossip_digest_response.dart';
 export 'src/gossip_event_message.dart';
-export 'src/transport.dart';
+export 'src/gossip_transport.dart';
 export 'src/exceptions.dart';
 
 // Implementations

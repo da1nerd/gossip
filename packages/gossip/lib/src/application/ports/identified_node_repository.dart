@@ -1,7 +1,7 @@
 library;
 
 import '../../gossip_node_id.dart';
-import '../../transport.dart';
+import '../../gossip_transport.dart';
 import '../../domain/entities/identified_node.dart';
 
 /// Port for identity-level persistence of gossip nodes.

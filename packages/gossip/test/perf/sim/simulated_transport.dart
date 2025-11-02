@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:gossip/src/gossip_digest.dart';
 import 'package:gossip/src/gossip_digest_response.dart';
 import 'package:gossip/src/gossip_event_message.dart';
-import 'package:gossip/src/transport.dart';
+import 'package:gossip/src/gossip_transport.dart';
 import 'package:gossip/src/exceptions.dart';
 
 /// In-process, configurable transport for large-scale performance simulations.

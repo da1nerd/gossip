@@ -5,7 +5,7 @@ import 'dart:async';
 import 'package:gossip/src/application/ports/identified_node_repository.dart';
 import 'package:gossip/src/domain/entities/identified_node.dart';
 import 'package:gossip/src/gossip_node_id.dart';
-import 'package:gossip/src/transport.dart';
+import 'package:gossip/src/gossip_transport.dart';
 
 /// In-memory implementation of [IdentifiedNodeRepository].
 ///

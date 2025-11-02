@@ -4,7 +4,7 @@ import 'dart:async';
 
 import 'package:gossip/src/application/ports/connected_peer_repository.dart';
 import 'package:gossip/src/domain/entities/connected_peer.dart';
-import 'package:gossip/src/transport.dart';
+import 'package:gossip/src/gossip_transport.dart';
 
 /// In-memory implementation of [ConnectedPeerRepository].
 ///

@@ -6,7 +6,7 @@
 library;
 
 import 'gossip_node_id.dart';
-import 'transport.dart';
+import 'gossip_transport.dart';
 
 /// Represents a peer in the gossip network.
 ///

@@ -325,11 +325,7 @@ void main() {
           peerDiscoveryInterval: Duration(milliseconds: 150),
         );
         nodes.add(
-          Gossip(
-            config: cfg,
-            eventStore: store,
-            transport: transports[i],
-          ),
+          Gossip(config: cfg, eventStore: store, transport: transports[i]),
         );
       }
 
@@ -411,11 +407,7 @@ void main() {
             peerDiscoveryInterval: Duration(milliseconds: 100),
           );
           nodes.add(
-            Gossip(
-              config: cfg,
-              eventStore: store,
-              transport: transports[i],
-            ),
+            Gossip(config: cfg, eventStore: store, transport: transports[i]),
           );
         }
 

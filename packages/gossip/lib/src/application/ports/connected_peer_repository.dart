@@ -1,6 +1,6 @@
 library;
 
-import '../../transport.dart';
+import '../../gossip_transport.dart';
 import '../../domain/entities/connected_peer.dart';
 
 /// Port for managing transport-level peers that may not yet have a known

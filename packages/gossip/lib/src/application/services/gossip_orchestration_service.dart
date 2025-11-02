@@ -10,7 +10,7 @@ import 'dart:math';
 
 import '../../event.dart';
 import '../../gossip_config.dart';
-import '../../transport.dart';
+import '../../gossip_transport.dart';
 import '../use_cases/handle_incoming_digest_use_case.dart';
 import '../use_cases/handle_incoming_events_use_case.dart';
 import '../use_cases/connected_gossip_cycle_use_case.dart';

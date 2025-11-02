@@ -7,7 +7,7 @@ library;
 
 import 'dart:math' as math;
 import 'package:gossip/src/domain/entities/connected_peer.dart';
-import 'package:gossip/src/transport.dart';
+import 'package:gossip/src/gossip_transport.dart';
 
 /// Test helper class providing utilities for domain tests.
 class DomainTestHelpers {

@@ -15,7 +15,7 @@ import 'gossip_event_message.dart';
 import 'gossip_node_id.dart';
 import 'gossip_peer.dart';
 
-import 'transport.dart';
+import 'gossip_transport.dart';
 import 'vector_clock.dart';
 import 'vector_clock_store.dart';
 

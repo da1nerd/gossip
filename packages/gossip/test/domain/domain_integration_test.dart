@@ -3,7 +3,7 @@ import 'package:test/test.dart';
 import 'package:gossip/src/domain/entities/connected_peer.dart';
 import 'package:gossip/src/domain/services/connected_peer_selection_service.dart';
 import 'package:gossip/src/gossip_config.dart';
-import 'package:gossip/src/transport.dart';
+import 'package:gossip/src/gossip_transport.dart';
 import 'test_helpers.dart';
 
 void main() {

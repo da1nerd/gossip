@@ -13,7 +13,7 @@ import 'package:gossip/src/exceptions.dart';
 import 'package:gossip/src/gossip_config.dart';
 import 'package:gossip/src/gossip_peer.dart';
 import 'package:gossip/src/gossip_node_id.dart';
-import 'package:gossip/src/transport.dart';
+import 'package:gossip/src/gossip_transport.dart';
 import 'package:gossip/src/vector_clock.dart';
 import 'package:gossip/src/vector_clock_store.dart';
 

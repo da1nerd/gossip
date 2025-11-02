@@ -5,7 +5,7 @@ import 'package:gossip/src/gossip_event_message.dart';
 import 'package:gossip/src/gossip_node.dart' show GossipExchangeResult;
 import 'package:gossip/src/gossip_node_id.dart';
 import 'package:gossip/src/gossip_peer.dart';
-import 'package:gossip/src/transport.dart';
+import 'package:gossip/src/gossip_transport.dart';
 import 'package:gossip/src/application/services/vector_clock_service.dart';
 import 'package:gossip/src/vector_clock.dart';
 import 'package:gossip/src/domain/entities/connected_peer.dart';

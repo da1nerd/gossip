@@ -1,7 +1,7 @@
 library;
 
 import '../../gossip_node_id.dart';
-import '../../transport.dart';
+import '../../gossip_transport.dart';
 
 /// IdentifiedNode represents a gossip node with a known GossipNodeID,
 /// optionally associated with one or more transport addresses that can
