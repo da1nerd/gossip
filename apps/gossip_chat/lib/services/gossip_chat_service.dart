@@ -393,7 +393,8 @@ class GossipChatService extends ChangeNotifier {
       debugPrint(
         '📢 Announced ${isLeaving ? 'departure' : 'presence'} for $_nodeName (typed event)',
       );
-      debugPrint('🌐 Connected gossip peers: $connectedPeerCount');
+      final count = await connectedPeerCount;
+      debugPrint('🌐 Connected gossip peers: $count');
       debugPrint(
         '👥 Known chat peers: ${peers.length} (${onlinePeers.length} online)',
       );

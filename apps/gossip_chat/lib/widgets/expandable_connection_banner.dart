@@ -98,14 +98,21 @@ class _ExpandableConnectionBannerState
                     Icon(Icons.wifi_find, color: Colors.blue.shade700),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        chatService.hasConnectedPeers
-                            ? '${chatService.connectedPeerCount} device${chatService.connectedPeerCount != 1 ? 's' : ''} connected'
-                            : 'Looking for nearby devices...',
-                        style: TextStyle(
-                          color: Colors.blue.shade700,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: FutureBuilder<int>(
+                        future: chatService.connectedPeerCount,
+                        builder: (context, snapshot) {
+                          final count = snapshot.data ?? 0;
+                          final text = count > 0
+                              ? '$count device${count != 1 ? 's' : ''} connected'
+                              : 'Looking for nearby devices...';
+                          return Text(
+                            text,
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        },
                       ),
                     ),
                     Icon(
@@ -153,31 +160,41 @@ class _ExpandableConnectionBannerState
                     stats['connectionAttempts']?.toString() ?? '0',
                   ),
                   const SizedBox(height: 8),
-                  if (!chatService.hasConnectedPeers) ...[
-                    Text(
-                      '• Advertising your device to nearby phones',
-                      style: TextStyle(
-                        color: Colors.blue.shade600,
-                        fontSize: 11,
-                      ),
-                    ),
-                    Text(
-                      '• Scanning for other devices with this app',
-                      style: TextStyle(
-                        color: Colors.blue.shade600,
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Make sure: Bluetooth ON, Location ON, other devices within 20m with app open',
-                      style: TextStyle(
-                        color: Colors.blue.shade600,
-                        fontSize: 10,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
+                  FutureBuilder<int>(
+                    future: chatService.connectedPeerCount,
+                    builder: (context, snapshot) {
+                      final count = snapshot.data ?? 0;
+                      if (count > 0) return const SizedBox.shrink();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '• Advertising your device to nearby phones',
+                            style: TextStyle(
+                              color: Colors.blue.shade600,
+                              fontSize: 11,
+                            ),
+                          ),
+                          Text(
+                            '• Scanning for other devices with this app',
+                            style: TextStyle(
+                              color: Colors.blue.shade600,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Make sure: Bluetooth ON, Location ON, other devices within 20m with app open',
+                            style: TextStyle(
+                              color: Colors.blue.shade600,
+                              fontSize: 10,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ],
               ],
             ),

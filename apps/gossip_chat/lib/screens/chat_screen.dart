@@ -95,11 +95,17 @@ class _ChatScreenState extends State<ChatScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('Gossip Chat'),
-                Text(
-                  '${chatService.connectedPeerCount} peer${chatService.connectedPeerCount != 1 ? 's' : ''} connected (Debug: ${chatService.isStarted ? "Started" : "Stopped"})',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                FutureBuilder<int>(
+                  future: chatService.connectedPeerCount,
+                  builder: (context, snapshot) {
+                    final count = snapshot.data ?? 0;
+                    return Text(
+                      '$count peer${count != 1 ? 's' : ''} connected (Debug: ${chatService.isStarted ? "Started" : "Stopped"})',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                    );
+                  },
                 ),
               ],
             );
@@ -114,31 +120,37 @@ class _ChatScreenState extends State<ChatScreen> {
                 icon: Stack(
                   children: [
                     const Icon(Icons.people),
-                    if (chatService.hasConnectedPeers)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          child: Text(
-                            '${chatService.connectedPeerCount}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                    FutureBuilder<int>(
+                      future: chatService.connectedPeerCount,
+                      builder: (context, snapshot) {
+                        final count = snapshot.data ?? 0;
+                        if (count <= 0) return const SizedBox.shrink();
+                        return Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            textAlign: TextAlign.center,
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              '$count',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
+                    ),
                   ],
                 ),
                 onPressed: () {
