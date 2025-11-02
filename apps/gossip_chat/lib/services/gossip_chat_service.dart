@@ -174,11 +174,12 @@ class GossipChatService extends ChangeNotifier {
       // Initialize the event store
       await _eventStore.initialize();
 
+      // Initialize and start the new Gossip API
+      await _gossip.initialize();
+
       // Set up event listeners before starting the node
       _setupEventListeners();
 
-      // Initialize and start the new Gossip API
-      await _gossip.initialize();
       await _gossip.startGossiping();
 
       // Rebuild projections from stored events (Event Sourcing!)
