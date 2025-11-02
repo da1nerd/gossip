@@ -161,6 +161,8 @@ class Gossip {
     // Wire up event streams
     onEvent = _eventCreationService.eventCreated;
     onEventReceived = _orchestrationService.eventReceived;
+    onPeerAdded = _peerManagementService.peerAdded;
+    onPeerRemoved = _peerManagementService.peerRemoved;
 
     // Initialize services
     await _vectorClockService.initialize();
