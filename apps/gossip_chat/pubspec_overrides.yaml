@@ -5,3 +5,5 @@ dependency_overrides:
     path: ../../packages/gossip_crdts
   gossip_event_sourcing:
     path: ../../packages/gossip_event_sourcing
+  gossip_typed_events:
+    path: ../../packages/gossip_typed_events

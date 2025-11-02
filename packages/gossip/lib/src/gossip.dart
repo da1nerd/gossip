@@ -62,9 +62,11 @@ class Gossip {
   late final VectorClockService _vectorClockService;
   late final GossipOrchestrationService _orchestrationService;
 
-  // Public streams - simplified interface
+  // Public streams
   late final Stream<Event> onEvent;
   late final Stream<ReceivedEvent> onEventReceived;
+  late final Stream<GossipPeer> onPeerAdded;
+  late final Stream<GossipPeer> onPeerRemoved;
 
   bool _isInitialized = false;
 

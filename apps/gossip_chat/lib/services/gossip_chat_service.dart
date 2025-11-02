@@ -11,13 +11,14 @@ import 'package:gossip_chat_demo/services/event_sourcing/projections/chat_projec
 import 'package:gossip_chat_demo/models/chat_events.dart';
 import 'package:gossip_event_sourcing/gossip_event_sourcing.dart';
 import 'package:gossip_typed_events/gossip_typed_events.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'nearby_connections_transport.dart';
 import 'permissions_service.dart';
 
-/// Chat service using the GossipNode.
+/// Chat service using the Gossip.
 ///
 /// This service provides a clean, type-safe interface for chat functionality
 /// using the gossip protocol for event synchronization across devices.
@@ -29,7 +30,7 @@ class GossipChatService extends ChangeNotifier {
   String? _nodeId;
   String? _nodeName;
   late final NearbyConnectionsTransport _transport;
-  late final GossipNode _gossipNode;
+  late final Gossip _gossip;
   late final HiveEventStore _eventStore;
   late final HiveProjectionStore _projectionStore;
 
@@ -113,7 +114,7 @@ class GossipChatService extends ChangeNotifier {
       peerDiscoveryInterval: const Duration(seconds: 1),
     );
 
-    _gossipNode = GossipNode(
+    _gossip = Gossip(
       config: config,
       eventStore: _eventStore,
       transport: _transport,
@@ -176,8 +177,9 @@ class GossipChatService extends ChangeNotifier {
       // Set up event listeners before starting the node
       _setupEventListeners();
 
-      // Start the gossip node
-      await _gossipNode.start();
+      // Initialize and start the new Gossip API
+      await _gossip.initialize();
+      await _gossip.startGossiping();
 
       // Rebuild projections from stored events (Event Sourcing!)
       await _rebuildProjectionsFromStore();
@@ -264,8 +266,9 @@ class GossipChatService extends ChangeNotifier {
       await _peerAddedSubscription?.cancel();
       await _peerRemovedSubscription?.cancel();
 
-      // Stop gossip node
-      await _gossipNode.stop();
+      // Stop gossiping and shutdown node
+      await _gossip.stopGossiping();
+      await _gossip.shutdown();
 
       // Close event store
       await _eventStore.close();
@@ -287,7 +290,7 @@ class GossipChatService extends ChangeNotifier {
 
   void _setupEventListeners() {
     // Listen for events we create
-    _eventCreatedSubscription = _gossipNode.onEventCreated.listen(
+    _eventCreatedSubscription = _gossip.onEvent.listen(
       _handleEventCreated,
       onError: (error) {
         debugPrint('❌ Error in event created stream: $error');
@@ -295,7 +298,7 @@ class GossipChatService extends ChangeNotifier {
     );
 
     // Listen for events from other nodes
-    _eventReceivedSubscription = _gossipNode.onEventReceived.listen(
+    _eventReceivedSubscription = _gossip.onEventReceived.listen(
       _handleEventReceived,
       onError: (error) {
         debugPrint('❌ Error in event received stream: $error');
@@ -303,7 +306,7 @@ class GossipChatService extends ChangeNotifier {
     );
 
     // Listen for peer connections
-    _peerAddedSubscription = _gossipNode.onPeerAdded.listen(
+    _peerAddedSubscription = _gossip.onPeerAdded.listen(
       _handlePeerAdded,
       onError: (error) {
         debugPrint('❌ Error in peer added stream: $error');
@@ -311,7 +314,7 @@ class GossipChatService extends ChangeNotifier {
     );
 
     // Listen for peer disconnections
-    _peerRemovedSubscription = _gossipNode.onPeerRemoved.listen(
+    _peerRemovedSubscription = _gossip.onPeerRemoved.listen(
       _handlePeerRemoved,
       onError: (error) {
         debugPrint('❌ Error in peer removed stream: $error');
@@ -386,7 +389,7 @@ class GossipChatService extends ChangeNotifier {
         isLeaving ? 'departure' : 'announcement',
       );
 
-      await _gossipNode.createTypedEvent(presenceEvent);
+      await _gossip.createTypedEvent(presenceEvent);
       debugPrint(
         '📢 Announced ${isLeaving ? 'departure' : 'presence'} for $_nodeName (typed event)',
       );
@@ -424,7 +427,7 @@ class GossipChatService extends ChangeNotifier {
       }
 
       // Create typed event through gossip node
-      final gossipEvent = await _gossipNode.createTypedEvent(messageEvent);
+      final gossipEvent = await _gossip.createTypedEvent(messageEvent);
 
       // Create ChatMessage for return value
       final message = ChatMessage(
@@ -491,19 +494,31 @@ class GossipChatService extends ChangeNotifier {
   String? get error => _error;
 
   /// Number of connected gossip peers.
-  int get connectedPeerCount => _gossipNode.peers.length;
+  Future<int> get connectedPeerCount async => (await _gossip.peers).length;
 
   /// Whether we have any connected gossip peers.
-  bool get hasConnectedPeers => _gossipNode.peers.isNotEmpty;
+  Future<bool> get hasConnectedPeers async => (await connectedPeerCount) > 0;
 
   /// Get connection statistics for debugging.
   Future<Map<String, dynamic>> getConnectionStats() async {
-    final stats = <String, dynamic>{
-      'connectedGossipPeers': _gossipNode.peers.length,
-      'gossipPeerIds': _gossipNode.peers.map((p) => p.id.value).toList(),
-    };
+    final stats = <String, dynamic>{};
 
-    // Add transport stats for debugging (but don't expose transport peer count)
+    try {
+      if (_isInitialized) {
+        final peers = await _gossip.peers;
+        stats['connectedGossipPeers'] = peers.length;
+        stats['gossipPeerIds'] = peers.map((p) => p.id.value).toList();
+      } else {
+        stats['connectedGossipPeers'] = 0;
+        stats['gossipPeerIds'] = <String>[];
+      }
+    } catch (e) {
+      // TODO: log error
+      stats['connectedGossipPeers'] = 0;
+      stats['gossipPeerIds'] = <String>[];
+    }
+
+    // Add transport stats for debugging
     final transportStats = _transport.getStats();
     stats['transportStats'] = transportStats;
 
@@ -533,30 +548,6 @@ class GossipChatService extends ChangeNotifier {
     if (_error != null) {
       _error = null;
       notifyListeners();
-    }
-  }
-
-  /// Manually trigger peer discovery.
-  Future<void> discoverPeers() async {
-    if (!_isStarted) return;
-
-    try {
-      await _gossipNode.discoverPeers();
-      debugPrint('🔍 Triggered peer discovery');
-    } catch (e) {
-      debugPrint('❌ Peer discovery failed: $e');
-    }
-  }
-
-  /// Manually trigger gossip exchange.
-  Future<void> gossip() async {
-    if (!_isStarted) return;
-
-    try {
-      await _gossipNode.gossip();
-      debugPrint('🗣️ Triggered gossip exchange');
-    } catch (e) {
-      debugPrint('❌ Gossip exchange failed: $e');
     }
   }
 

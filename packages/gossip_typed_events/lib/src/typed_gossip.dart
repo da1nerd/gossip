@@ -1,6 +1,6 @@
-/// Typed event extensions for GossipNode.
+/// Typed event extensions for Gossip.
 ///
-/// This module provides type-safe extensions to the core GossipNode class
+/// This module provides type-safe extensions to the core Gossip class
 /// from the gossip library, enabling strongly-typed event creation and
 /// consumption while maintaining compatibility with the underlying protocol.
 library;
@@ -12,7 +12,7 @@ import 'package:gossip/gossip.dart';
 import 'typed_event.dart';
 import 'typed_event_registry.dart';
 
-/// Extension on GossipNode to support typed events.
+/// Extension on Gossip to support typed events.
 ///
 /// This extension adds type-safe methods for creating and consuming events
 /// while maintaining full compatibility with the underlying gossip protocol.
@@ -46,7 +46,7 @@ import 'typed_event_registry.dart';
 ///   print('Received ${received.typedEvent.userId} from ${received.fromPeer.id}');
 /// });
 /// ```
-extension TypedGossipNode on GossipNode {
+extension TypedGossip on Gossip {
   /// Creates a typed event.
   ///
   /// The typed event is automatically serialized and wrapped in the
@@ -140,7 +140,7 @@ extension TypedGossipNode on GossipNode {
       );
     }
 
-    return onEventCreated
+    return onEvent
         .where((event) => _isEventType(event, typeString))
         .map((event) {
           final typedEvent = _deserializeFromRegistry<T>(event, registry);
@@ -244,15 +244,6 @@ extension TypedGossipNode on GossipNode {
       _logDeserializationError(event, e, stackTrace);
       return null;
     }
-  }
-
-  /// Extracts typed event information without full deserialization.
-  TypedEventInfo _extractTypedEventInfo(Event event) {
-    final eventType = event.payload['type'] as String;
-    final data = event.payload['data'] as Map<String, dynamic>;
-    final version = event.payload['version'] as String? ?? '1.0';
-
-    return TypedEventInfo(type: eventType, data: data, version: version);
   }
 
   /// Logs deserialization errors (override this for custom logging).

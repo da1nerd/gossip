@@ -48,7 +48,7 @@ class RequestID {
 ///
 /// 2. **Gossip Level**: Creates temporary [GossipPeer] objects for interface
 ///    compatibility. The actual stable node IDs are revealed through the
-///    gossip protocol handshake and managed by the [GossipNode].
+///    gossip protocol handshake and managed by the Gossip layer (see [Gossip]).
 ///
 /// This separation allows the transport to handle connection mechanics while
 /// keeping node identity management at the application layer where it belongs.
