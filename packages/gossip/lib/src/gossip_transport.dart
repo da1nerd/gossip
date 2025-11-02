@@ -113,10 +113,10 @@ abstract class GossipTransport {
   /// connections or messages. After calling this method, the transport
   /// should not be used.
   @Deprecated('Use dispose instead')
-  Future<void> shutdown() => dispose();
+  Future<void> shutdown();
 
   /// Transport is being disposed of.
-  Future<void> dispose() async {}
+  Future<void> dispose() => shutdown();
 
   /// Starts active communication capabilities.
   ///
@@ -127,7 +127,7 @@ abstract class GossipTransport {
   ///
   /// Throws [TransportException] if starting fails.
   @Deprecated('Use onStartGossip instead')
-  Future<void> start() => onStartGossip();
+  Future<void> start();
 
   /// Stops active communication but keeps the transport initialized.
   ///
@@ -138,13 +138,13 @@ abstract class GossipTransport {
   ///
   /// Throws [TransportException] if stopping fails.
   @Deprecated('Use onStoppedGossip instead')
-  Future<void> stop() => onStoppedGossip();
+  Future<void> stop();
 
   /// Gossiping is about to start.
-  Future<void> onStartGossip() async {}
+  Future<void> onStartGossip() => start();
 
   /// Gossiping has stopped
-  Future<void> onStoppedGossip() async {}
+  Future<void> onStoppedGossip() => stop();
 
   /// Sends a gossip digest to a transport peer and waits for a response.
   ///
