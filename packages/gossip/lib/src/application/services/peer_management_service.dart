@@ -217,6 +217,16 @@ class PeerManagementService {
     _peerRemovedCtrl.add(peer);
   }
 
+  Future<List<GossipPeer>> listPeers() async {
+    final nodes = await identifiedNodeRepository.getAllNodes();
+    final peers = <GossipPeer>[];
+    for (final n in nodes) {
+      if (n.addresses.isEmpty) continue;
+      peers.add(await _buildGossipPeer(n));
+    }
+    return peers;
+  }
+
   /// Discover new peers using the transport layer.
   ///
   /// This method queries the transport for available peers and (in the

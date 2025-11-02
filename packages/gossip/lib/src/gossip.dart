@@ -206,47 +206,7 @@ class Gossip {
   /// Get current list of peers (converted to external GossipPeer format).
   Future<List<GossipPeer>> get peers async {
     _checkInitialized();
-    final nodes = await _identifiedNodeRepository.getAllNodes();
-
-    final result = <GossipPeer>[];
-    for (final n in nodes) {
-      if (n.addresses.isEmpty) continue;
-
-      // Select the address with the most recent successful contact.
-      var selectedAddress = n.addresses.first;
-      DateTime? selectedLastContact;
-      var selectedIsActive = true;
-
-      for (final addr in n.addresses) {
-        final cp = await _connectedPeerRepository.getByAddress(addr);
-        final cpTime = cp?.lastContactTime;
-        if (cpTime != null) {
-          if (selectedLastContact == null ||
-              cpTime.isAfter(selectedLastContact)) {
-            selectedAddress = addr;
-            selectedLastContact = cpTime;
-            selectedIsActive = cp?.isActive ?? true;
-          }
-        }
-      }
-
-      // If no address had a last contact time, derive isActive from the first address (if present).
-      if (selectedLastContact == null) {
-        final cp = await _connectedPeerRepository.getByAddress(selectedAddress);
-        selectedIsActive = cp?.isActive ?? true;
-      }
-
-      result.add(
-        GossipPeer(
-          id: n.id,
-          address: selectedAddress,
-          metadata: n.metadata,
-          lastContactTime: selectedLastContact,
-          isActive: selectedIsActive,
-        ),
-      );
-    }
-    return result;
+    return await _peerManagementService.listPeers();
   }
 
   /// Get current vector clock.
