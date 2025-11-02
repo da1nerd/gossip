@@ -92,7 +92,7 @@ class GossipOrchestrationService {
 
     // Ensure transport is started before scheduling timers
     await transport.start();
-    await transport.onStart();
+    await transport.onStartGossip();
 
     _startGossipTimer();
     _startAntiEntropyTimer();
@@ -108,7 +108,7 @@ class GossipOrchestrationService {
     _peerDiscoveryTimer?.cancel();
 
     // Stop transport to cease network activity
-    await transport.onStopped();
+    await transport.onStoppedGossip();
     await transport.stop();
 
     _isGossiping = false;

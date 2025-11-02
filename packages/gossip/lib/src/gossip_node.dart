@@ -175,7 +175,7 @@ class GossipNode {
     try {
       // Start active transport communication
       await transport.start();
-      await transport.onStart();
+      await transport.onStartGossip();
 
       // Start periodic gossip
       _startGossipTimer();
@@ -216,7 +216,7 @@ class GossipNode {
     _peerDiscoveryTimer?.cancel();
 
     // Stop active transport communication
-    await transport.onStopped();
+    await transport.onStoppedGossip();
     await transport.stop();
 
     _isGossiping = false;
