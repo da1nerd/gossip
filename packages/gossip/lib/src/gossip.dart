@@ -166,6 +166,7 @@ class Gossip {
 
     // Initialize services
     await _vectorClockService.initialize();
+    await _peerManagementService.initialize();
     await _orchestrationService.initialize();
 
     _isInitialized = true;
@@ -177,6 +178,7 @@ class Gossip {
 
     await _orchestrationService.shutdown();
     _eventCreationService.dispose();
+    await _peerManagementService.shutdown();
 
     await _connectedPeerRepository.dispose();
 
