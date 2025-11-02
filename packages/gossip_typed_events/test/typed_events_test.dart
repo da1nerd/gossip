@@ -459,7 +459,7 @@ void main() {
 
   group('TypedGossipNode', () {
     late Map<String, MockTransport> network;
-    late GossipNode node;
+    late Gossip node;
     late TypedEventRegistry registry;
 
     setUp(() async {
@@ -474,17 +474,18 @@ void main() {
           ValidatingEvent.fromJson,
         );
 
-      node = GossipNode(
+      node = Gossip(
         config: GossipConfig(nodeId: 'test-node'),
         eventStore: MemoryEventStore(),
         transport: MockTransport('test-node', network),
       );
 
-      await node.start();
+      await node.initialize();
+      await node.startGossiping();
     });
 
     tearDown(() async {
-      await node.stop();
+      await node.shutdown();
       registry.clear();
     });
 
@@ -794,7 +795,7 @@ void main() {
 
   group('Integration Tests', () {
     late Map<String, MockTransport> network;
-    late List<GossipNode> nodes;
+    late List<Gossip> nodes;
     late TypedEventRegistry registry;
 
     setUp(() async {
@@ -804,19 +805,22 @@ void main() {
         ..register<TestUserEvent>('test_user_event', TestUserEvent.fromJson);
 
       nodes = [
-        GossipNode(
+        Gossip(
           config: GossipConfig(nodeId: 'node1'),
           eventStore: MemoryEventStore(),
           transport: MockTransport('node1', network),
         ),
-        GossipNode(
+        Gossip(
           config: GossipConfig(nodeId: 'node2'),
           eventStore: MemoryEventStore(),
           transport: MockTransport('node2', network),
         ),
       ];
 
-      await Future.wait(nodes.map((node) => node.start()));
+      await Future.wait(nodes.map((node) async {
+        await node.initialize();
+        await node.startGossiping();
+      }));
 
       // Connect nodes
       nodes[0].addPeer(
@@ -834,7 +838,7 @@ void main() {
     });
 
     tearDown(() async {
-      await Future.wait(nodes.map((node) => node.stop()));
+      await Future.wait(nodes.map((node) => node.shutdown()));
       registry.clear();
     });
 
